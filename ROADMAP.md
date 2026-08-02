@@ -32,8 +32,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [ ] Identity foundation: Keycloak + OpenID Connect + JWT
 - [x] NestJS API skeleton (health, auth, logging, OpenAPI)
-- [ ] PostgreSQL schema (organizations, roles, customers, products, inventory, sales)
-- [ ] Prisma schema, migrations, and seed data
+- [x] PostgreSQL schema (organizations, roles, customers, products, inventory, sales)
+- [x] Prisma schema, migrations, and seed data
 - [ ] RabbitMQ + BullMQ infrastructure for events and jobs
 - [ ] Object storage integration (MinIO) with pre-signed uploads
 - [ ] Multi-tenant authorization framework (organization → role → member)

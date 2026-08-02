@@ -11,5 +11,5 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "prisma"]
 }

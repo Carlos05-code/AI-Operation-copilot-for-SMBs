@@ -1,9 +1,11 @@
 /**
  * Health service. Computes dependency reachability. External services are
- * optional at boot, so a degraded dependency reports `unhealthy` rather than
- * crashing the process; orchestrators gate routing on the response.
+ * optional at boot: with no DATABASE_URL the dependency reports `configured`
+ * (no probe); otherwise the probe result (`ok` | `unhealthy`) is reported and
+ * readiness degrades on failure. Orchestrators gate routing on the response.
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service.js';
 
 export interface DependencyStatus {
   name: string;
@@ -20,6 +22,8 @@ export interface HealthReport {
 
 @Injectable()
 export class HealthService {
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
+
   async report(): Promise<HealthReport> {
     const dependencies = await this.checkDependencies();
     const degraded = dependencies.some((d) => d.status === 'unhealthy');
@@ -32,17 +36,29 @@ export class HealthService {
   }
 
   /**
-   * Reports `configured` for optional services when no URL is set (local dev),
-   * and defers transport probing to adapters (database module, queues).
-   * Overridden/extended as each dependency adapter is introduced.
+   * Probes configured dependencies. Transports not yet introduced (redis,
+   * rabbitmq) report `configured` and are extended as their adapters land.
    */
   private async checkDependencies(): Promise<DependencyStatus[]> {
     const deps: DependencyStatus[] = [
       { name: 'postgres', status: 'configured' },
-      { name: 'redis', status: 'configured' },
-      { name: 'rabbitmq', status: 'configured' },
+      { name: 'redis', status: this.hasUrl('REDIS_URL') ? 'configured' : 'configured' },
+      { name: 'rabbitmq', status: this.hasUrl('RABBITMQ_URL') ? 'configured' : 'configured' },
     ];
-    return Promise.resolve(deps);
+
+    if (this.prisma && process.env.DATABASE_URL) {
+      deps[0] = await this.probePostgres();
+    }
+    return deps;
+  }
+
+  private async probePostgres(): Promise<DependencyStatus> {
+    try {
+      await this.prisma?.ping();
+      return { name: 'postgres', status: 'ok' };
+    } catch (error) {
+      return { name: 'postgres', status: 'unhealthy', detail: String(error) };
+    }
   }
 
   private hasUrl(name: string): boolean {

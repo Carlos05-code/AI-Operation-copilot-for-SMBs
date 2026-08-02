@@ -28,6 +28,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Health module: readiness (`GET /api/v1/health`) and liveness (`GET /api/v1/health/live`)
   - OpenAPI 3.1 document at `GET /api/v1/openapi.json` (generated from decorators, API_SPEC §10)
   - Environment config validation (class-validator on `process.env`)
+- PostgreSQL foundation (`prisma/`, DATABASE_SPEC §3/§8):
+  - Prisma schema: organizations, users, members (RBAC), customers, products, inventory movements,
+    sales orders + line items, invoices + items, tasks, documents, knowledge documents,
+    notifications, audit logs, and the outbox table (DATABASE_SPEC §10)
+  - Initial migration (`20260802034951_init`) with the §8 unique constraints and query indexes
+  - Idempotent development seed (`prisma/seed.ts`, `pnpm db:seed`)
+  - `DatabaseModule` with `PrismaService` (lazy connect when `DATABASE_URL` set) and a real
+    PostgreSQL probe in the readiness endpoint (`GET /api/v1/health` reports `ok`/`unhealthy`)
 
 ### Changed
 

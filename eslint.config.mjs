@@ -44,7 +44,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/scripts/**/*.ts'],
+    files: ['**/scripts/**/*.ts', '**/prisma/seed.ts'],
     rules: {
       // CLI entrypoints emit progress/status to stdout.
       'no-console': 'off',
