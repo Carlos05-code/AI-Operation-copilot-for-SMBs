@@ -7,14 +7,14 @@
 
 ## Context
 
-Services (API, workers, databases) and the AI toolchain need reproducible,
-portable execution everywhere: dev laptop, CI, and production. Options: bare
-metal, virtual machines, Docker containers, distroless, Podman.
+Services (API, workers, databases) and the AI toolchain need reproducible, portable execution
+everywhere: dev laptop, CI, and production. Options: bare metal, virtual machines, Docker
+containers, distroless, Podman.
 
 ## Decision
 
-Use **Docker** for all services; docker-compose.yml at repo root orchestractes
-the local environment.
+Use **Docker** for all services; docker-compose.yml at repo root orchestractes the local
+environment.
 
 - Images: multi-stage builds, minimal base images, pinned tags.
 - Compose for dev; Kubernetes (ADR-0010) for prod scheduling.
@@ -22,11 +22,11 @@ the local environment.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| VMs | Heavy, less reproducible per-service |
-| Bare metal + systemd | Ops-heavy, environment drift |
-| Podman | Compatible; team value still requires remote/CI; Docker default |
+| Option               | Trade-off                                                       |
+| -------------------- | --------------------------------------------------------------- |
+| VMs                  | Heavy, less reproducible per-service                            |
+| Bare metal + systemd | Ops-heavy, environment drift                                    |
+| Podman               | Compatible; team value still requires remote/CI; Docker default |
 
 ## Pros
 

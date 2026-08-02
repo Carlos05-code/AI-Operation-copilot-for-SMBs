@@ -1,11 +1,11 @@
 # Contributing
 
-First off, thank you for considering contributing to the **AI Operations Copilot for SMBs**.
-We value contributions from everyone, whether you are fixing a typo, adding a feature, improving
-the AI/operations pipelines, or increasing test coverage.
+First off, thank you for considering contributing to the **AI Operations Copilot for SMBs**. We
+value contributions from everyone, whether you are fixing a typo, adding a feature, improving the
+AI/operations pipelines, or increasing test coverage.
 
-Please take a moment to review this document and our
-[Code of Conduct](CODE_OF_CONDUCT.md) before you get started.
+Please take a moment to review this document and our [Code of Conduct](CODE_OF_CONDUCT.md) before
+you get started.
 
 ## Table of Contents
 
@@ -67,22 +67,22 @@ We follow **GitHub Flow**:
 
 Standard branch naming:
 
-| Prefix        | Purpose                    |
-| ------------- | -------------------------- |
-| `feat/`       | New feature or enhancement |
-| `fix/`        | Bug fix                    |
-| `docs/`       | Documentation              |
-| `chore/`      | Housekeeping               |
-| `refactor/`   | Refactoring                |
-| `perf/`       | Performance work           |
-| `test/`       | Test-only changes          |
-| `security/`   | Security fix               |
-| `release/`    | Release preparation        |
+| Prefix      | Purpose                    |
+| ----------- | -------------------------- |
+| `feat/`     | New feature or enhancement |
+| `fix/`      | Bug fix                    |
+| `docs/`     | Documentation              |
+| `chore/`    | Housekeeping               |
+| `refactor/` | Refactoring                |
+| `perf/`     | Performance work           |
+| `test/`     | Test-only changes          |
+| `security/` | Security fix               |
+| `release/`  | Release preparation        |
 
 ## Commit Convention
 
-Use [Conventional Commits](https://www.conventionalcommits.org/). Commits failing the
-`commitlint` rules are rejected by the git hook.
+Use [Conventional Commits](https://www.conventionalcommits.org/). Commits failing the `commitlint`
+rules are rejected by the git hook.
 
 ```
 <type>(<scope>): <short summary>

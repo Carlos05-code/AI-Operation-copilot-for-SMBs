@@ -7,26 +7,25 @@
 
 ## Context
 
-Semantic search and RAG require a vector store that co-locates embeddings for
-hybrid retrieval. Options: Qdrant, Pinecone, Weaviate, Milvus, pgvector.
+Semantic search and RAG require a vector store that co-locates embeddings for hybrid retrieval.
+Options: Qdrant, Pinecone, Weaviate, Milvus, pgvector.
 
 ## Decision
 
 Use **Qdrant** as the vector database.
 
-- Self-hosted or managed (drop-in), Rust-based, cosine distance, namespaced
-  collections per org.
+- Self-hosted or managed (drop-in), Rust-based, cosine distance, namespaced collections per org.
 - Payload indexing allowed for tenancy-scoped retrieval.
 - Primary embeddings: BGE-M3 (1024 dim), fallback OpenAI (as AI spec).
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Pinecone (SaaS) | Managed but cost + data sovereignty issues; not fully self-hosted |
-| Weaviate | Heavier, multi-model feature set we don't need yet |
-| pgvector | Autonomy within Postgres but limited for large-scale + advanced filtering |
-| Milvus | Powerful but heavier ops footprint |
+| Option          | Trade-off                                                                 |
+| --------------- | ------------------------------------------------------------------------- |
+| Pinecone (SaaS) | Managed but cost + data sovereignty issues; not fully self-hosted         |
+| Weaviate        | Heavier, multi-model feature set we don't need yet                        |
+| pgvector        | Autonomy within Postgres but limited for large-scale + advanced filtering |
+| Milvus          | Powerful but heavier ops footprint                                        |
 
 ## Pros
 

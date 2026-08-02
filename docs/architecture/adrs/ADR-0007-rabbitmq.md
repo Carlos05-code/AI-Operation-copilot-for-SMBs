@@ -7,16 +7,14 @@
 
 ## Context
 
-Multiple async flows: ingestion → NLP → indexing; invoice events → notifications;
-scheduler → workers. We need reliable, at-least-once delivery, multiple
-consumers (workers), optional routing, and durability. Options: RabbitMQ,
-Apache Kafka, Redis pub/sub, Google Pub/Sub
+Multiple async flows: ingestion → NLP → indexing; invoice events → notifications; scheduler →
+workers. We need reliable, at-least-once delivery, multiple consumers (workers), optional routing,
+and durability. Options: RabbitMQ, Apache Kafka, Redis pub/sub, Google Pub/Sub
 
 ## Decision
 
-Use **RabbitMQ** as the primary event/message bus, with **BullMQ** on Redis for
-job scheduling and queue processing where RabbitMQ doesn't provide native
-scheduler semantics.
+Use **RabbitMQ** as the primary event/message bus, with **BullMQ** on Redis for job scheduling and
+queue processing where RabbitMQ doesn't provide native scheduler semantics.
 
 - Exchange topology: fanout for domain-event fanout; queues for consumers.
 - Outbox pattern ensures at-least-once.
@@ -24,11 +22,11 @@ scheduler semantics.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Kafka | Heavy durability, log replay; more ops (a cluster) |
+| Option        | Trade-off                                          |
+| ------------- | -------------------------------------------------- |
+| Kafka         | Heavy durability, log replay; more ops (a cluster) |
 | Redis pub/sub | At-most-once, no durable consumers for major flows |
-| SQS | Cloud-bound (AWS); we want infra-portable |
+| SQS           | Cloud-bound (AWS); we want infra-portable          |
 
 ## Pros
 

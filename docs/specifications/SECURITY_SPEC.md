@@ -8,45 +8,45 @@ Status: **Draft · v0** · Owner: Carlos05-code
 - **Least privilege** — RBAC scopes + short-lived tokens + no over-scoped service accounts.
 - **Secure by default** — TLS everywhere, encrypted at rest, tenant isolation asserted by default.
 - **Data minimization** — store only what’s needed; PII expiry and export enabled.
-- **Zero trust on AI data** — instructions inside documents/OCR/chat are treated as *untrusted content*.
+- **Zero trust on AI data** — instructions inside documents/OCR/chat are treated as _untrusted
+  content_.
 
 ## 2. OWASP Top 10 Mitigations
 
-| # | Risk                        | Mitigation                                                                    |
-| - | --------------------------- | ----------------------------------------------------------------------------- |
-| A01 | Broken Access Control      | RBAC, tenancy `org_id` always on queries, deny-by-default guards             |
-| A02 | Cryptographic Failures     | TLS 1.2+, AES-256 at rest, argon2/bcrypt only where hashing is needed       |
-| A03 | Injection                  | Parameterized SQL via Prisma; no raw query building from user input        |
-| A04 | Insecure Design            | Threat modeling template, security reviews in CI checklist                  |
-| A05 | Security Misconfiguration  | Immutable config per env; validation gates; default deny policies           |
-| A06 | Vulnerable Components      | Renovate/ Dependabot on GH Actions; `pnpm audit` gate                      |
-| A07 | Authentication Failures    | Keycloak-managed sessions, short access, refresh rotation, MFA-ready        |
-| A08 | Software & Data Integrity  | Signed releases, checksummed container images, provenance                    |
-| A09 | Security Logging & Monitors| Audit log + trace log + alerts; correlation id                              |
-| A10 | SSRF / Request Forgery      | Outbound URL allow-list; no raw redirects to user-supplied filenames |
+| #   | Risk                        | Mitigation                                                            |
+| --- | --------------------------- | --------------------------------------------------------------------- |
+| A01 | Broken Access Control       | RBAC, tenancy `org_id` always on queries, deny-by-default guards      |
+| A02 | Cryptographic Failures      | TLS 1.2+, AES-256 at rest, argon2/bcrypt only where hashing is needed |
+| A03 | Injection                   | Parameterized SQL via Prisma; no raw query building from user input   |
+| A04 | Insecure Design             | Threat modeling template, security reviews in CI checklist            |
+| A05 | Security Misconfiguration   | Immutable config per env; validation gates; default deny policies     |
+| A06 | Vulnerable Components       | Renovate/ Dependabot on GH Actions; `pnpm audit` gate                 |
+| A07 | Authentication Failures     | Keycloak-managed sessions, short access, refresh rotation, MFA-ready  |
+| A08 | Software & Data Integrity   | Signed releases, checksummed container images, provenance             |
+| A09 | Security Logging & Monitors | Audit log + trace log + alerts; correlation id                        |
+| A10 | SSRF / Request Forgery      | Outbound URL allow-list; no raw redirects to user-supplied filenames  |
 
 ## 3. Authentication (JWT / OAuth2 / OIDC)
 
 - Keycloak is the IdP; the client uses **Authorization Code flow (+ PKCE)**.
-- Access token JWT (`RS256` from Keycloak JWKS) — validated `iss`, `aud`, `exp`,
-  `nbf`, `azp`/`sid`; `org_id` and `org.role` claims drive RBAC.
-- Refresh tokens rotated on use, HTTP-only cookie transport in web; secure storage
-  in apps.
-- Row-level tenancy: server-side lookup of `org_id` from the token claims;
-  mutating endpoints assert `member.role` ≥ required.
+- Access token JWT (`RS256` from Keycloak JWKS) — validated `iss`, `aud`, `exp`, `nbf`, `azp`/`sid`;
+  `org_id` and `org.role` claims drive RBAC.
+- Refresh tokens rotated on use, HTTP-only cookie transport in web; secure storage in apps.
+- Row-level tenancy: server-side lookup of `org_id` from the token claims; mutating endpoints assert
+  `member.role` ≥ required.
 
 ## 4. RBAC Model
 
-| Role     | Scope            | Representative permissions              |
-| -------- | ---------------- | --------------------------------------- |
-| `owner`  | whole org        | all, billing, invites, integrations       |
-| `admin`  | whole org        | all except billing                        |
-| `manager`| assigned teams   | CRUD operational entities; approve AI actions |
-| `agent`  | assigned scope   | read/write assigned entities; chat          |
-| `viewer` | read-only        | dashboards, documents read                 |
+| Role      | Scope          | Representative permissions                    |
+| --------- | -------------- | --------------------------------------------- |
+| `owner`   | whole org      | all, billing, invites, integrations           |
+| `admin`   | whole org      | all except billing                            |
+| `manager` | assigned teams | CRUD operational entities; approve AI actions |
+| `agent`   | assigned scope | read/write assigned entities; chat            |
+| `viewer`  | read-only      | dashboards, documents read                    |
 
-Enforcement: Nest guard (`RolesGuard`) + `TenancyGuard` at route level; entity-level
-checks in application services.
+Enforcement: Nest guard (`RolesGuard`) + `TenancyGuard` at route level; entity-level checks in
+application services.
 
 ## 5. Secrets Management
 
@@ -57,19 +57,18 @@ checks in application services.
 
 ## 6. Audit Logs
 
-- Actions: auth events, RBAC changes, data exports, payment/invoice, document
-  deletes, AI execution.
+- Actions: auth events, RBAC changes, data exports, payment/invoice, document deletes, AI execution.
 - Payload: `actor, action, resource, ts, ip, org_id, result`.
 - Retention: ≥ 400 days (stage), longer for invoicing where required.
 - Stored in `audit_logs` (PostgreSQL) + shipped to OpenSearch for analysis.
 
 ## 7. Encryption
 
-- At rest: Volume encryption (cloud-default) for PostgreSQL, S3/SSE for MinIO,
-  encrypted Cosmos; Redis follows suite.
+- At rest: Volume encryption (cloud-default) for PostgreSQL, S3/SSE for MinIO, encrypted Cosmos;
+  Redis follows suite.
 - In transit: TLS everywhere; DB TLS required; internal mesh MTLS where supported.
-- Application-level: PII/secret columns encrypted at app layer when mandated
-  (e.g., customer tax IDs via envelope key).
+- Application-level: PII/secret columns encrypted at app layer when mandated (e.g., customer tax IDs
+  via envelope key).
 - At-rest backup encryption with unique keys.
 
 ## 8. Prompt Injection Protection
@@ -106,22 +105,22 @@ checks in application services.
 
 ## 12. Compliance Considerations
 
-- Alignment effort: SOC 2 Type I/II (later), GDPR (early), PCI (payment via
-  stripe-like service, not stored in-house).
+- Alignment effort: SOC 2 Type I/II (later), GDPR (early), PCI (payment via stripe-like service, not
+  stored in-house).
 - Deletion contracts for LLM provider embeddings when customer data used (BYOK).
-- Privacy policy, Terms of Service, Data Processing Agreement artifacts in
-  `docs/` (lawyer review before legal use).
+- Privacy policy, Terms of Service, Data Processing Agreement artifacts in `docs/` (lawyer review
+  before legal use).
 
 ## 13. Security Testing
 
-| Type | Tool | Cadence |
-| ---- | ---- | ------- |
-| SAST | Semgrep | on PR (`security-scan.yml`) |
-| Secret scanning | gitleaks | on PR |
-| Dependency | `pnpm audit` + `npm audit` | on PR & daily |
-| Image | Trivy | on release |
-| DAST | scheduled OWASP ZAP (staging) | weekly |
-| Dependency review | GitHub+Dependabot | on PR per manifest change |
+| Type              | Tool                          | Cadence                     |
+| ----------------- | ----------------------------- | --------------------------- |
+| SAST              | Semgrep                       | on PR (`security-scan.yml`) |
+| Secret scanning   | gitleaks                      | on PR                       |
+| Dependency        | `pnpm audit` + `npm audit`    | on PR & daily               |
+| Image             | Trivy                         | on release                  |
+| DAST              | scheduled OWASP ZAP (staging) | weekly                      |
+| Dependency review | GitHub+Dependabot             | on PR per manifest change   |
 
 ## 14. Roles & Responsibilities
 

@@ -2,15 +2,14 @@
 
 Container definitions for the platform.
 
-| File | Purpose |
-| ---- | ------- |
-| `Dockerfile.api` | NestJS backend image (multi-stage, node 20-slim) |
-| `Dockerfile.worker` | BullMQ worker image (shares base with API) |
-| `Dockerfile.mobile` | Flutter build image (debug/release artifact) |
+| File                | Purpose                                          |
+| ------------------- | ------------------------------------------------ |
+| `Dockerfile.api`    | NestJS backend image (multi-stage, node 20-slim) |
+| `Dockerfile.worker` | BullMQ worker image (shares base with API)       |
+| `Dockerfile.mobile` | Flutter build image (debug/release artifact)     |
 
-Root `docker-compose.yml` orchestrates all development services (see the repo
-root README). Production images are referenced by
-`infrastructure/kubernetes` through the GHCR registry.
+Root `docker-compose.yml` orchestrates all development services (see the repo root README).
+Production images are referenced by `infrastructure/kubernetes` through the GHCR registry.
 
 ## Best practices applied
 

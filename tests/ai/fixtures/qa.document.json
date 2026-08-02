@@ -18,7 +18,7 @@
       "answer": "Damaged goods are replaced within 14 days of delivery when the claim is made by email.",
       "citations": ["damaged goods are replaced within 14 days"]
     },
-{
+    {
       "qid": "qa-002",
       "question": "Who is responsible for vendor onboarding?",
       "gold": "Vendor onboarding is owned by the procurement team.",
@@ -32,9 +32,7 @@
       "qid": "qa-003",
       "question": "What discount is applied to first orders?",
       "gold": "First orders receive 10% off.",
-      "retrieved": [
-        "Welcoming offer: new wholesale accounts receive 10% off their first order."
-      ],
+      "retrieved": ["Welcoming offer: new wholesale accounts receive 10% off their first order."],
       "answer": "New wholesale accounts receive 10% off their first order.",
       "citations": ["10% off their first order"]
     }

@@ -7,27 +7,26 @@
 
 ## Context
 
-We need full-text search (invoice numbers, keywords) and log aggregation.
-Options: Elasticsearch, OpenSearch, Meilisearch, Solr.
+We need full-text search (invoice numbers, keywords) and log aggregation. Options: Elasticsearch,
+OpenSearch, Meilisearch, Solr.
 
 ## Decision
 
 Use **OpenSearch** for:
 
 1. Full-text (BM25) and hybrid search indexes over business/knowledge text.
-2. Aggregations and reporting read models (with exports).
-   (Log ingestion is handled by Loki per ADR-0011; OpenSearch focuses on search.)
+2. Aggregations and reporting read models (with exports). (Log ingestion is handled by Loki per
+   ADR-0011; OpenSearch focuses on search.)
 
-Self-hostable, Apache-licensed alternative to Elasticsearch with the feature
-parity we need.
+Self-hostable, Apache-licensed alternative to Elasticsearch with the feature parity we need.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
+| Option        | Trade-off                                              |
+| ------------- | ------------------------------------------------------ |
 | Elasticsearch | License (ELv2/SSPL) friction, otherwise near-identical |
-| Meilisearch | Simpler, but weaker analytics/aggregation |
-| Solr | Mature, but heavier ops + less dynamic |
+| Meilisearch   | Simpler, but weaker analytics/aggregation              |
+| Solr          | Mature, but heavier ops + less dynamic                 |
 
 ## Pros
 

@@ -7,6 +7,7 @@ dist/
 build/
 coverage/
 *.tsbuildinfo
+.turbo/
 .flutter-plugins
 .flutter-plugins-dependencies
 .flutter_tools_hooks.json

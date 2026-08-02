@@ -6,18 +6,19 @@ Status: **Draft · v0** · Owner: Carlos05-code
 
 ## 1. Overview
 
-The platform uses a **polyglot persistence** model. Each store owns a
-well-defined responsibility (see [ADR-0004](../architecture/adrs/ADR-0004-postgresql.md),
-[ADR-0005](../architecture/adrs/ADR-0005-neo4j.md), [ADR-0006](../architecture/adrs/ADR-0006-qdrant.md),
+The platform uses a **polyglot persistence** model. Each store owns a well-defined responsibility
+(see [ADR-0004](../architecture/adrs/ADR-0004-postgresql.md),
+[ADR-0005](../architecture/adrs/ADR-0005-neo4j.md),
+[ADR-0006](../architecture/adrs/ADR-0006-qdrant.md),
 [ADR-0013](../architecture/adrs/ADR-0013-redis.md)).
 
-| Store       | Responsibility                                            | Consistency model |
-| ----------- | --------------------------------------------------------- | ----------------- |
-| PostgreSQL  | System of record; transactions; relational business data  | Strong (ACID)     |
-| Neo4j       | Knowledge graph relationships; expertise & documents       | Eventual (write-through) |
-| Qdrant      | Vector embeddings and semantic retrieval                 | Eventual          |
-| OpenSearch  | Full-text + hybrid search index                           | Eventual          |
-| Redis       | Cache, sessions, queues (BullMQ), rate limiting           | Eventually consistent at cache TTL |
+| Store      | Responsibility                                           | Consistency model                  |
+| ---------- | -------------------------------------------------------- | ---------------------------------- |
+| PostgreSQL | System of record; transactions; relational business data | Strong (ACID)                      |
+| Neo4j      | Knowledge graph relationships; expertise & documents     | Eventual (write-through)           |
+| Qdrant     | Vector embeddings and semantic retrieval                 | Eventual                           |
+| OpenSearch | Full-text + hybrid search index                          | Eventual                           |
+| Redis      | Cache, sessions, queues (BullMQ), rate limiting          | Eventually consistent at cache TTL |
 
 ## 2. Naming Conventions
 
@@ -64,22 +65,22 @@ Key entities (foundation only — see ROADMAP/ API_SPEC for the full boundary):
 
 ### 3.1 Core tables (foundation)
 
-| Table          | Purpose                                          |
-| -------------- | ------------------------------------------------ |
-| `organizations` | Tenant row; `slug` unique; plan/billing metadata |
-| `users`         | Identity; linked to Keycloak `auth_id`; interop  |
-| `members`       | Org membership + role (RBAC)                      |
-| `customers`     | Customers per org; channel handles (whatsapp)     |
-| `products`      | SKUs, prices, cost, reorder point                 |
-| `inventory_movements` | stock ledger (in/out)                       |
-| `sales_orders`  | Orders (line items normalized)                    |
-| `invoices`      | Invoice header + status flow                       |
-| `invoice_items` | line-level items + taxes                           |
-| `tasks`         | AI-planned + human tasks, with agent metadata      |
-| `documents`     | metadata about uploads; content in MinIO          |
+| Table                 | Purpose                                           |
+| --------------------- | ------------------------------------------------- |
+| `organizations`       | Tenant row; `slug` unique; plan/billing metadata  |
+| `users`               | Identity; linked to Keycloak `auth_id`; interop   |
+| `members`             | Org membership + role (RBAC)                      |
+| `customers`           | Customers per org; channel handles (whatsapp)     |
+| `products`            | SKUs, prices, cost, reorder point                 |
+| `inventory_movements` | stock ledger (in/out)                             |
+| `sales_orders`        | Orders (line items normalized)                    |
+| `invoices`            | Invoice header + status flow                      |
+| `invoice_items`       | line-level items + taxes                          |
+| `tasks`               | AI-planned + human tasks, with agent metadata     |
+| `documents`           | metadata about uploads; content in MinIO          |
 | `knowledge_documents` | org-scoped KB entries (reference to MinIO object) |
-| `notifications` | notifications per user/org channel                 |
-| `audit_logs`    | audit events (compliance)                         |
+| `notifications`       | notifications per user/org channel                |
+| `audit_logs`          | audit events (compliance)                         |
 
 ### 3.2 ER Diagram (foundation)
 
@@ -104,13 +105,13 @@ erDiagram
 
 ## 4. Neo4j Graph Model
 
-Purpose: model **knowledge** relationships that are expensive/impossible in SQL:
-documents ↔ entities ↔ people ↔ policies, and organizational expertise.
+Purpose: model **knowledge** relationships that are expensive/impossible in SQL: documents ↔
+entities ↔ people ↔ policies, and organizational expertise.
 
 Core node types:
 
-- `:Organization`, `:Person`, `:Document`, `:Chunk`, `:Entity`,
-  `:Policy`, `:Customer`, `:Product`, `:Conversation`, `:Task`.
+- `:Organization`, `:Person`, `:Document`, `:Chunk`, `:Entity`, `:Policy`, `:Customer`, `:Product`,
+  `:Conversation`, `:Task`.
 
 Key relationship types:
 
@@ -136,28 +137,29 @@ flowchart LR
     C --> C2[Person]
 ```
 
-Constraints: `UNIQUE` on `Organization.id`, `Person.id`, `Document.id`, `Entity.canonical` (per org).
+Constraints: `UNIQUE` on `Organization.id`, `Person.id`, `Document.id`, `Entity.canonical` (per
+org).
 
 ## 5. Qdrant Collections
 
-| Collection        | Vector size | Distance | Payload                               |
-| ----------------- | ----------- | -------- | ------------------------------------- |
-| `doc_chunks_{org}`| 1024 (EMBEDDING_DIMENSION) | Cosine | source_document_id, org_id, page, text_preview, chunk_id |
-| `conversation_{org}` | 1024    | Cosine | customer_id, channel, timestamp        |
+| Collection           | Vector size                | Distance | Payload                                                  |
+| -------------------- | -------------------------- | -------- | -------------------------------------------------------- |
+| `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text_preview, chunk_id |
+| `conversation_{org}` | 1024                       | Cosine   | customer_id, channel, timestamp                          |
 
-Quotas: one collection per org (namespace pattern) to support tenancy and
-rewrite/deletion. Payload indexed on `org_id` and `source_document_id`.
+Quotas: one collection per org (namespace pattern) to support tenancy and rewrite/deletion. Payload
+indexed on `org_id` and `source_document_id`.
 
 ## 6. Redis Usage
 
-| Use                        | Key pattern                        |
-| -------------------------- | ---------------------------------- |
-| Cache                      | `cache:{module}:{id}`  (TTL)            |
-| Rate limiting              | `rl:{route}:{userId}` window         |
-| Session (optional)         | `sess:{token}`                      |
-| BullMQ queue (Redis)       | `bull:invoice-*`, `bull:embed-*`     |
-| Distributed locks          | `lock:{resource}` (NX)               |
-| Idempotency keys           | `idem:{userId}:{action}`            |
+| Use                  | Key pattern                      |
+| -------------------- | -------------------------------- |
+| Cache                | `cache:{module}:{id}` (TTL)      |
+| Rate limiting        | `rl:{route}:{userId}` window     |
+| Session (optional)   | `sess:{token}`                   |
+| BullMQ queue (Redis) | `bull:invoice-*`, `bull:embed-*` |
+| Distributed locks    | `lock:{resource}` (NX)           |
+| Idempotency keys     | `idem:{userId}:{action}`         |
 
 ## 7. Search Index (OpenSearch)
 
@@ -186,27 +188,26 @@ CREATE INDEX idx_tasks_org_assignee ON tasks (organization_id, assignee_id) WHER
 CREATE INDEX idx_audit_org ON audit_logs (organization_id, created_at DESC);
 ```
 
-> Indexes are a **first-class deliverable** per feature; every new query must run
-> under `EXPLAIN` before merge.
+> Indexes are a **first-class deliverable** per feature; every new query must run under `EXPLAIN`
+> before merge.
 
 ## 9. Migration Strategy
 
 - **Prisma migrations** are the single source of truth for PostgreSQL schema.
 - Migration workflow: `prisma migrate dev` → review → `migrate deploy` (CI).
 - Data migrations via Idempotent `prisma db execute --file` scripts.
-- Multi-tenant care: `migrations` run in **no-downtime** mode on prod (expands),
-  followed by backfills, followed by contract changes.
+- Multi-tenant care: `migrations` run in **no-downtime** mode on prod (expands), followed by
+  backfills, followed by contract changes.
 
 ## 10. Process & Consistency
 
-- No cross-entity long transactions; decompose into small units plus the outbox
-  pattern (write to DB + enqueue event atomically via the outbox table).
+- No cross-entity long transactions; decompose into small units plus the outbox pattern (write to
+  DB + enqueue event atomically via the outbox table).
 - Graph, vector, and search indexes are **read models** built from the same events.
 
 ## 11. Security
 
-- Row-level security recommended for direct query; always filter by `org_id`
-  in application layer.
+- Row-level security recommended for direct query; always filter by `org_id` in application layer.
 - Network isolation between tiers; TLS for all connections.
 - Secrets (passwords, buckets) from `configs/` env — never hard-coded.
 - Backups: WAL archiving + PITR (see [DEVOPS_SPEC](./DEVOPS_SPEC.md)).

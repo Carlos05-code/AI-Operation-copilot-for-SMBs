@@ -5,6 +5,7 @@ node_modules
 package-lock.json
 pnpm-lock.yaml
 *.snap
+generated
 .env
 .DS_Store
 pnpm-debug.log*

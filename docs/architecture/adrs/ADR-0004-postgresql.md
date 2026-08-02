@@ -7,29 +7,26 @@
 
 ## Context
 
-The platform needs a strong relational store for transactional business data:
-organizations, users, products, inventory, sales, invoices, tasks, audit logs.
-Requirements: ACID, multi-tenant isolation, rich types, wide ecosystem, mature
-tooling in Prisma, and operational simplicity. Options: PostgreSQL, MySQL,
-SQL Server, DynamoDB (NewSQL renaming), CockroachDB.
+The platform needs a strong relational store for transactional business data: organizations, users,
+products, inventory, sales, invoices, tasks, audit logs. Requirements: ACID, multi-tenant isolation,
+rich types, wide ecosystem, mature tooling in Prisma, and operational simplicity. Options:
+PostgreSQL, MySQL, SQL Server, DynamoDB (NewSQL renaming), CockroachDB.
 
 ## Decision
 
-Use **PostgreSQL** as the primary relational database, accessed via **Prisma**
-ORM.
+Use **PostgreSQL** as the primary relational database, accessed via **Prisma** ORM.
 
-- Multi-tenant: single database instance with row-level `org_id` + RBAC
-  (see SECURITY).
+- Multi-tenant: single database instance with row-level `org_id` + RBAC (see SECURITY).
 - Data in third normalized form with migrations as code (Prisma).
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| MySQL | Close; slightly weaker advanced features (arrays, JSONB) |
-| SQL Server | Strong, but licensing + ops focus cross team |
-| DynamoDB | Not ACID-friendly for joins; schema separates harder |
-| CockroachDB | Distributed PG, overkill at this stage |
+| Option      | Trade-off                                                |
+| ----------- | -------------------------------------------------------- |
+| MySQL       | Close; slightly weaker advanced features (arrays, JSONB) |
+| SQL Server  | Strong, but licensing + ops focus cross team             |
+| DynamoDB    | Not ACID-friendly for joins; schema separates harder     |
+| CockroachDB | Distributed PG, overkill at this stage                   |
 
 ## Pros
 

@@ -13,23 +13,23 @@ Status: **Draft · v0** · Owner: Carlos05-code
    Unit (many)
 ```
 
-| Level                 | Where            | Tooling                                          |
-| --------------------- | ---------------- | ------------------------------------------------ |
-| Unit (pure)           | domain/services  | Jest (TS), flutter_test (Dart)                    |
-| Integration           | DB/adapters      | Supertest + Jest, Prisma testcontainers           |
-| Widget (Flutter)      | widgets          | flutter_test + widget_test                        |
-| E2E (API)             | `/tests`         | Supertest flows (Happy paths)                     |
-| E2E (Flutter)         | `integration_test` | integration_test package                          |
-| Load / PERF           | `/tests/load`    | k6                                              |
-| Security              | `/tests/security`| OWASP ZAP / Semgrep (see SECURITY)                 |
-| AI evaluation         | `tests/ai`       | pytest/test harness eval set                       |
+| Level            | Where              | Tooling                                 |
+| ---------------- | ------------------ | --------------------------------------- |
+| Unit (pure)      | domain/services    | Jest (TS), flutter_test (Dart)          |
+| Integration      | DB/adapters        | Supertest + Jest, Prisma testcontainers |
+| Widget (Flutter) | widgets            | flutter_test + widget_test              |
+| E2E (API)        | `/tests`           | Supertest flows (Happy paths)           |
+| E2E (Flutter)    | `integration_test` | integration_test package                |
+| Load / PERF      | `/tests/load`      | k6                                      |
+| Security         | `/tests/security`  | OWASP ZAP / Semgrep (see SECURITY)      |
+| AI evaluation    | `tests/ai`         | pytest/test harness eval set            |
 
 ## 2. Unit Tests
 
 - Pure domain logic without framework running.
 - Use-cases tested against fake ports (never DB in unit tests).
-- Coverage: 90% line (in `pnpm coverage`), statement coverage enforced in
-  `jest.config` `coverageThreshold`.
+- Coverage: 90% line (in `pnpm coverage`), statement coverage enforced in `jest.config`
+  `coverageThreshold`.
 
 ## 3. Integration Tests
 
@@ -66,10 +66,10 @@ Status: **Draft · v0** · Owner: Carlos05-code
 
 ## 8. Coverage Targets
 
-| Layer       | Target    |
-| ----------- | --------- |
-| Backend core | ≥ 90% |
-| Flutter      | ≥ 85% |
+| Layer        | Target                  |
+| ------------ | ----------------------- |
+| Backend core | ≥ 90%                   |
+| Flutter      | ≥ 85%                   |
 | AI eval set  | 100% pass (per release) |
 
 ## 9. CI Testing Pipeline
@@ -97,9 +97,8 @@ flowchart LR
 
 ## 11. Definition of "Test Completed"
 
-A feature is only shipped when unit + integration + (if applicable) the
-capability E2E passes locally AND in CI on the PR head, and performance targets
-are within monitored budget.
+A feature is only shipped when unit + integration + (if applicable) the capability E2E passes
+locally AND in CI on the PR head, and performance targets are within monitored budget.
 
 ## 12. References
 

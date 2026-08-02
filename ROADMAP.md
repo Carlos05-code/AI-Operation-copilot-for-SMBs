@@ -1,8 +1,7 @@
 # Roadmap
 
-The delivery plan is organized into phases. Phases are feature-focused and
-align end-to-end value with architectural maturity. Dates are indicative;
-priorities are rebalanced at each sprint review.
+The delivery plan is organized into phases. Phases are feature-focused and align end-to-end value
+with architectural maturity. Dates are indicative; priorities are rebalanced at each sprint review.
 
 Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
@@ -17,7 +16,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Tooling (pnpm workspaces, Turborepo, ESLint, Prettier, commitlint)
 - [x] Issue templates and CI/CD workflow baseline
 - [x] Local infrastructure baseline (Docker Compose)
-- [~] Design system foundation (`packages/ui`, `DESIGN_SYSTEM.md`)
+- [x] Design system foundation (`packages/ui`, `DESIGN_SYSTEM.md`)
 
 **Exit criteria**
 
@@ -118,10 +117,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ## Guiding Principles
 
-1. **Documentation before code** — each milestone ships with updated docs,
-   diagrams, and ADRs in the same change.
-2. **Vertical slices first** — a working end-to-end path reveals more than
-   many horizontal layers.
-3. **The operating bar**: exit criteria from `CONTRIBUTING.md` apply to every
-   feature; no stubs, no placeholders.
+1. **Documentation before code** — each milestone ships with updated docs, diagrams, and ADRs in the
+   same change.
+2. **Vertical slices first** — a working end-to-end path reveals more than many horizontal layers.
+3. **The operating bar**: exit criteria from `CONTRIBUTING.md` apply to every feature; no stubs, no
+   placeholders.
 4. **Operations and security are first-class** — never afterthoughts.

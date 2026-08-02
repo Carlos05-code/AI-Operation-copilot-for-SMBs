@@ -7,9 +7,9 @@
 
 ## Context
 
-We need a unified way to observe the whole system: distributed traces across
-API → events → workers → AI, metrics for SLOs, and structured logs. Options:
-vendor-specific SDKs, Jaeger + Prometheus + Fluentd (manual), OpenTelemetry.
+We need a unified way to observe the whole system: distributed traces across API → events → workers
+→ AI, metrics for SLOs, and structured logs. Options: vendor-specific SDKs, Jaeger + Prometheus +
+Fluentd (manual), OpenTelemetry.
 
 ## Decision
 
@@ -20,16 +20,15 @@ Use **OpenTelemetry** as the single instrumentation standard, exporting to:
 - **Loki** for logs
 - Traces to the configured backend (Tempo or vendor)
 
-All services instrument via OTel SDK; correlation ID (`req_id` + `trace_id`)
-threaded everywhere.
+All services instrument via OTel SDK; correlation ID (`req_id` + `trace_id`) threaded everywhere.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Custom metrics/logging | Duplication, no traces, high maintenance |
-| Jaeger only | Traces only, metrics separate |
-| Vendor-specific (Datadog) | Great but cost + data residency; heavy |
+| Option                    | Trade-off                                |
+| ------------------------- | ---------------------------------------- |
+| Custom metrics/logging    | Duplication, no traces, high maintenance |
+| Jaeger only               | Traces only, metrics separate            |
+| Vendor-specific (Datadog) | Great but cost + data residency; heavy   |
 
 ## Pros
 

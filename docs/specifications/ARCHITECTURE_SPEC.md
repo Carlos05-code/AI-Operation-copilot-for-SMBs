@@ -6,9 +6,8 @@ Status: **Draft · v0** · Related: [ADRs](../architecture/adrs/README.md)
 
 ## 1. Purpose
 
-This document is the architectural contract for the AI Operations Copilot
-platform. Every component in the repository must conform to the rules here
-unless a decision record supersedes one.
+This document is the architectural contract for the AI Operations Copilot platform. Every component
+in the repository must conform to the rules here unless a decision record supersedes one.
 
 ## 2. System Context
 
@@ -146,17 +145,16 @@ src/
 
 ### Cross-cutting concerns
 
-- Tenancy (org context) is resolved once per request and threaded via a scoped
-  context object, required by every query/service.
+- Tenancy (org context) is resolved once per request and threaded via a scoped context object,
+  required by every query/service.
 - Correlation ID is created at edge and flows through logs, traces, and events.
 - All LLM calls go through the **model gateway** port (fallback/route logic).
 - Repository pattern for persistence; Unit of Work for transactional boundaries.
 
 ## 6. Microservice Readiness
 
-Monolith deployed as **modular monolith first** (single deployable) with a
-strict module boundary that can split later. Decision: ADR-0001 (monorepo),
-ADR-0003 (NestJS). Ready-to-split criteria:
+Monolith deployed as **modular monolith first** (single deployable) with a strict module boundary
+that can split later. Decision: ADR-0001 (monorepo), ADR-0003 (NestJS). Ready-to-split criteria:
 
 - No cross-module direct feature-feature calls; only events or application API.
 - Modules expose explicit internal API surface.
@@ -168,8 +166,8 @@ ADR-0003 (NestJS). Ready-to-split criteria:
   `customer_message.received`.
 - **Commands** (intent): `sendInvoice`, `scheduleFollowUp`, `reorderItem`.
 - Event bus: RabbitMQ (fanout/exchange routing) + in-process bus for same-module events.
-- Eventual consistency: read models (indexes, caches, graph, vector) updated
-  asynchronously by workers.
+- Eventual consistency: read models (indexes, caches, graph, vector) updated asynchronously by
+  workers.
 
 ```mermaid
 flowchart LR
@@ -240,13 +238,13 @@ sequenceDiagram
 - **Stateless API** — all state in PostgreSQL/Redis.
 - **Horizontal scaling** — workers scale independently by queue.
 - **Async wherever reasonable**: ingestion and AI generation are fully async, streaming on response.
-- Every outbound service (LLM, E-mail, WhatsApp) is behind a port with retries/
-  fallback and circuit breaking where relevant.
+- Every outbound service (LLM, E-mail, WhatsApp) is behind a port with retries/ fallback and circuit
+  breaking where relevant.
 
 ## 9. Constraints & assumptions
 
-- Multi-tenant single database by default (row-level tenant column + RBAC).
-  ADR-0002 covers rationale.
+- Multi-tenant single database by default (row-level tenant column + RBAC). ADR-0002 covers
+  rationale.
 - LLM cost and latency budget controlled via model routing (ADR in AI_ARCHITECTURE.md).
-- SQL / Cypher are amenities of the underlying DB; abstracts are minimal by design —
-  we do not wrap everything in a generic ORM (YAGNI) — Prisma + drivers only.
+- SQL / Cypher are amenities of the underlying DB; abstracts are minimal by design — we do not wrap
+  everything in a generic ORM (YAGNI) — Prisma + drivers only.

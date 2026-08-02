@@ -25,8 +25,8 @@ English | [Coming soon](docs/i18n/zh_TW.md)
 
 Small businesses waste hours every day switching between WhatsApp, Email, Excel spreadsheets,
 invoices, calendars, inventory trackers, CRMs, and accounting software. Information is stranded
-across disconnected tools, decisions are made on stale data, and operational follow-up falls
-through the cracks.
+across disconnected tools, decisions are made on stale data, and operational follow-up falls through
+the cracks.
 
 **AI Operations Copilot** is an AI-powered operations hub that centralizes business operations into
 a single intelligent platform capable of:
@@ -91,18 +91,18 @@ See the full [System Architecture](/docs/diagrams/system-architecture.md).
 
 ## Technology Stack
 
-| Layer          | Technology                                                                                        |
-| -------------- | ------------------------------------------------------------------------------------------------- |
-| Frontend       | Flutter, Riverpod, GoRouter, Dio, Freezed, json_serializable                                       |
-| Backend        | NestJS, TypeScript, Prisma ORM                                                                     |
-| Databases      | PostgreSQL, Neo4j, Qdrant, Redis, OpenSearch                                                      |
-| Storage        | MinIO (S3-compatible)                                                                              |
-| Messaging      | RabbitMQ, BullMQ                                                                                   |
-| Authentication | Keycloak, JWT, OAuth2, OpenID Connect                                                              |
-| AI             | LangGraph, LangChain, OpenAI, Anthropic, Gemini, BAAI BGE-M3 embeddings                            |
-| DevOps         | Docker, Kubernetes, GitHub Actions, NGINX                                                          |
-| Observability  | Prometheus, Grafana, Loki, OpenTelemetry                                                           |
-| Quality        | Jest, Supertest, Flutter Test, Integration Test, ESLint, Prettier, commitlint, lint-staged, k6     |
+| Layer          | Technology                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------- |
+| Frontend       | Flutter, Riverpod, GoRouter, Dio, Freezed, json_serializable                                   |
+| Backend        | NestJS, TypeScript, Prisma ORM                                                                 |
+| Databases      | PostgreSQL, Neo4j, Qdrant, Redis, OpenSearch                                                   |
+| Storage        | MinIO (S3-compatible)                                                                          |
+| Messaging      | RabbitMQ, BullMQ                                                                               |
+| Authentication | Keycloak, JWT, OAuth2, OpenID Connect                                                          |
+| AI             | LangGraph, LangChain, OpenAI, Anthropic, Gemini, BAAI BGE-M3 embeddings                        |
+| DevOps         | Docker, Kubernetes, GitHub Actions, NGINX                                                      |
+| Observability  | Prometheus, Grafana, Loki, OpenTelemetry                                                       |
+| Quality        | Jest, Supertest, Flutter Test, Integration Test, ESLint, Prettier, commitlint, lint-staged, k6 |
 
 ## Repository Structure
 
@@ -197,10 +197,9 @@ release history.
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our
-[Code of Conduct](CODE_OF_CONDUCT.md) before starting. Open questions? Use the appropriate
-[issue template](.github/ISSUE_TEMPLATE/) — bug reports, feature requests, documentation requests,
-and questions.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) and our [Code of Conduct](CODE_OF_CONDUCT.md) before
+starting. Open questions? Use the appropriate [issue template](.github/ISSUE_TEMPLATE/) — bug
+reports, feature requests, documentation requests, and questions.
 
 ## License
 

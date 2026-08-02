@@ -6,19 +6,18 @@ Status: **Draft·v0** · Owner: Carlos05-code · Last updated: 2026-08-02
 
 ## 1. Vision
 
-Every small business should have a **virtual operations manager** — an always-on
-assistant that watches the incoming stream of work (messages, emails, documents,
-invoices, spreadsheets), keeps the state of the business in one place, plans the
-day, and executes routine back-office work before the owner ever has to.
+Every small business should have a **virtual operations manager** — an always-on assistant that
+watches the incoming stream of work (messages, emails, documents, invoices, spreadsheets), keeps the
+state of the business in one place, plans the day, and executes routine back-office work before the
+owner ever has to.
 
 ## 2. Problem Statement
 
-Small businesses waste hours every day juggling tools: WhatsApp, Email, Excel
-spreadsheets, invoices, calendars, inventory systems, CRMs, and accounting
-software. Data lives in silos, decisions are made on stale or incomplete
-information, and operational processes (follow-ups, reordering, invoicing,
-reporting) are performed manually and inconsistently. There is no single brain
-that understands the business state and can act on it.
+Small businesses waste hours every day juggling tools: WhatsApp, Email, Excel spreadsheets,
+invoices, calendars, inventory systems, CRMs, and accounting software. Data lives in silos,
+decisions are made on stale or incomplete information, and operational processes (follow-ups,
+reordering, invoicing, reporting) are performed manually and inconsistently. There is no single
+brain that understands the business state and can act on it.
 
 ## 3. Goals
 
@@ -42,34 +41,34 @@ that understands the business state and can act on it.
 
 Primary segments:
 
-| Segment | Description | Typical use cases |
-| ------- | ----------- | ----------------- |
-| Micro & small retail | Shops, e-commerce D2C | inventory, purchase recs, sales forecast, invoicing |
-| Local services | Salons, clinics, agencies | appointments, reminders, follow-ups, summaries |
-| Wholesale / distributors | small trades with invoices | invoicing, AR tracking, purchase recs |
-| Solo-professionals | Freelancers, consultants | time tracking, invoicing, client summaries |
+| Segment                  | Description                | Typical use cases                                   |
+| ------------------------ | -------------------------- | --------------------------------------------------- |
+| Micro & small retail     | Shops, e-commerce D2C      | inventory, purchase recs, sales forecast, invoicing |
+| Local services           | Salons, clinics, agencies  | appointments, reminders, follow-ups, summaries      |
+| Wholesale / distributors | small trades with invoices | invoicing, AR tracking, purchase recs               |
+| Solo-professionals       | Freelancers, consultants   | time tracking, invoicing, client summaries          |
 
-Sizing: customer orgs with **2–50 employees**, up to **100k customers/documents**,
-multiple channels (WhatsApp, email, Excel).
+Sizing: customer orgs with **2–50 employees**, up to **100k customers/documents**, multiple channels
+(WhatsApp, email, Excel).
 
 ## 6. Business Personas
 
-| Persona | Role | Key motivations | Frustrations to fix |
-| ------- | ---- | ----------------- | ------------------- |
-| Owner / Founder | decision-maker, operator | save time, see numbers | data scattered, late follow-ups |
-| Operations Manager | back-office lead | reduce manual work, standardize ops | chasing data across apps |
-| Sales / Support | customer-facing | quick answers, follow-ups | re-finding conversation context |
-| Freelancer | sole operator | low maintenance, fast setup | admin burden after work |
-| Accountant (external) | books kept | cheap, exportable data | reconciliations |
+| Persona               | Role                     | Key motivations                     | Frustrations to fix             |
+| --------------------- | ------------------------ | ----------------------------------- | ------------------------------- |
+| Owner / Founder       | decision-maker, operator | save time, see numbers              | data scattered, late follow-ups |
+| Operations Manager    | back-office lead         | reduce manual work, standardize ops | chasing data across apps        |
+| Sales / Support       | customer-facing          | quick answers, follow-ups           | re-finding conversation context |
+| Freelancer            | sole operator            | low maintenance, fast setup         | admin burden after work         |
+| Accountant (external) | books kept               | cheap, exportable data              | reconciliations                 |
 
 ## 7. Functional Requirements
 
 High-level capability map (see API_SPEC and ROADMAP for detail).
 
-1. **AI task planning** — propose, prioritize, and schedule operational tasks from
-   signals (invoices, inventory lows, follow-ups).
-2. **Automatic invoice generation** — create and send invoices from orders/recurring
-   contracts; detect payments; escalate overdue.
+1. **AI task planning** — propose, prioritize, and schedule operational tasks from signals
+   (invoices, inventory lows, follow-ups).
+2. **Automatic invoice generation** — create and send invoices from orders/recurring contracts;
+   detect payments; escalate overdue.
 3. **Inventory tracking** — stock levels, low-stock alerts, purchase suggestions.
 4. **Customer conversation summaries** — compress WhatsApp/email threads per customer.
 5. **Appointment scheduling** — availability, booking, reminders, rescheduling.
@@ -88,17 +87,17 @@ High-level capability map (see API_SPEC and ROADMAP for detail).
 
 ## 7. Non-Functional Requirements
 
-| Concern | Requirement |
-| ------- | ----------- |
-| Performance | p95 < 800 ms for API reads; AI calls streamed; embeddings < 2 s per doc chunk |
-| Scale | 1k+ concurrent users/org; multi-tenant data isolation; horizontal scaling |
-| Availability | 99.9% target for API; async jobs idempotent, retried with backoff |
-| Security | OWASP-top-ten; RBAC; per-tenant isolation; secrets vault; audit logs |
-| Privacy | GDPR-aligned; data residency configurable; deletion/export workflows |
-| Observability | Trace, metrics, logs via OpenTelemetry; dashboards |
-| Reliability | Eventual consistency across graph/vector/relational; dead-letter queues |
-| Maintainability | Clean Architecture, monorepo, full docs, ADR-driven changes |
-| Compliance | Data localization; records retention for invoice/platform audit |
+| Concern         | Requirement                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| Performance     | p95 < 800 ms for API reads; AI calls streamed; embeddings < 2 s per doc chunk |
+| Scale           | 1k+ concurrent users/org; multi-tenant data isolation; horizontal scaling     |
+| Availability    | 99.9% target for API; async jobs idempotent, retried with backoff             |
+| Security        | OWASP-top-ten; RBAC; per-tenant isolation; secrets vault; audit logs          |
+| Privacy         | GDPR-aligned; data residency configurable; deletion/export workflows          |
+| Observability   | Trace, metrics, logs via OpenTelemetry; dashboards                            |
+| Reliability     | Eventual consistency across graph/vector/relational; dead-letter queues       |
+| Maintainability | Clean Architecture, monorepo, full docs, ADR-driven changes                   |
+| Compliance      | Data localization; records retention for invoice/platform audit               |
 
 ## 8. Business Constraints
 
@@ -117,14 +116,14 @@ High-level capability map (see API_SPEC and ROADMAP for detail).
 
 ## 11. Risks
 
-| Risk | Probability | Impact | Mitigation |
-| ---- | ----------- | ------ | ---------- |
-| Hallucinated / stale answers | High | High | citations, confidence, human checkpoints |
-| Data inaccuracy from import | Medium | High | validation, source-of-truth, audit trail |
-| AI cost overrun | Medium | High | model routing, caching, cost thresholds |
-| Privacy breach | Low | High | RBAC, audit, encryption, isolation |
-| Vendor/WhatsApp API volatility | Medium | Medium | adapter pattern + fallback channels |
-| User abandonment (SMB churn) | Medium | High | low-friction onboarding, focus on weekly value |
+| Risk                           | Probability | Impact | Mitigation                                     |
+| ------------------------------ | ----------- | ------ | ---------------------------------------------- |
+| Hallucinated / stale answers   | High        | High   | citations, confidence, human checkpoints       |
+| Data inaccuracy from import    | Medium      | High   | validation, source-of-truth, audit trail       |
+| AI cost overrun                | Medium      | High   | model routing, caching, cost thresholds        |
+| Privacy breach                 | Low         | High   | RBAC, audit, encryption, isolation             |
+| Vendor/WhatsApp API volatility | Medium      | Medium | adapter pattern + fallback channels            |
+| User abandonment (SMB churn)   | Medium      | High   | low-friction onboarding, focus on weekly value |
 
 ## 12. Future Vision
 
@@ -142,13 +141,13 @@ Follow [ROADMAP.md](../../ROADMAP.md).
 
 ## Appendix A — Terminology
 
-| Term | Meaning |
-| ---- | ------- |
-| Organization | Tenant; an SMB paying for the product |
-| Workspace | Sub-unit within an organization (branch/team) |
-| Agent | An AI workflow instance scoped to a job |
+| Term           | Meaning                                        |
+| -------------- | ---------------------------------------------- |
+| Organization   | Tenant; an SMB paying for the product          |
+| Workspace      | Sub-unit within an organization (branch/team)  |
+| Agent          | An AI workflow instance scoped to a job        |
 | Knowledge base | The document + graph + vector store for an org |
-| Corpus | Aggregated indexable text (per org/collection) |
+| Corpus         | Aggregated indexable text (per org/collection) |
 
 ## Appendix B — Related Documents
 

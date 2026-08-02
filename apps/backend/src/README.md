@@ -3,8 +3,8 @@
 > NestJS application source. This directory is intentionally empty.
 
 Implementation will follow the
-[Backend Specification](../../../../docs/specifications/BACKEND_SPEC.md),
-a Clean Architecture modular monolith:
+[Backend Specification](../../../../docs/specifications/BACKEND_SPEC.md), a Clean Architecture
+modular monolith:
 
 ```
 apps/backend/src/

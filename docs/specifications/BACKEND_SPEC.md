@@ -4,9 +4,9 @@
 
 ## 1. Overview
 
-The backend is a **NestJS** application (TypeScript) implemented as a clean
-Architecture modular monolith. See [ARCHITECTURE_SPEC](./ARCHITECTURE_SPEC.md)
-for layering; this spec covers the operational contract within `apps/backend`.
+The backend is a **NestJS** application (TypeScript) implemented as a clean Architecture modular
+monolith. See [ARCHITECTURE_SPEC](./ARCHITECTURE_SPEC.md) for layering; this spec covers the
+operational contract within `apps/backend`.
 
 ## 2. Module Layout
 
@@ -50,12 +50,10 @@ Each feature module must keep:
 
 ## 4. Repositories
 
-- **Repository interface** lives in `application/ports`; Prisma implementation in
-  `infrastructure`.
-- Always tenancy-scoped: every repository method takes `TenantContext` and joins
-  org filtering (`WHERE org_id = ?`).
-- Soft-delete via `deleted_at` for business entities; hard delete confined to
-  pure audit tables.
+- **Repository interface** lives in `application/ports`; Prisma implementation in `infrastructure`.
+- Always tenancy-scoped: every repository method takes `TenantContext` and joins org filtering
+  (`WHERE org_id = ?`).
+- Soft-delete via `deleted_at` for business entities; hard delete confined to pure audit tables.
 
 ## 5. Services / Use-cases
 

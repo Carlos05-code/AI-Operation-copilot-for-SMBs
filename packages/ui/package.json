@@ -1,0 +1,33 @@
+{
+  "name": "@smb-copilot/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI Operations Copilot — design tokens and WCAG-verified foundation (TS source of truth)",
+  "packageManager": "pnpm@9.15.0",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./generated/*": "./generated/*"
+  },
+  "files": [
+    "dist",
+    "generated"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node dist/scripts/generate.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "node --test \"dist/tests/*.test.js\" && node dist/scripts/check-contrast.js",
+    "generate": "tsc -p tsconfig.json && node dist/scripts/generate.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.4.0"
+  }
+}

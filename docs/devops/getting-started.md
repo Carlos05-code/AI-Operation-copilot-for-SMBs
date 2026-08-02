@@ -4,14 +4,14 @@ How to get a local environment running.
 
 ## 0. Prerequisites
 
-| Tool | Version | Why |
-| ---- | ------- | --- |
-| Docker | ≥ 24 | containers |
-| Docker Compose | ≥ 2.x | local stack |
-| pnpm | ≥ 9 | monorepo |
-| Node.js | ≥ 20 | backend |
-| Flutter | ≥ 3.24 | mobile |
-| Make | any | convenience commands |
+| Tool           | Version | Why                  |
+| -------------- | ------- | -------------------- |
+| Docker         | ≥ 24    | containers           |
+| Docker Compose | ≥ 2.x   | local stack          |
+| pnpm           | ≥ 9     | monorepo             |
+| Node.js        | ≥ 20    | backend              |
+| Flutter        | ≥ 3.24  | mobile               |
+| Make           | any     | convenience commands |
 
 ## 1. Install
 
@@ -69,4 +69,5 @@ OpenSearch http://localhost:9200
 - Use `make infra-down` / `make infra-down-volumes` to reset.
 
 ---
+
 → [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md) · [Compose file](../../docker-compose.yml)

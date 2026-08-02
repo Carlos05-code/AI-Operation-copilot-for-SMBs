@@ -54,17 +54,17 @@ flowchart TB
 
 ## Container Responsibilities
 
-| Container | Responsibility |
-| --------- | -------------- |
-| API Gateway | REST, auth, validation, orchestration |
-| AI Orchestrator (LangGraph) | RAG, tool-calling, planning |
-| Knowledge Worker | ingestion, embeddings, graph building |
-| PostgreSQL | system of record (ACID) |
-| Neo4j | knowledge relationships |
-| Qdrant | vectors / embeddings |
-| OpenSearch | full text + hybrid index |
-| MinIO | object storage (docs, exports) |
-| Redis | cache, sessions, queues, rate-limit |
+| Container                   | Responsibility                        |
+| --------------------------- | ------------------------------------- |
+| API Gateway                 | REST, auth, validation, orchestration |
+| AI Orchestrator (LangGraph) | RAG, tool-calling, planning           |
+| Knowledge Worker            | ingestion, embeddings, graph building |
+| PostgreSQL                  | system of record (ACID)               |
+| Neo4j                       | knowledge relationships               |
+| Qdrant                      | vectors / embeddings                  |
+| OpenSearch                  | full text + hybrid index              |
+| MinIO                       | object storage (docs, exports)        |
+| Redis                       | cache, sessions, queues, rate-limit   |
 
 ## Read more
 

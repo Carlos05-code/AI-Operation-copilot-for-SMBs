@@ -4,8 +4,8 @@
 
 This directory is intentionally empty — see the
 [Frontend Specification](../../docs/specifications/FRONTEND_SPEC.md) and
-[ADR-0002: Flutter for the SMB client](../../docs/architecture/adrs/ADR-0002-flutter.md)
-for the target structure.
+[ADR-0002: Flutter for the SMB client](../../docs/architecture/adrs/ADR-0002-flutter.md) for the
+target structure.
 
 Planned layout:
 

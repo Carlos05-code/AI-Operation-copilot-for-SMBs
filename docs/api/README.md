@@ -12,25 +12,25 @@ This directory contains the API reference for the platform.
 
 See the human-readable contract:
 
-- [API Specification](../specifications/API_SPEC.md) — REST standards, versioning,
-  pagination, filtering, sort, auth, errors.
+- [API Specification](../specifications/API_SPEC.md) — REST standards, versioning, pagination,
+  filtering, sort, auth, errors.
 
 ## Endpoints Overview (v1)
 
-| Area              | Prefix            | Summary                              |
-| ----------------- | ----------------- | ------------------------------------ |
-| Auth              | `/v1/auth/*`      | OIDC callback, session, mfa           |
-| Organizations     | `/v1/orgs`        | tenant CRUD, members, settings        |
-| Customers         | `/v1/customers`   | customers + conversation linkages   |
-| Products          | `/v1/products`    | SKU, pricing, attributes             |
-| Inventory         | `/v1/inventory`   | stock, movements, reorder alerts     |
-| Sales             | `/v1/orders`      | orders + statuses                    |
-| Invoices          | `/v1/invoices`    | CRUD, PDF, status events             |
-| Documents         | `/v1/documents`   | upload, processing status            |
-| Search            | `/v1/search`      | hybrid keyword + vector search       |
-| AI                | `/v1/chat`        | streaming grounded chat              |
-| Notifications     | `/v1/notifications` | inbox, read/sent                  |
-| Health            | `/v1/health`      | liveness + readiness checks          |
+| Area          | Prefix              | Summary                           |
+| ------------- | ------------------- | --------------------------------- |
+| Auth          | `/v1/auth/*`        | OIDC callback, session, mfa       |
+| Organizations | `/v1/orgs`          | tenant CRUD, members, settings    |
+| Customers     | `/v1/customers`     | customers + conversation linkages |
+| Products      | `/v1/products`      | SKU, pricing, attributes          |
+| Inventory     | `/v1/inventory`     | stock, movements, reorder alerts  |
+| Sales         | `/v1/orders`        | orders + statuses                 |
+| Invoices      | `/v1/invoices`      | CRUD, PDF, status events          |
+| Documents     | `/v1/documents`     | upload, processing status         |
+| Search        | `/v1/search`        | hybrid keyword + vector search    |
+| AI            | `/v1/chat`          | streaming grounded chat           |
+| Notifications | `/v1/notifications` | inbox, read/sent                  |
+| Health        | `/v1/health`        | liveness + readiness checks       |
 
 ## Contracts
 

@@ -4,9 +4,9 @@
 
 ## 1. Overview
 
-The client is a single **Flutter** codebase targeting **mobile, web, and desktop**
-out of one source. `apps/mobile` follows feature-first Clean Architecture with
-Riverpod as the state-management substrate.
+The client is a single **Flutter** codebase targeting **mobile, web, and desktop** out of one
+source. `apps/mobile` follows feature-first Clean Architecture with Riverpod as the state-management
+substrate.
 
 ## 2. Feature-First structure
 
@@ -86,21 +86,21 @@ apps/mobile/lib/
 ## 11. Design tokens
 
 - Canonical tokens live in `packages/ui` (exported for Flutter + web).
-- Arrays: color steps, spacing scale (4px grid), radii, typography (type scale
-  w/ weight), motion (durations/curves).
+- Arrays: color steps, spacing scale (4px grid), radii, typography (type scale w/ weight), motion
+  (durations/curves).
 
 ## 12. Responsive strategy
 
 - Breakpoints: compact (<600), medium (600–1024), expanded (>1024).
-- LayoutBuilder/ adaptive: master-detail (customer conversation, invoices),
-  bottom nav on mobile → rail on desktop.
+- LayoutBuilder/ adaptive: master-detail (customer conversation, invoices), bottom nav on mobile →
+  rail on desktop.
 - Tested matrix: phones (portrait), tablets, desktop, web (Chrome).
 
 ## 13. Networking (Dio)
 
 - Dio client factory in `core/network`:
-  - interceptors: auth (Bearer), tenancy (`X-Org-Id`), logging, retry (with
-    jitter), Idempotency-Key for mutations.
+  - interceptors: auth (Bearer), tenancy (`X-Org-Id`), logging, retry (with jitter), Idempotency-Key
+    for mutations.
   - error mapping to typed exceptions (`ApiException(code,message)`).
 - Testing: `mocktail` + `mockito` + `flutter_test`.
 

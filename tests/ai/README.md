@@ -15,10 +15,10 @@ tests/ai/
 
 ## Metrics computed
 
-| Metric               | Definition                                          |
+| Metric               | Definition                                         |
 | -------------------- | -------------------------------------------------- |
-| `faithfulness`       | n-gram entailment between answer and retrieved ctx  |
-| `relevance`          | answer overlaps with the expected-gold content      |
+| `faithfulness`       | n-gram entailment between answer and retrieved ctx |
+| `relevance`          | answer overlaps with the expected-gold content     |
 | `citation_precision` | % of citations whose chunk supports the claim      |
 | `context_coverage`   | % of gold facts present in fetched context         |
 
@@ -28,8 +28,8 @@ tests/ai/
 python tests/ai/eval_suite.py --fixture tests/ai/fixtures/qa.document.json
 ```
 
-Exit code is non-zero when any metric is below the minimums in
-`fixtures/*.min.json` → blocks the merge gate in `ai-eval.yml`.
+Exit code is non-zero when any metric is below the minimums in `fixtures/*.min.json` → blocks the
+merge gate in `ai-eval.yml`.
 
 ## Adding a fixture
 

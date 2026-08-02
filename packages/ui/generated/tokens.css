@@ -1,0 +1,92 @@
+/* Generated from packages/ui/src/tokens. Regenerate with `pnpm build`. */
+:root {
+  --color-primary: #0f766e;
+  --color-on-primary: #ffffff;
+  --color-secondary: #334155;
+  --color-on-secondary: #ffffff;
+  --color-background: #f8fafc;
+  --color-on-background: #0f172a;
+  --color-surface: #ffffff;
+  --color-on-surface: #0f172a;
+  --color-error: #b3261e;
+  --color-on-error: #ffffff;
+  --color-success: #1b8732;
+  --color-on-success: #ffffff;
+  --color-warning: #9a6700;
+  --color-on-warning: #ffffff;
+  --color-border: #d1d5db;
+  --color-on-border: #0f172a;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-circle: 50%;
+  --elevation-shadow1: 0px 1px 2px 0px rgba(15, 23, 42, 0.08);
+  --elevation-shadow2: 0px 2px 8px 0px rgba(15, 23, 42, 0.12);
+  --elevation-shadow3: 0px 8px 24px 0px rgba(15, 23, 42, 0.18);
+  --motion-fast-duration: 120ms;
+  --motion-fast-curve: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --motion-base-duration: 200ms;
+  --motion-base-curve: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --motion-slow-duration: 320ms;
+  --motion-slow-curve: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --breakpoint-compact: 599px;
+  --breakpoint-medium: 1023px;
+}
+
+[data-theme="dark"] {
+  --color-primary: #99f6e4;
+  --color-on-primary: #043c35;
+  --color-secondary: #a8c1cf;
+  --color-on-secondary: #0a2431;
+  --color-background: #020617;
+  --color-on-background: #f1f5f9;
+  --color-surface: #0f172a;
+  --color-on-surface: #f1f5f9;
+  --color-error: #f2b8b5;
+  --color-on-error: #331111;
+  --color-success: #a5d6a7;
+  --color-on-success: #0d2b13;
+  --color-warning: #ffd54f;
+  --color-on-warning: #3d2f00;
+  --color-border: #334155;
+  --color-on-border: #e2e8f0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius-none: 0px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-circle: 50%;
+  --elevation-shadow1: 0px 1px 2px 0px rgba(15, 23, 42, 0.08);
+  --elevation-shadow2: 0px 2px 8px 0px rgba(15, 23, 42, 0.12);
+  --elevation-shadow3: 0px 8px 24px 0px rgba(15, 23, 42, 0.18);
+  --motion-fast-duration: 120ms;
+  --motion-fast-curve: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --motion-base-duration: 200ms;
+  --motion-base-curve: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --motion-slow-duration: 320ms;
+  --motion-slow-curve: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --breakpoint-compact: 599px;
+  --breakpoint-medium: 1023px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

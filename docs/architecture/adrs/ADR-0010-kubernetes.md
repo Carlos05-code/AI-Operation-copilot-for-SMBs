@@ -7,28 +7,27 @@
 
 ## Context
 
-Production needs horizontal scaling (API, workers), rolling deploys, self-healing,
-secrets, and consistent multi-env (staging/prod). Options: manual VMs with
-deploy scripts, Docker Swarm, AWS ECS, Kubernetes (kubeadm/EKS/GKE/k3s).
+Production needs horizontal scaling (API, workers), rolling deploys, self-healing, secrets, and
+consistent multi-env (staging/prod). Options: manual VMs with deploy scripts, Docker Swarm, AWS ECS,
+Kubernetes (kubeadm/EKS/GKE/k3s).
 
 ## Decision
 
 Use **Kubernetes** as the container orchestrator for production and staging.
 
-- Persistent data stores (PostgreSQL, Neo4j, Qdrant, OpenSearch, MinIO, Redis)
-  run as StatefulSets with PVCs (managed infra for high-availability where
-  available).
+- Persistent data stores (PostgreSQL, Neo4j, Qdrant, OpenSearch, MinIO, Redis) run as StatefulSets
+  with PVCs (managed infra for high-availability where available).
 - App services: Deployments + HPA; workers as separate Deployment.
 - Ingress: NGINX; cert-manager TLS.
 - Secrets: Kubernetes Secrets (SealedSecrets) injected via env.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
+| Option                 | Trade-off                           |
+| ---------------------- | ----------------------------------- |
 | Docker Compose in prod | Easy but single-host, no HA/rolling |
-| ECS | AWS-only, less portable |
-| VMs/manual | No auto-scaling/self-healing |
+| ECS                    | AWS-only, less portable             |
+| VMs/manual             | No auto-scaling/self-healing        |
 
 ## Pros
 

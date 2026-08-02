@@ -7,26 +7,24 @@
 
 ## Context
 
-The product's differentiator is answering questions about *relationships*: which
-documents mention a product, who is expert in a topic, which policies apply to a
-given operation, how customers relate to products/orders. Relational modeling of
-these deep, variable-depth relationships is painful. Options: model relationships
-in PostgreSQL, use GraphQL-style JSON blobs, or adopt a graph database.
+The product's differentiator is answering questions about _relationships_: which documents mention a
+product, who is expert in a topic, which policies apply to a given operation, how customers relate
+to products/orders. Relational modeling of these deep, variable-depth relationships is painful.
+Options: model relationships in PostgreSQL, use GraphQL-style JSON blobs, or adopt a graph database.
 
 ## Decision
 
-Use **Neo4j** as the knowledge-graph store for entities, relationships, and
-expertise discovery. It complements PostgreSQL (ATS record) and Qdrant (vectors).
-Not the system of record for business data; a derived read-model plus
-write-through for knowledge links.
+Use **Neo4j** as the knowledge-graph store for entities, relationships, and expertise discovery. It
+complements PostgreSQL (ATS record) and Qdrant (vectors). Not the system of record for business
+data; a derived read-model plus write-through for knowledge links.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
+| Option                    | Trade-off                                             |
+| ------------------------- | ----------------------------------------------------- |
 | PostgreSQL recursive CTEs | Expensive at depth; poor for many-hop "who knows who" |
-| Amazon Neptune | Managed, but managed lock + cost; less local tooling |
-| ArangoDB | Multi-model; smaller ecosystem vs Neo4j |
+| Amazon Neptune            | Managed, but managed lock + cost; less local tooling  |
+| ArangoDB                  | Multi-model; smaller ecosystem vs Neo4j               |
 
 ## Pros
 

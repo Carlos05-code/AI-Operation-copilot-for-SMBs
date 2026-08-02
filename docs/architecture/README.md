@@ -1,11 +1,10 @@
 # Architecture
 
-This directory is the home of the architecture documentation beyond the
-specifications and ADRs.
+This directory is the home of the architecture documentation beyond the specifications and ADRs.
 
-| Document | Purpose |
-| -------- | ------- |
-| [ADRs](./adrs/README.md) | Decision records (ADR-0001..0013) + template |
+| Document                                                 | Purpose                                            |
+| -------------------------------------------------------- | -------------------------------------------------- |
+| [ADRs](./adrs/README.md)                                 | Decision records (ADR-0001..0013) + template       |
 | [Specifications](../specifications/ARCHITECTURE_SPEC.md) | The full system-context, container, component view |
 
 ## High-level map

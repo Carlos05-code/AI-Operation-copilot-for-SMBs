@@ -7,8 +7,8 @@
 
 ## Context
 
-What is the problem being solved and what forces are at play? Include the
-rationale for why this choice matters for the platform.
+What is the problem being solved and what forces are at play? Include the rationale for why this
+choice matters for the platform.
 
 ## Decision
 
@@ -30,8 +30,8 @@ List the alternatives considered with a one-line trade-off for each.
 
 ## Consequences
 
-What this decision implies: positive and negative consequences, migration
-effort, and follow-up work.
+What this decision implies: positive and negative consequences, migration effort, and follow-up
+work.
 
 ## References
 

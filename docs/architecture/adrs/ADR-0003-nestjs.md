@@ -7,15 +7,14 @@
 
 ## Context
 
-The backend must serve a multi-tenant operations + AI platform: many modules
-(auth, org, customers, inventory, sales, invoices, documents, AI, search,
-notifications), heavy async event processing, and observability. Options:
-NestJS, Express/Fastify, tRPC, Go (Gin), Spring (Java).
+The backend must serve a multi-tenant operations + AI platform: many modules (auth, org, customers,
+inventory, sales, invoices, documents, AI, search, notifications), heavy async event processing, and
+observability. Options: NestJS, Express/Fastify, tRPC, Go (Gin), Spring (Java).
 
 ## Decision
 
-Build the backend with **NestJS** (TypeScript), structured as a **modular
-monolith** with strict module boundaries.
+Build the backend with **NestJS** (TypeScript), structured as a **modular monolith** with strict
+module boundaries.
 
 - TypeScript for end-to-end typing with the Dart side via OpenAPI.
 - Modules, dependency injection, HTTP + message-processing built-in.
@@ -24,12 +23,12 @@ monolith** with strict module boundaries.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Express/Fastify | Minimal; you assemble everything yourself; less opinionated |
-| tRPC | Great DX but locks clients to TS; not ideal for Dart/OAuth UI |
-| Go services | Fast, but slower delivery + no DI/tooling as mature |
-| Spring Boot | Heavy, JVM ops burden for the delivery size |
+| Option          | Trade-off                                                     |
+| --------------- | ------------------------------------------------------------- |
+| Express/Fastify | Minimal; you assemble everything yourself; less opinionated   |
+| tRPC            | Great DX but locks clients to TS; not ideal for Dart/OAuth UI |
+| Go services     | Fast, but slower delivery + no DI/tooling as mature           |
+| Spring Boot     | Heavy, JVM ops burden for the delivery size                   |
 
 ## Pros
 

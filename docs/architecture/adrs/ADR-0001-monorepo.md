@@ -7,9 +7,9 @@
 
 ## Context
 
-The platform consists of a Flutter client, a NestJS backend, shared packages
-(contracts, design tokens, config) and infrastructure-as-code. Early on we must
-decide between multiple small repositories vs one monorepo. Key forces:
+The platform consists of a Flutter client, a NestJS backend, shared packages (contracts, design
+tokens, config) and infrastructure-as-code. Early on we must decide between multiple small
+repositories vs one monorepo. Key forces:
 
 - Code sharing (DTOs, types, config) should be near-instant.
 - Consistency of tooling and CI.
@@ -26,10 +26,10 @@ Use a **single monorepo** managed by **Turborepo** with **pnpm workspaces**.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Polyrepo (per app) | Hard, versioned sharing; duplicated CI; slower cross-cutting change |
-| Single repo no cache | Simple but rebuilds everything; slower |
+| Option               | Trade-off                                                           |
+| -------------------- | ------------------------------------------------------------------- |
+| Polyrepo (per app)   | Hard, versioned sharing; duplicated CI; slower cross-cutting change |
+| Single repo no cache | Simple but rebuilds everything; slower                              |
 
 ## Pros
 

@@ -7,9 +7,9 @@
 
 ## Context
 
-The platform needs clients on mobile (iOS/Android), web, and desktop from one
-codebase with high code reuse, near-native performance, and a great offline story.
-Alternatives considered: React Native, SwiftUI+KMP, plain web (React), Flutter.
+The platform needs clients on mobile (iOS/Android), web, and desktop from one codebase with high
+code reuse, near-native performance, and a great offline story. Alternatives considered: React
+Native, SwiftUI+KMP, plain web (React), Flutter.
 
 ## Decision
 
@@ -21,11 +21,11 @@ Build the client with **Flutter** (current stable channel).
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| React Native | JS toolchain, weaker desktop story; mature on mobile |
-| Native (SwiftUI + Jetpack Compose) | Two full codebases, two teams |
-| Web-only (React) | No native app distribution, offline harder |
+| Option                             | Trade-off                                            |
+| ---------------------------------- | ---------------------------------------------------- |
+| React Native                       | JS toolchain, weaker desktop story; mature on mobile |
+| Native (SwiftUI + Jetpack Compose) | Two full codebases, two teams                        |
+| Web-only (React)                   | No native app distribution, offline harder           |
 
 ## Pros
 

@@ -7,9 +7,8 @@
 
 ## Context
 
-We need a fast in-memory datastore for cache, short-lived sessions/state,
-rate-limiting counters, locks, and queue backends (BullMQ). Options: Redis,
-Memcached, Hazelcast, plain DB-based caching.
+We need a fast in-memory datastore for cache, short-lived sessions/state, rate-limiting counters,
+locks, and queue backends (BullMQ). Options: Redis, Memcached, Hazelcast, plain DB-based caching.
 
 ## Decision
 
@@ -24,11 +23,11 @@ Option: use Redis Cluster in production as data grows.
 
 ## Alternatives
 
-| Option | Trade-off |
-| ------ | --------- |
-| Memcached | Cache only; no queues/locks/rate-limit |
-| Hazelcast | Distributed JVM grid, but heavier and overkill |
-| In-DB caching | DB pressure, no rich TTL/move ops |
+| Option        | Trade-off                                      |
+| ------------- | ---------------------------------------------- |
+| Memcached     | Cache only; no queues/locks/rate-limit         |
+| Hazelcast     | Distributed JVM grid, but heavier and overkill |
+| In-DB caching | DB pressure, no rich TTL/move ops              |
 
 ## Pros
 

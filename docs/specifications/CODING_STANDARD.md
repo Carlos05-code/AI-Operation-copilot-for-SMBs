@@ -2,24 +2,24 @@
 
 Status: **Ratified** · Owner: Carlos05-code
 
-Applies to all code in `apps/*` and `packages/*`. Any change is blocked if it
-violates these rules.
+Applies to all code in `apps/*` and `packages/*`. Any change is blocked if it violates these rules.
 
 ## 1. Naming
 
-| Kind        | Style         | Example                 |
-| ----------- | ------------- | ----------------------- |
-| Files       | kebab-case    | `create-invoice.dto.ts` |
-| Classes/IDs | PascalCase    | `CreateInvoiceDto`      |
-| Functions/methods | camelCase | `createInvoice()`   |
-| Constants   | SCREAMING_SNAKE | `MAX_UPLOAD_SIZE_MB` |
-| Env vars    | SCREAMING_SNAKE | `DATABASE_URL`       |
-| Flutter (Dart) | folders lowercase; types PascalCase | `features/`, `InvoiceCard` |
-| DB columns  | snake_case    | `due_date`              |
+| Kind              | Style                               | Example                    |
+| ----------------- | ----------------------------------- | -------------------------- |
+| Files             | kebab-case                          | `create-invoice.dto.ts`    |
+| Classes/IDs       | PascalCase                          | `CreateInvoiceDto`         |
+| Functions/methods | camelCase                           | `createInvoice()`          |
+| Constants         | SCREAMING_SNAKE                     | `MAX_UPLOAD_SIZE_MB`       |
+| Env vars          | SCREAMING_SNAKE                     | `DATABASE_URL`             |
+| Flutter (Dart)    | folders lowercase; types PascalCase | `features/`, `InvoiceCard` |
+| DB columns        | snake_case                          | `due_date`                 |
 
 ## 2. Folder structure
 
-- Feature-first: `apps/backend/src/modules/<feature>/{domain,application,infrastructure,presentation}`.
+- Feature-first:
+  `apps/backend/src/modules/<feature>/{domain,application,infrastructure,presentation}`.
 - Flutter: `apps/mobile/lib/features/<feature>/{data,domain,presentation}`.
 - No deep folder noise: at most 3 levels beneath `modules` / `features`.
 
@@ -70,8 +70,7 @@ violates these rules.
 
 ## 10. Branch strategy
 
-- GitHub Flow: branch from `main`; `feat/`, `fix/`, `docs/`, `chore/`, `perf/`,
-  `release/` prefixes.
+- GitHub Flow: branch from `main`; `feat/`, `fix/`, `docs/`, `chore/`, `perf/`, `release/` prefixes.
 - Short-lived branches (< 1 week); PR review required.
 
 ## 11. Code review checklist (be completed before merging)

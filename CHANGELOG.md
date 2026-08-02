@@ -2,8 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
+adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -19,3 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - GitHub issue templates and CI/CD workflows
   - Infrastructure baseline (Docker Compose, Kubernetes, monitoring)
   - Design system specification and coding standards
+
+### Changed
+
+- Design system promoted from Draft to Ratified (`docs/specifications/DESIGN_SYSTEM.md`)
+- Design tokens are now AA-verified and enforced by a CI contrast gate
+
+## [0.1.0] - 2026-08-02
+
+### Added
+
+- Design system foundation (`packages/ui`):
+  - TypeScript token source of truth (colors, typography, spacing, radii, elevation, motion,
+    breakpoints) with JSDoc
+  - WCAG 2.1 contrast utilities and a CI contrast gate (fails under AA)
+  - Platform generators producing `generated/tokens.css`, `generated/tokens.dart` (Flutter), and
+    `generated/tokens.json`
+  - Unit tests (node:test) for token integrity, 4px grid, radii, and contrast

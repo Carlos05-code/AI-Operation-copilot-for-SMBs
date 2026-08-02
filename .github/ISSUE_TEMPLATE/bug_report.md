@@ -42,5 +42,5 @@ Blocker / major / minor — who is affected, how.
 
 ## Definition of Done
 
-When fixed, confirm: regression test added, docs updated if contract changed,
-release note entry added.
+When fixed, confirm: regression test added, docs updated if contract changed, release note entry
+added.
