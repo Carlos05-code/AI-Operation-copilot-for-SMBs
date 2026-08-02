@@ -36,7 +36,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Prisma schema, migrations, and seed data
 - [ ] RabbitMQ + BullMQ infrastructure for events and jobs
 - [ ] Object storage integration (MinIO) with pre-signed uploads
-- [ ] Multi-tenant authorization framework (organization → role → member)
+- [x] Multi-tenant authorization framework (organization → role → member)
 - [x] Unified error contract, correlation IDs, and tracing
 
 **Version: 0.1.0**

@@ -28,6 +28,18 @@ export class AppConfig {
   rabbitMqUrl?: string;
 
   @IsString()
+  @IsOptional()
+  authJwksUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  authIssuer?: string;
+
+  @IsString()
+  @IsOptional()
+  authAudience?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

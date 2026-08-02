@@ -8,6 +8,7 @@ import { CoreModule } from './shared/core.module.js';
 import { validateEnv } from './shared/config/env.validation.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OpenApiModule } from './modules/openapi/openapi.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -17,6 +18,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
       validate: (raw: Record<string, unknown>) => validateEnv(raw),
     }),
     CoreModule,
+    AuthModule,
     HealthModule,
     OpenApiModule,
   ],

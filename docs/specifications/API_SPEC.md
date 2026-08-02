@@ -56,9 +56,12 @@ Errors use the standard error contract (see §8).
 
 - Authentication: **OAuth2 / OIDC** via Keycloak; the client exchanges code for token.
 - Transport: `Authorization: Bearer <access>`.
-- Scopes map to RBAC roles: `role:owner`, `role:manager`, `role:member`.
+- Scopes map to RBAC roles: `role:owner`, `role:admin`, `role:manager`, `role:agent`, `role:viewer`
+  (hierarchical: owner > admin > manager > agent > viewer).
 - Token expiry: access 15 min, refresh 7 days (rotate on use).
 - Every request is tenancy-scoped from the token claims (`org_id`, `request_id`).
+- Enforcement: `JwtAuthGuard` (RS256/JWKS) → `TenancyGuard` (membership) → `RolesGuard` (role
+  requirements) on protected routes; entity-level checks in application services.
 - See [SECURITY_SPEC](./SECURITY_SPEC.md) for flows and JWT validation requirements.
 
 ## 7. Validation

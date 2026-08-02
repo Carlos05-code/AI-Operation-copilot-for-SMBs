@@ -14,6 +14,7 @@ export default tseslint.config(
       'commitlint.config.js',
       'lint-staged.config.js',
       '**/jest.config.js',
+      'eslint.config.mjs',
     ],
   },
   eslint.configs.recommended,

@@ -36,6 +36,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Idempotent development seed (`prisma/seed.ts`, `pnpm db:seed`)
   - `DatabaseModule` with `PrismaService` (lazy connect when `DATABASE_URL` set) and a real
     PostgreSQL probe in the readiness endpoint (`GET /api/v1/health` reports `ok`/`unhealthy`)
+- Multi-tenant authorization framework (SECURITY_SPEC §3/§4, API_SPEC §6):
+  - `Role` enum aligned with the RBAC matrix: `OWNER > ADMIN > MANAGER > AGENT > VIEWER` (migration
+    `20260802040000_align_rbac_roles`)
+  - `AuthModule` (global): JWKS getter from `AUTH_JWKS_URL` (Keycloak)
+  - `JwtAuthGuard`: RS256 bearer-token verification (signature, `iss`/`aud`/`exp`/`nbf`, claims
+    `org_id` + `org.role`), fails closed when auth is not configured
+  - `RolesGuard` with `@RequireRoles(...)`: hierarchical role enforcement, deny-by-default
+  - `TenancyGuard`: per-request org membership via the `members` table
+  - `AuthorizationService`: role ranking, `hasRole`/`hasAnyRole`, membership lookups
+  - `@CurrentUser()` param decorator exposing the verified `AuthContext`
+  - `jose` dependency for JWT/JWKS crypto; jest transform wired for ESM-only packages
 
 ### Changed
 
