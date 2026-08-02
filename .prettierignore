@@ -1,0 +1,10 @@
+dist
+build
+coverage
+node_modules
+package-lock.json
+pnpm-lock.yaml
+*.snap
+.env
+.DS_Store
+pnpm-debug.log*

@@ -1,0 +1,42 @@
+{
+  "name": "qa.document",
+  "description": "Grounded Q&A over organization documents — offline eval set.",
+  "minimum": {
+    "faithfulness": 0.7,
+    "relevance": 0.5,
+    "citation_precision": 0.8,
+    "context_coverage": 0.6
+  },
+  "cases": [
+    {
+      "qid": "qa-001",
+      "question": "What is the return policy for damaged goods?",
+      "gold": "Damaged goods are replaced within 14 days of delivery.",
+      "retrieved": [
+        "Policy: Damaged goods are replaced within 14 days of delivery when the claim is made by email."
+      ],
+      "answer": "Damaged goods are replaced within 14 days of delivery when the claim is made by email.",
+      "citations": ["damaged goods are replaced within 14 days"]
+    },
+{
+      "qid": "qa-002",
+      "question": "Who is responsible for vendor onboarding?",
+      "gold": "Vendor onboarding is owned by the procurement team.",
+      "retrieved": [
+        "Vendor onboarding is owned by the procurement team, according to the operations handbook."
+      ],
+      "answer": "Vendor onboarding is owned by the procurement team.",
+      "citations": ["vendor onboarding is owned by the procurement team"]
+    },
+    {
+      "qid": "qa-003",
+      "question": "What discount is applied to first orders?",
+      "gold": "First orders receive 10% off.",
+      "retrieved": [
+        "Welcoming offer: new wholesale accounts receive 10% off their first order."
+      ],
+      "answer": "New wholesale accounts receive 10% off their first order.",
+      "citations": ["10% off their first order"]
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+name: AI Evaluation
+
+on:
+  pull_request:
+    paths:
+      - 'docs/specifications/AI_ARCHITECTURE.md'
+      - 'tests/ai/**'
+  push:
+    branches: [main]
+
+jobs:
+  eval:
+    name: AI eval suite (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run offline eval suite
+        run: |
+          python tests/ai/eval_suite.py --fixture tests/ai/fixtures/qa.document.json

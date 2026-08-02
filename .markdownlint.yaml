@@ -1,0 +1,23 @@
+# Markdownlint configuration
+# See https://github.com/DavidAnson/markdownlint/blob/main/schema/.markdownlint.yaml
+
+default: true
+
+# Allow long lines in tables and URLs
+MD013:
+  line_length: 100
+  tables: false
+  code_blocks: false
+
+# Allow inline HTML (badges in README)
+MD033: false
+
+# Fenced code language is nice-to-have; diagrams are everywhere
+MD040: false
+
+# We use Mermaid code fences deliberately
+MD046:
+  style: consistent
+
+# Detailed style enforcement
+MD041: false

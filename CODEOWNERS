@@ -1,0 +1,34 @@
+# Global owners for everything in the repo.
+# Each line is a file glob pattern followed by one or more owners.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*                                       @Carlos05-code
+
+# Root configuration
+/.editorconfig                           @Carlos05-code
+/.gitignore                              @Carlos05-code
+ tsconfig*.json                          @Carlos05-code
+
+# Applications
+/apps/mobile/                            @Carlos05-code
+/apps/backend/                           @Carlos05-code
+
+# Packages
+/packages/shared/                        @Carlos05-code
+/packages/ui/                            @Carlos05-code
+/packages/config/                        @Carlos05-code
+
+# Documentation
+/docs/*.md                               @Carlos05-code
+/docs/architecture/adrs/*.md             @Carlos05-code
+
+# Infrastructure
+/infrastructure/                         @Carlos05-code
+/docker-compose.yml                      @Carlos05-code
+
+# CI/CD (changes to workflows require extra review)
+/.github/workflows/                      @Carlos05-code
+
+# Security-sensitive paths
+/SECURITY.md                             @Carlos05-code
+/docs/security/                          @Carlos05-code
