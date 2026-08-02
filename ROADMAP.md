@@ -31,13 +31,13 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 **Goal**: identity, accounts, and the API skeleton.
 
 - [ ] Identity foundation: Keycloak + OpenID Connect + JWT
-- [ ] NestJS API skeleton (health, auth, logging, OpenAPI)
+- [x] NestJS API skeleton (health, auth, logging, OpenAPI)
 - [ ] PostgreSQL schema (organizations, roles, customers, products, inventory, sales)
 - [ ] Prisma schema, migrations, and seed data
 - [ ] RabbitMQ + BullMQ infrastructure for events and jobs
 - [ ] Object storage integration (MinIO) with pre-signed uploads
 - [ ] Multi-tenant authorization framework (organization → role → member)
-- [ ] Unified error contract, correlation IDs, and tracing
+- [x] Unified error contract, correlation IDs, and tracing
 
 **Version: 0.1.0**
 

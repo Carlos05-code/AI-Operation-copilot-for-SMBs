@@ -13,6 +13,7 @@ export default tseslint.config(
       '**/generated/**',
       'commitlint.config.js',
       'lint-staged.config.js',
+      '**/jest.config.js',
     ],
   },
   eslint.configs.recommended,
@@ -31,10 +32,15 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', '**/*.test.tsx', '**/tests/**/*.ts'],
+    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.e2e-spec.ts', '**/tests/**/*.ts', '**/test/**/*.ts'],
     rules: {
       // node:test's test() returns a Promise by design.
       '@typescript-eslint/no-floating-promises': 'off',
+      // Test assertions exercise response bodies typed as `any` by supertest.
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   {

@@ -19,6 +19,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - GitHub issue templates and CI/CD workflows
   - Infrastructure baseline (Docker Compose, Kubernetes, monitoring)
   - Design system specification and coding standards
+- Backend API foundation (`@smb-copilot/backend` v0.1.0):
+  - NestJS 10 application with URI versioning (`/api/v1/*`) and global validation pipe
+  - Success envelope interceptor (`{ data, meta: { requestId, statusCode } }`, API_SPEC §2.1)
+  - Unified error contract (`ApiError`, status→code mapping, global exception filter, API_SPEC §9)
+  - Request correlation: `X-Request-Id` middleware + AsyncLocalStorage context
+  - Pino structured logging with request id binding and secret redaction
+  - Health module: readiness (`GET /api/v1/health`) and liveness (`GET /api/v1/health/live`)
+  - OpenAPI 3.1 document at `GET /api/v1/openapi.json` (generated from decorators, API_SPEC §10)
+  - Environment config validation (class-validator on `process.env`)
 
 ### Changed
 
