@@ -30,7 +30,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 **Goal**: identity, accounts, and the API skeleton.
 
-- [ ] Identity foundation: Keycloak + OpenID Connect + JWT
+- [x] Identity foundation: Keycloak + OpenID Connect + JWT
 - [x] NestJS API skeleton (health, auth, logging, OpenAPI)
 - [x] PostgreSQL schema (organizations, roles, customers, products, inventory, sales)
 - [x] Prisma schema, migrations, and seed data

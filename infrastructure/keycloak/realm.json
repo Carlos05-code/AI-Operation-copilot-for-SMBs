@@ -1,0 +1,188 @@
+{
+  "id": "smb-copilot",
+  "realm": "smb-copilot",
+  "displayName": "SMB Copilot",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 28800,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "refreshTokenReuseMinutes": 0,
+  "defaultSignatureAlgorithm": "RS256",
+  "defaultClientScopes": ["openid", "profile", "email", "offline_access"],
+  "optionalClientScopes": [],
+  "roles": {
+    "realm": [
+      { "name": "viewer" },
+      { "name": "agent" },
+      { "name": "manager" },
+      { "name": "admin" },
+      { "name": "owner" }
+    ],
+    "client": {}
+  },
+  "clients": [
+    {
+      "clientId": "smb-copilot-ui",
+      "name": "SMB Copilot UI",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://localhost/*"],
+      "webOrigins": ["http://localhost:*"],
+      "defaultClientScopes": ["openid", "profile", "email", "offline_access"]
+    },
+    {
+      "clientId": "smb-copilot-api",
+      "name": "SMB Copilot API",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect"
+    }
+  ],
+  "clientScopes": [
+    { "name": "openid", "protocol": "openid-connect" },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "preferred_username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "aggregate.attrs": "false"
+          }
+        }
+      ]
+    },
+    {
+      "name": "email",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "aggregate.attrs": "false"
+          }
+        },
+        {
+          "name": "email_verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    { "name": "offline_access", "protocol": "openid-connect" }
+  ],
+  "protocolMappers": [
+    {
+      "name": "org_id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "config": {
+        "user.attribute": "org_id",
+        "claim.name": "org_id",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+        "aggregate.attrs": "false"
+      }
+    },
+    {
+      "name": "org.role",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-realm-role-mapper",
+      "config": {
+        "claim.name": "org.role",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+        "multivalued": "false",
+        "realm.roles.verify": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "owner@acme-demo.local",
+      "email": "owner@acme-demo.local",
+      "firstName": "Demo",
+      "lastName": "Owner",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["owner"],
+      "attributes": {
+        "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
+      },
+      "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
+    },
+    {
+      "username": "manager@acme-demo.local",
+      "email": "manager@acme-demo.local",
+      "firstName": "Demo",
+      "lastName": "Manager",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["manager"],
+      "attributes": {
+        "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
+      },
+      "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
+    },
+    {
+      "username": "viewer@acme-demo.local",
+      "email": "viewer@acme-demo.local",
+      "firstName": "Demo",
+      "lastName": "Viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
+      },
+      "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
+    }
+  ]
+}

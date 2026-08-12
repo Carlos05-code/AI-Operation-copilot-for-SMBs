@@ -62,10 +62,17 @@ Keycloak   http://localhost:8080
 OpenSearch http://localhost:9200
 ```
 
+Keycloak admin console: `admin / changeme` (see `KEYCLOAK_ADMIN_PASSWORD`). The `smb-copilot` realm
+is imported automatically from `infrastructure/keycloak/realm.json` on first boot and provides demo
+users `owner@`/`manager@`/`viewer@acme-demo.local` (password `changeme`), roles
+`owner/admin/manager/agent/viewer`, and the `org_id` + `org.role` token claims the API validates
+(see `docs/security/authentication.md`).
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.
-- Keycloak realm config: import `infrastructure/keycloak/realm.json` if present.
+- Keycloak realm changes: edit `infrastructure/keycloak/realm.json`, then
+  `docker compose up -d --force-recreate keycloak` (recreate the Keycloak volume to re-import).
 - Use `make infra-down` / `make infra-down-volumes` to reset.
 
 ---

@@ -17,8 +17,10 @@ Use **Keycloak** as the centralized identity provider, the gateway for OIDC, JWT
 roles.
 
 - OIDC Authorization Code + PKCE for clients.
-- JWT (`RS256`) access tokens with `org_id`/`role` claims for the API.
-- Realms: one `smb-copilot` realm with roles for `owner/admin/manager/member`.
+- JWT (`RS256`) access tokens with `org_id`/`org.role` claims for the API.
+- Realms: one `smb-copilot` realm with realm roles `owner/admin/manager/agent/viewer` (SECURITY_SPEC
+  §4), defined as code in `infrastructure/keycloak/realm.json` and auto-imported by Compose at first
+  boot.
 - MFA-ready, self-hosted (ADR-0009/0010).
 
 ## Alternatives

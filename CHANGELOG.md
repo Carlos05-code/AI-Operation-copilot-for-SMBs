@@ -47,6 +47,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `AuthorizationService`: role ranking, `hasRole`/`hasAnyRole`, membership lookups
   - `@CurrentUser()` param decorator exposing the verified `AuthContext`
   - `jose` dependency for JWT/JWKS crypto; jest transform wired for ESM-only packages
+- Identity foundation (Keycloak + OIDC, ADR-0008):
+  - Realm as code: `infrastructure/keycloak/realm.json` (realm `smb-copilot`, RS256, 15-min access /
+    7-day refresh with rotation)
+  - Clients: `smb-copilot-ui` (public, Authorization Code + PKCE, direct grant for local dev) and
+    `smb-copilot-api` (bearer-only)
+  - Realm roles `owner/admin/manager/agent/viewer` (SECURITY_SPEC §4) with `org_id` (user attribute)
+    and `org.role` token claim mappers consumed by `JwtAuthGuard`
+  - Demo users `owner@`/`manager@`/`viewer@acme-demo.local` bound to the seeded `acme-demo` org
+  - Docker Compose auto-imports the realm on first boot (`--import-realm`)
 
 ### Changed
 
