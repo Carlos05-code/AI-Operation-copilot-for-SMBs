@@ -9,6 +9,8 @@ import { validateEnv } from './shared/config/env.validation.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OpenApiModule } from './modules/openapi/openapi.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { EventsModule } from './modules/events/events.module.js';
+import { QueueModule } from './modules/queue/queue.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -19,6 +21,8 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     }),
     CoreModule,
     AuthModule,
+    EventsModule,
+    QueueModule,
     HealthModule,
     OpenApiModule,
   ],

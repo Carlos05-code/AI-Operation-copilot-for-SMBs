@@ -56,6 +56,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     and `org.role` token claim mappers consumed by `JwtAuthGuard`
   - Demo users `owner@`/`manager@`/`viewer@acme-demo.local` bound to the seeded `acme-demo` org
   - Docker Compose auto-imports the realm on first boot (`--import-realm`)
+- RabbitMQ + BullMQ infrastructure (ADR-0007, ADR-0013):
+  - `EventBusService`: managed AMQP connection + confirmed channel on the `copilot.domain.events`
+    topic exchange, fail-soft when the broker is down
+  - `OutboxService` (transactional outbox, DATABASE_SPEC §10): `append()` inside caller
+    transactions; background relay (5s poll, batch 50) publishes PENDING events with the event type
+    as routing key and marks them PROCESSED/FAILED — rows stay PENDING while the bus is disconnected
+    (at-least-once)
+  - `QueueModule`: BullMQ with `notifications` + `ai-jobs` queues on Redis (`REDIS_URL` parsing via
+    `redisConnectionOptions`) and exponential-retry defaults; `QueueService` enqueue facade
+  - Both modules global + lazy/fail-soft: local runs without Redis/RabbitMQ boot normally
+  - Unit tests: outbox relay (success/failure/disconnected/no-op) and Redis URL parsing
 
 ### Changed
 
