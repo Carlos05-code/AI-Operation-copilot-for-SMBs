@@ -68,6 +68,11 @@ users `owner@`/`manager@`/`viewer@acme-demo.local` (password `changeme`), roles
 `owner/admin/manager/agent/viewer`, and the `org_id` + `org.role` token claims the API validates
 (see `docs/security/authentication.md`).
 
+Object storage is exposed via presigned URLs only: the API never proxies file bytes. Set
+`STORAGE_ENDPOINT`/`STORAGE_ACCESS_KEY`/`STORAGE_SECRET_KEY`/`STORAGE_BUCKET` (see `.env.example`)
+and use `POST /api/v1/storage/uploads/presign` / `GET /api/v1/storage/objects?key=...` to obtain
+short-lived MinIO URLs; without those env vars the endpoints return `STORAGE_UNAVAILABLE` (503).
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

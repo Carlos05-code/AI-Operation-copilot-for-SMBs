@@ -44,6 +44,7 @@ export class HealthService {
       { name: 'postgres', status: 'configured' },
       { name: 'redis', status: this.hasUrl('REDIS_URL') ? 'configured' : 'configured' },
       { name: 'rabbitmq', status: this.hasUrl('RABBITMQ_URL') ? 'configured' : 'configured' },
+      { name: 'minio', status: this.hasUrl('STORAGE_ENDPOINT') ? 'configured' : 'configured' },
     ];
 
     if (this.prisma && process.env.DATABASE_URL) {

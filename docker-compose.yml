@@ -114,7 +114,7 @@ services:
     volumes:
       - miniodata:/data
     healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
+      test: ['CMD-SHELL', 'curl -f http://localhost:9000/minio/health/live || exit 1']
       interval: 10s
       timeout: 10s
       retries: 5

@@ -40,6 +40,26 @@ export class AppConfig {
   authAudience?: string;
 
   @IsString()
+  @IsOptional()
+  storageEndpoint?: string;
+
+  @IsString()
+  @IsOptional()
+  storageAccessKey?: string;
+
+  @IsString()
+  @IsOptional()
+  storageSecretKey?: string;
+
+  @IsString()
+  @IsOptional()
+  storageBucket?: string;
+
+  @IsString()
+  @IsOptional()
+  storageRegion?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

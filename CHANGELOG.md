@@ -67,6 +67,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `redisConnectionOptions`) and exponential-retry defaults; `QueueService` enqueue facade
   - Both modules global + lazy/fail-soft: local runs without Redis/RabbitMQ boot normally
   - Unit tests: outbox relay (success/failure/disconnected/no-op) and Redis URL parsing
+- Object storage integration (MinIO, SECURITY_SPEC §10, ADR-0007):
+  - `StorageModule` (global) with a MinIO client factory from `STORAGE_ENDPOINT` /
+    `STORAGE_ACCESS_KEY` / `STORAGE_SECRET_KEY` / `STORAGE_BUCKET` / `STORAGE_REGION`; inert when
+    unset so local runs without MinIO boot normally
+  - `StorageService`: presigned PUT (`POST /api/v1/storage/uploads/presign`) and GET
+    (`GET /api/v1/storage/objects?key=...`) URLs with opaque org-scoped object keys
+    (`{org_id}/{uuid}`) and sanitized filenames as metadata only
+  - Guard chain per API_SPEC §6: `JwtAuthGuard` → `TenancyGuard` → `RolesGuard`; uploads require
+    agent-or-above scope, downloads any member
+  - `STORAGE_UNAVAILABLE` (503) error code; DTO validation via the global validation pipe
+  - Compose MinIO healthcheck fixed (`curl` liveness probe); health report lists MinIO as a
+    dependency
+  - Unit tests: endpoint/config parsing, presign delegation, fail-soft behavior, controller scoping
 
 ### Changed
 

@@ -96,17 +96,18 @@ Errors use the standard error contract (see §8).
 
 Common codes:
 
-| HTTP | Code                | Meaning                          |
-| ---- | ------------------- | -------------------------------- |
-| 400  | `VALIDATION_ERROR`  | Malformed payload                |
-| 401  | `UNAUTHORIZED`      | Missing/invalid token            |
-| 403  | `FORBIDDEN`         | Role/tenant denied               |
-| 404  | `*_NOT_FOUND`       | Resource absent                  |
-| 409  | `CONFLICT`          | State conflict                   |
-| 413  | `PAYLOAD_TOO_LARGE` | Upload over `MAX_UPLOAD_SIZE_MB` |
-| 422  | `VALIDATION_FAILED` | DTO validation failed            |
-| 429  | `TOO_MANY_REQUESTS` | Rate limit                       |
-| 500  | `INTERNAL_ERROR`    | Unexpected                       |
+| HTTP | Code                  | Meaning                                   |
+| ---- | --------------------- | ----------------------------------------- |
+| 400  | `VALIDATION_ERROR`    | Malformed payload                         |
+| 401  | `UNAUTHORIZED`        | Missing/invalid token                     |
+| 403  | `FORBIDDEN`           | Role/tenant denied                        |
+| 404  | `*_NOT_FOUND`         | Resource absent                           |
+| 409  | `CONFLICT`            | State conflict                            |
+| 413  | `PAYLOAD_TOO_LARGE`   | Upload over `MAX_UPLOAD_SIZE_MB`          |
+| 422  | `VALIDATION_FAILED`   | DTO validation failed                     |
+| 429  | `TOO_MANY_REQUESTS`   | Rate limit                                |
+| 503  | `STORAGE_UNAVAILABLE` | Object storage not configured/unreachable |
+| 500  | `INTERNAL_ERROR`      | Unexpected                                |
 
 ## 10. OpenAPI
 
@@ -169,6 +170,53 @@ Authorization: Bearer <jwt>
         "highlights": []
       }
     ]
+  },
+  "meta": { "requestId": "..." }
+}
+```
+
+### 11.3 Presigned storage upload (MinIO)
+
+Opaque org-scoped object keys: `{org_id}/{uuid}`. The client PUTs the file directly to MinIO; the
+original filename is returned as metadata only.
+
+```http
+POST /api/v1/storage/uploads/presign
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "filename": "invoice.pdf",
+  "contentType": "application/pdf"
+}
+```
+
+```json
+200 {
+  "data": {
+    "uploadUrl": "http://localhost:9000/smb-copilot/org-1/7b02e1b2-...?X-Amz-Signature=...",
+    "objectKey": "org-1/7b02e1b2-...",
+    "filename": "invoice.pdf",
+    "contentType": "application/pdf",
+    "expiresIn": 3600
+  },
+  "meta": { "requestId": "..." }
+}
+```
+
+Presigned downloads:
+
+```http
+GET /api/v1/storage/objects?key=org-1/7b02e1b2-...
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "downloadUrl": "http://localhost:9000/smb-copilot/org-1/7b02e1b2-...?X-Amz-Signature=...",
+    "objectKey": "org-1/7b02e1b2-...",
+    "expiresIn": 300
   },
   "meta": { "requestId": "..." }
 }
