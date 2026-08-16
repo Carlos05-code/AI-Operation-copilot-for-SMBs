@@ -65,22 +65,22 @@ Key entities (foundation only — see ROADMAP/ API_SPEC for the full boundary):
 
 ### 3.1 Core tables (foundation)
 
-| Table                 | Purpose                                           |
-| --------------------- | ------------------------------------------------- |
-| `organizations`       | Tenant row; `slug` unique; plan/billing metadata  |
-| `users`               | Identity; linked to Keycloak `auth_id`; interop   |
-| `members`             | Org membership + role (RBAC)                      |
-| `customers`           | Customers per org; channel handles (whatsapp)     |
-| `products`            | SKUs, prices, cost, reorder point                 |
-| `inventory_movements` | stock ledger (in/out)                             |
-| `sales_orders`        | Orders (line items normalized)                    |
-| `invoices`            | Invoice header + status flow                      |
-| `invoice_items`       | line-level items + taxes                          |
-| `tasks`               | AI-planned + human tasks, with agent metadata     |
-| `documents`           | metadata about uploads; content in MinIO          |
-| `knowledge_documents` | org-scoped KB entries (reference to MinIO object) |
-| `notifications`       | notifications per user/org channel                |
-| `audit_logs`          | audit events (compliance)                         |
+| Table                 | Purpose                                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `organizations`       | Tenant row; `slug` unique; plan/billing metadata                                                                                                  |
+| `users`               | Identity; linked to Keycloak `auth_id`; interop                                                                                                   |
+| `members`             | Org membership + role (RBAC)                                                                                                                      |
+| `customers`           | Customers per org; channel handles (whatsapp)                                                                                                     |
+| `products`            | SKUs, prices, cost, reorder point                                                                                                                 |
+| `inventory_movements` | stock ledger (in/out)                                                                                                                             |
+| `sales_orders`        | Orders (line items normalized)                                                                                                                    |
+| `invoices`            | Invoice header + status flow                                                                                                                      |
+| `invoice_items`       | line-level items + taxes                                                                                                                          |
+| `tasks`               | AI-planned + human tasks, with agent metadata                                                                                                     |
+| `documents`           | metadata about uploads; content in MinIO; status lifecycle `PENDING → PROCESSING → INDEXED / FAILED`; `clean_text_key` sidecar holds cleaned text |
+| `knowledge_documents` | org-scoped KB entries (reference to the cleaned-text MinIO object)                                                                                |
+| `notifications`       | notifications per user/org channel                                                                                                                |
+| `audit_logs`          | audit events (compliance)                                                                                                                         |
 
 ### 3.2 ER Diagram (foundation)
 

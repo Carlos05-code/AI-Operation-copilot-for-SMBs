@@ -1,6 +1,7 @@
 /**
  * Unit tests — StorageService presign delegation and fail-soft behavior.
  */
+import { Readable } from 'node:stream';
 import type { Client } from 'minio';
 import { ApiError } from '../../shared/errors/error-contract';
 import { sanitizeFilename, StorageService } from './storage.service';
@@ -82,5 +83,42 @@ describe('sanitizeFilename', () => {
 
   it('falls back to a neutral name when nothing survives', () => {
     expect(sanitizeFilename('...')).toBe('file');
+  });
+});
+
+function mockObjectClient(): { getObject: jest.Mock; putObject: jest.Mock } {
+  return { getObject: jest.fn(), putObject: jest.fn() };
+}
+
+describe('server-side object access', () => {
+  it('collects a stream into a buffer via getObject', async () => {
+    const client = mockObjectClient();
+    client.getObject.mockResolvedValue(
+      Readable.from([Buffer.from('hello '), Buffer.from('world')]),
+    );
+    const service = new StorageService(client as unknown as Client, 'smb-copilot');
+    const buffer = await service.getObject('org-1/k');
+    expect(client.getObject).toHaveBeenCalledWith('smb-copilot', 'org-1/k');
+    expect(buffer.toString('utf8')).toBe('hello world');
+  });
+
+  it('delegates putObject with size and content type', async () => {
+    const client = mockObjectClient();
+    client.putObject.mockResolvedValue({ etag: 'x' });
+    const service = new StorageService(client as unknown as Client, 'smb-copilot');
+    await service.putObject('org-1/k', Buffer.from('data'), 'text/plain');
+    expect(client.putObject).toHaveBeenCalledWith('smb-copilot', 'org-1/k', expect.any(Buffer), 4, {
+      'Content-Type': 'text/plain',
+    });
+  });
+
+  it('maps getObject failures to STORAGE_UNAVAILABLE', async () => {
+    const client = mockObjectClient();
+    client.getObject.mockRejectedValue(new Error('no such key'));
+    const service = new StorageService(client as unknown as Client);
+    await expect(service.getObject('org-1/missing')).rejects.toMatchObject({
+      code: 'STORAGE_UNAVAILABLE',
+      status: 503,
+    });
   });
 });

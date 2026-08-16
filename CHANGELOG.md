@@ -80,6 +80,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Compose MinIO healthcheck fixed (`curl` liveness probe); health report lists MinIO as a
     dependency
   - Unit tests: endpoint/config parsing, presign delegation, fail-soft behavior, controller scoping
+- Document ingestion pipeline (ROADMAP Phase 2, AI_ARCHITECTURE §4):
+  - `IngestionModule`: `POST /api/v1/documents` (register an uploaded object),
+    `GET /api/v1/documents/:id` (status), `POST /api/v1/documents/:id/ingest` (run the pipeline)
+  - `IngestionService`: `PENDING/FAILED → PROCESSING → INDEXED` lifecycle; downloads bytes from
+    MinIO, extracts text (`pdf-parse` for PDF text layers, UTF-8 for `text/plain`), cleans (NFKC
+    normalization, control-char stripping, page-number footer removal), stores a `clean.txt`
+    sidecar, upserts the `knowledge_documents` row, emits `document.ingested` on the outbox, and
+    enqueues an `ai-jobs` embedding job (fire-and-forget; Redis down does not fail ingestion)
+  - Failures mark the document `FAILED` and emit `document.ingestion_failed`
+  - `StorageService.getObject`/`putObject` server-side access with stream collection
+  - Migration `20260816020000_add_document_clean_text_key` (`documents.clean_text_key`)
+  - `UNSUPPORTED_DOCUMENT` (422) error code for unsupported/scanned content (OCR deferred)
+  - Unit tests: cleaner heuristics, extraction providers, pipeline orchestration (happy path,
+    storage-down, extraction failure, re-ingestion conflict, org scoping, DB-not-configured)
 
 ### Changed
 

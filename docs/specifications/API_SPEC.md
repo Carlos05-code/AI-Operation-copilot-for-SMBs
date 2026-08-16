@@ -96,18 +96,19 @@ Errors use the standard error contract (see §8).
 
 Common codes:
 
-| HTTP | Code                  | Meaning                                   |
-| ---- | --------------------- | ----------------------------------------- |
-| 400  | `VALIDATION_ERROR`    | Malformed payload                         |
-| 401  | `UNAUTHORIZED`        | Missing/invalid token                     |
-| 403  | `FORBIDDEN`           | Role/tenant denied                        |
-| 404  | `*_NOT_FOUND`         | Resource absent                           |
-| 409  | `CONFLICT`            | State conflict                            |
-| 413  | `PAYLOAD_TOO_LARGE`   | Upload over `MAX_UPLOAD_SIZE_MB`          |
-| 422  | `VALIDATION_FAILED`   | DTO validation failed                     |
-| 429  | `TOO_MANY_REQUESTS`   | Rate limit                                |
-| 503  | `STORAGE_UNAVAILABLE` | Object storage not configured/unreachable |
-| 500  | `INTERNAL_ERROR`      | Unexpected                                |
+| HTTP | Code                   | Meaning                                                        |
+| ---- | ---------------------- | -------------------------------------------------------------- |
+| 400  | `VALIDATION_ERROR`     | Malformed payload                                              |
+| 401  | `UNAUTHORIZED`         | Missing/invalid token                                          |
+| 403  | `FORBIDDEN`            | Role/tenant denied                                             |
+| 404  | `*_NOT_FOUND`          | Resource absent                                                |
+| 409  | `CONFLICT`             | State conflict                                                 |
+| 413  | `PAYLOAD_TOO_LARGE`    | Upload over `MAX_UPLOAD_SIZE_MB`                               |
+| 422  | `VALIDATION_FAILED`    | DTO validation failed                                          |
+| 422  | `UNSUPPORTED_DOCUMENT` | Unsupported format or scanned PDF (no text layer; OCR pending) |
+| 429  | `TOO_MANY_REQUESTS`    | Rate limit                                                     |
+| 503  | `STORAGE_UNAVAILABLE`  | Object storage not configured/unreachable                      |
+| 500  | `INTERNAL_ERROR`       | Unexpected                                                     |
 
 ## 10. OpenAPI
 
@@ -221,6 +222,58 @@ Authorization: Bearer <jwt>
   "meta": { "requestId": "..." }
 }
 ```
+
+### 11.4 Document ingestion
+
+Upload flow: presign → PUT to MinIO → register → ingest.
+
+```http
+POST /api/v1/documents
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "fileName": "invoice.pdf",
+  "contentType": "application/pdf",
+  "sizeBytes": 20480,
+  "storageKey": "org-1/7b02e1b2-..."
+}
+```
+
+```json
+201 {
+  "data": {
+    "id": "doc-1",
+    "fileName": "invoice.pdf",
+    "contentType": "application/pdf",
+    "sizeBytes": 20480,
+    "storageKey": "org-1/7b02e1b2-...",
+    "status": "PENDING"
+  },
+  "meta": { "requestId": "..." }
+}
+```
+
+```http
+POST /api/v1/documents/doc-1/ingest
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "id": "doc-1",
+    "status": "INDEXED",
+    "cleanTextKey": "org-1/doc-1/clean.txt"
+  },
+  "meta": { "requestId": "..." }
+}
+```
+
+Status lifecycle: `PENDING → PROCESSING → INDEXED | FAILED`. Re-ingestion of an `INDEXED` document
+returns `409 CONFLICT`. Scanned PDFs (no text layer) return `422 UNSUPPORTED_DOCUMENT` until OCR
+lands. On completion the service publishes `document.ingested` to the domain event bus and queues an
+embedding job.
 
 ## 12. Related
 

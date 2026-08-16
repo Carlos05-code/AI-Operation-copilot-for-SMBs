@@ -120,4 +120,47 @@ export class StorageService {
     }
     return this.client;
   }
+
+  /** Downloads an object's bytes (server-side, e.g. for ingestion). */
+  async getObject(objectKey: string): Promise<Buffer> {
+    const client = this.requireClient();
+    try {
+      const stream = await client.getObject(this.bucket, objectKey);
+      return await collectStream(stream as NodeJS.ReadableStream);
+    } catch (error) {
+      this.logger.error(`getObject failed for ${objectKey}: ${(error as Error)?.message}`);
+      throw new ApiError({
+        code: HttpErrorCode.STORAGE_UNAVAILABLE,
+        status: 503,
+        message: 'Object storage is unavailable',
+      });
+    }
+  }
+
+  /** Stores bytes under an object key (server-side, e.g. cleaned text). */
+  async putObject(objectKey: string, data: Buffer, contentType?: string): Promise<void> {
+    const client = this.requireClient();
+    try {
+      await client.putObject(this.bucket, objectKey, data, data.length, {
+        'Content-Type': contentType,
+      });
+    } catch (error) {
+      this.logger.error(`putObject failed for ${objectKey}: ${(error as Error)?.message}`);
+      throw new ApiError({
+        code: HttpErrorCode.STORAGE_UNAVAILABLE,
+        status: 503,
+        message: 'Object storage is unavailable',
+      });
+    }
+  }
+}
+
+/** Collects a readable stream into a single Buffer. */
+export function collectStream(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
 }

@@ -47,7 +47,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 **Goal**: bring organizational data into a single knowledge platform.
 
-- [ ] Ingestion pipelines: documents (PDF → OCR → clean text)
+- [x] Ingestion pipelines: documents (PDF → OCR → clean text)
 - [ ] Email ingestion (IMAP) and WhatsApp parsing
 - [ ] Knowledge base surface + organization-scoped access control
 - [ ] Embeddings (BGE-M3, fallback OpenAI) and chunking service

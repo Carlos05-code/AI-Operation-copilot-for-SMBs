@@ -41,15 +41,13 @@ describe('StorageController', () => {
 
   it('surfaces STORAGE_UNAVAILABLE from the service', async () => {
     const storage = {
-      presignDownload: jest
-        .fn()
-        .mockRejectedValue(
-          new ApiError({
-            code: 'STORAGE_UNAVAILABLE',
-            status: 503,
-            message: 'Object storage is not configured',
-          }),
-        ),
+      presignDownload: jest.fn().mockRejectedValue(
+        new ApiError({
+          code: 'STORAGE_UNAVAILABLE',
+          status: 503,
+          message: 'Object storage is not configured',
+        }),
+      ),
     };
     const controller = new StorageController(storage as never);
     await expect(controller.presignDownload({ key: 'org-1/k' })).rejects.toMatchObject({

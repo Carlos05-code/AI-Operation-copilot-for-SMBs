@@ -256,6 +256,7 @@ model Document {
   contentType    String       @map("content_type")
   sizeBytes      Int          @map("size_bytes")
   storageKey     String       @map("storage_key")
+  cleanTextKey   String?      @map("clean_text_key")
   status         DocumentStatus @default(PENDING)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

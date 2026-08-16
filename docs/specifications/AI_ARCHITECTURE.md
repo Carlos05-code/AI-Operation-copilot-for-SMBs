@@ -44,6 +44,12 @@ flowchart LR
 
 ## 4. Chunking & Ingestion pipelести
 
+> Status (Phase 2): document ingestion pipeline shipped (register → MinIO → extract → clean →
+> `knowledge_documents` → `document.ingested` event). Scanned-PDF OCR is deferred: the pipeline
+> currently serves `text/plain` and PDF text layers and rejects scanned PDFs with
+> `UNSUPPORTED_DOCUMENT` (422). DOCX/OCR, chunking, embeddings, and graph indexing land in later
+> units of Phase 2.
+
 ```mermaid
 flowchart LR
     SRC[PDF / DOCX / image] --> OCR[PaddleOCR / Tesseract]
