@@ -13,6 +13,8 @@ import { buildOpenApiDocument } from '../src/shared/openapi/openapi-document.js'
 describe('API (e2e)', () => {
   let app: INestApplication;
 
+  // Boot/shutdown with no infrastructure configured settles within the
+  // bounded Redis retry window (~21s), so hooks get explicit timeouts.
   beforeAll(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -29,11 +31,11 @@ describe('API (e2e)', () => {
     openApi.setDocument(buildOpenApiDocument(app));
 
     await app.init();
-  });
+  }, 30000);
 
   afterAll(async () => {
     await app.close();
-  });
+  }, 30000);
 
   it('GET /api/health returns readiness inside the success envelope', async () => {
     const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);

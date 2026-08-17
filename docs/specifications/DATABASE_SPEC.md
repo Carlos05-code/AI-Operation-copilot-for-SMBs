@@ -142,6 +142,11 @@ org).
 
 ## 5. Qdrant Collections
 
+> Status: `doc_chunks_{org}` is implemented — the embedding worker creates collections on first use
+> with Cosine distance and payload indexes on `org_id` / `source_document_id`, and upserts
+> deterministic points (`sha1(documentId:index)`) for idempotent re-runs. `conversation_{org}`
+> arrives with conversation ingestion.
+
 | Collection           | Vector size                | Distance | Payload                                                  |
 | -------------------- | -------------------------- | -------- | -------------------------------------------------------- |
 | `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text_preview, chunk_id |

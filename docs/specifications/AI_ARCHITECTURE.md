@@ -44,11 +44,11 @@ flowchart LR
 
 ## 4. Chunking & Ingestion pipelести
 
-> Status (Phase 2): document ingestion pipeline shipped (register → MinIO → extract → clean →
-> `knowledge_documents` → `document.ingested` event). Scanned-PDF OCR is deferred: the pipeline
-> currently serves `text/plain` and PDF text layers and rejects scanned PDFs with
-> `UNSUPPORTED_DOCUMENT` (422). DOCX/OCR, chunking, embeddings, and graph indexing land in later
-> units of Phase 2.
+> Status (Phase 2): document ingestion and the embedding pipeline are shipped (register → MinIO →
+> extract → clean → chunk → embed → Qdrant `doc_chunks_{org}` → `document.embedded` event). The
+> chunker targets 384 tokens with 64-token overlap and never splits mid-sentence. Scanned-PDF OCR
+> and DOCX extraction are deferred (`UNSUPPORTED_DOCUMENT` 422 today); keyword (OpenSearch) and
+> graph (Neo4j) indexing land in later units of Phase 2.
 
 ```mermaid
 flowchart LR

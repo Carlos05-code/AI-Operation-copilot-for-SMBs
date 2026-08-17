@@ -73,6 +73,13 @@ Object storage is exposed via presigned URLs only: the API never proxies file by
 and use `POST /api/v1/storage/uploads/presign` / `GET /api/v1/storage/objects?key=...` to obtain
 short-lived MinIO URLs; without those env vars the endpoints return `STORAGE_UNAVAILABLE` (503).
 
+Embeddings are produced by an OpenAI-compatible endpoint (`EMBEDDINGS_API_URL`/`EMBEDDINGS_API_KEY`,
+e.g. BGE-M3 behind vLLM) and stored in Qdrant (`QDRANT_URL`/`QDRANT_API_KEY`). An `ai-jobs` BullMQ
+worker consumes `document.ingested` jobs: it chunks the cleaned text (~384 tokens with 64-token
+overlap), embeds in batches, and upserts vectors into the org's `doc_chunks_{org}` collection (see
+`DATABASE_SPEC` §5). Without those env vars the worker skips embedding jobs and the API keeps
+working (fail-soft).
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

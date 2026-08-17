@@ -189,15 +189,13 @@ describe('IngestionService', () => {
     it('marks FAILED and emits document.ingestion_failed when storage is down', async () => {
       const prisma = prismaMock([document]);
       const noStorage: typeof storage = {
-        getObject: jest
-          .fn()
-          .mockRejectedValue(
-            new ApiError({
-              code: 'STORAGE_UNAVAILABLE',
-              status: 503,
-              message: 'Object storage is unavailable',
-            }),
-          ),
+        getObject: jest.fn().mockRejectedValue(
+          new ApiError({
+            code: 'STORAGE_UNAVAILABLE',
+            status: 503,
+            message: 'Object storage is unavailable',
+          }),
+        ),
         putObject: jest.fn(),
       };
       await expect(

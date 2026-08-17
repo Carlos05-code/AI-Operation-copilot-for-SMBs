@@ -60,6 +60,32 @@ export class AppConfig {
   storageRegion?: string;
 
   @IsString()
+  @IsOptional()
+  embeddingsApiUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  embeddingsApiKey?: string;
+
+  @IsString()
+  @IsOptional()
+  embeddingsModel?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(8192)
+  embeddingsDimension?: number;
+
+  @IsString()
+  @IsOptional()
+  qdrantUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  qdrantApiKey?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

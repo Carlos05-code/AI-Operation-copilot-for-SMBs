@@ -94,6 +94,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - `UNSUPPORTED_DOCUMENT` (422) error code for unsupported/scanned content (OCR deferred)
   - Unit tests: cleaner heuristics, extraction providers, pipeline orchestration (happy path,
     storage-down, extraction failure, re-ingestion conflict, org scoping, DB-not-configured)
+- Embedding pipeline (chunking + embeddings + Qdrant, AI_ARCHITECTURE §4, DATABASE_SPEC §5):
+  - `EmbeddingsModule` with a BullMQ `ai-jobs` worker (`EmbeddingsWorker`, `@Processor`) consuming
+    `document.ingested` jobs: downloads the `clean.txt` sidecar, chunks, embeds in batches of 64,
+    and upserts vectors into Qdrant
+  - `ChunkerService` (`chunker.ts`): sentence-aligned chunks (~384 tokens) with 64-token overlap,
+    never splits mid-sentence; oversized sentences become their own chunk
+  - `EmbeddingProvider`: OpenAI-compatible `POST {url}/embeddings` client (`EMBEDDINGS_API_URL`/
+    `EMBEDDINGS_API_KEY`/`EMBEDDINGS_MODEL`, default `BAAI/bge-m3`); failures map to
+    `EMBEDDINGS_UNAVAILABLE` (503)
+  - `VectorStoreService`: per-org Qdrant collection `doc_chunks_{org}` (Cosine,
+    `EMBEDDINGS_DIMENSION` default 1024) with payload indexes on `org_id`/`source_document_id`;
+    deterministic point ids `sha1(documentId:index)` for idempotent re-runs; failures map to
+    `VECTOR_STORE_UNAVAILABLE` (503)
+  - `document.embedded` outbox event; jobs retry 3× with exponential backoff and fail-soft when
+    embeddings/Qdrant are not configured (worker skips, API keeps working)
+  - `@qdrant/js-client-rest` dependency; env validation for `EMBEDDINGS_*` / `QDRANT_*`; health
+    reports `embeddings` and `qdrant` as configured dependencies
+  - Unit tests: chunker heuristics, provider requests/errors, collection management/upserts, worker
+    orchestration (happy path, not configured, storage-down, provider failure, outbox-down)
+- Queue reliability fix: BullMQ Redis `retryStrategy` is now bounded (gives up after ~20s) so a dead
+  Redis can no longer hang `Worker.close()` during app shutdown (previously the e2e suite and
+  `app.close()` would wait forever on `waitUntilReady`)
 
 ### Changed
 

@@ -13,6 +13,7 @@ import { EventsModule } from './modules/events/events.module.js';
 import { QueueModule } from './modules/queue/queue.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
 import { IngestionModule } from './modules/ingestion/ingestion.module.js';
+import { EmbeddingsModule } from './modules/embeddings/embeddings.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -27,6 +28,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     QueueModule,
     StorageModule,
     IngestionModule,
+    EmbeddingsModule,
     HealthModule,
     OpenApiModule,
   ],
