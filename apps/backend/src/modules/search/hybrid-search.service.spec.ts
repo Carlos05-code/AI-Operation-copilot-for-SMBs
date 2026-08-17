@@ -4,6 +4,7 @@
 import { HttpErrorCode } from '../../shared/errors/error-contract';
 import type { EmbeddingProvider } from '../embeddings/embedding.provider';
 import type { VectorStoreService } from '../embeddings/vector-store.service';
+import type { GraphService } from '../graph/graph.service';
 import { HybridSearchService } from './hybrid-search.service';
 import type { SearchService } from './search.service';
 
@@ -12,22 +13,26 @@ function harness(
     provider?: { isConfigured: boolean; embed: jest.Mock };
     vectorStore?: { isConfigured: boolean; searchSimilar: jest.Mock };
     search?: { isConfigured: boolean; searchFullText: jest.Mock };
+    graph?: { isConfigured: boolean; searchByEntities: jest.Mock };
   } = {},
 ): {
   hybrid: HybridSearchService;
   provider: { isConfigured: boolean; embed: jest.Mock };
   vectorStore: { isConfigured: boolean; searchSimilar: jest.Mock };
   search: { isConfigured: boolean; searchFullText: jest.Mock };
+  graph: { isConfigured: boolean; searchByEntities: jest.Mock };
 } {
   const provider = overrides.provider ?? { isConfigured: true, embed: jest.fn() };
   const vectorStore = overrides.vectorStore ?? { isConfigured: true, searchSimilar: jest.fn() };
   const search = overrides.search ?? { isConfigured: true, searchFullText: jest.fn() };
+  const graph = overrides.graph ?? { isConfigured: true, searchByEntities: jest.fn() };
   const hybrid = new HybridSearchService(
     provider as unknown as EmbeddingProvider,
     vectorStore as unknown as VectorStoreService,
     search as unknown as SearchService,
+    graph as unknown as GraphService,
   );
-  return { hybrid, provider, vectorStore, search };
+  return { hybrid, provider, vectorStore, search, graph };
 }
 
 const hit = (documentId: string, chunkId: string, score: number) => ({
@@ -44,6 +49,7 @@ describe('HybridSearchService', () => {
       provider: { isConfigured: false, embed: jest.fn() },
       vectorStore: { isConfigured: false, searchSimilar: jest.fn() },
       search: { isConfigured: false, searchFullText: jest.fn() },
+      graph: { isConfigured: false, searchByEntities: jest.fn() },
     });
     await expect(hybrid.search('org-1', 'hello')).rejects.toMatchObject({
       code: HttpErrorCode.SEARCH_UNAVAILABLE,
@@ -51,15 +57,37 @@ describe('HybridSearchService', () => {
     });
   });
 
-  it('embeds the query and asks both stores for candidates', async () => {
-    const { hybrid, provider, vectorStore, search } = harness();
+  it('asks all configured stores for candidates', async () => {
+    const { hybrid, provider, vectorStore, search, graph } = harness();
     provider.embed.mockResolvedValue([[0.1, 0.2]]);
     vectorStore.searchSimilar.mockResolvedValue([]);
     search.searchFullText.mockResolvedValue([]);
-    await hybrid.search('org-1', 'the query', 10);
-    expect(provider.embed).toHaveBeenCalledWith(['the query']);
+    graph.searchByEntities.mockResolvedValue([]);
+    await hybrid.search('org-1', 'Acme Corporation query', 10);
+    expect(provider.embed).toHaveBeenCalledWith(['Acme Corporation query']);
     expect(vectorStore.searchSimilar).toHaveBeenCalledWith('org-1', [0.1, 0.2], 20);
-    expect(search.searchFullText).toHaveBeenCalledWith('org-1', 'the query', 20);
+    expect(search.searchFullText).toHaveBeenCalledWith('org-1', 'Acme Corporation query', 20);
+    expect(graph.searchByEntities).toHaveBeenCalledWith('org-1', ['acme corporation'], 20);
+  });
+
+  it('skips the graph stage when the query has no entities', async () => {
+    const { hybrid, provider, vectorStore, search, graph } = harness();
+    provider.embed.mockResolvedValue([[0.1]]);
+    vectorStore.searchSimilar.mockResolvedValue([]);
+    search.searchFullText.mockResolvedValue([]);
+    await hybrid.search('org-1', 'winter stock levels');
+    expect(graph.searchByEntities).not.toHaveBeenCalled();
+  });
+
+  it('fuses three ranked lists with RRF, ranking shared hits first', async () => {
+    const { hybrid, provider, vectorStore, search, graph } = harness();
+    provider.embed.mockResolvedValue([[0.5]]);
+    vectorStore.searchSimilar.mockResolvedValue([hit('doc-1', 'doc-1:0', 0.9)]);
+    search.searchFullText.mockResolvedValue([hit('doc-1', 'doc-1:1', 7.5)]);
+    graph.searchByEntities.mockResolvedValue([hit('doc-1', 'doc-1:0', 2)]);
+    const results = await hybrid.search('org-1', 'Acme Corporation');
+    expect(results.map((r) => r.chunkId)).toEqual(['doc-1:0', 'doc-1:1']);
+    expect(results[0]?.score).toBeCloseTo(1 / 61 + 1 / 61);
   });
 
   it('fuses ranked lists with RRF, ranking shared hits first', async () => {
@@ -109,22 +137,33 @@ describe('HybridSearchService', () => {
     expect(results.map((r) => r.chunkId)).toEqual(['doc-2:3']);
   });
 
+  it('degrades to graph-only when both vector and keyword fail', async () => {
+    const { hybrid, provider, search, graph } = harness();
+    provider.embed.mockRejectedValue(new Error('api down'));
+    search.searchFullText.mockRejectedValue(new Error('cluster down'));
+    graph.searchByEntities.mockResolvedValue([hit('doc-3', 'doc-3:1', 2)]);
+    const results = await hybrid.search('org-1', 'Acme Corporation');
+    expect(results.map((r) => r.chunkId)).toEqual(['doc-3:1']);
+  });
+
   it('fails when every configured store failed at query time', async () => {
-    const { hybrid, provider, vectorStore, search } = harness();
+    const { hybrid, provider, vectorStore, search, graph } = harness();
     provider.embed.mockRejectedValue(new Error('api down'));
     vectorStore.searchSimilar.mockRejectedValue(new Error('qdrant down'));
     search.searchFullText.mockRejectedValue(new Error('cluster down'));
-    await expect(hybrid.search('org-1', 'the query')).rejects.toMatchObject({
+    graph.searchByEntities.mockRejectedValue(new Error('database unreachable'));
+    await expect(hybrid.search('org-1', 'Acme Corporation')).rejects.toMatchObject({
       code: HttpErrorCode.SEARCH_UNAVAILABLE,
       status: 503,
     });
   });
 
   it('returns an empty list for a real no-match search', async () => {
-    const { hybrid, provider, vectorStore, search } = harness();
+    const { hybrid, provider, vectorStore, search, graph } = harness();
     provider.embed.mockResolvedValue([[0.5]]);
     vectorStore.searchSimilar.mockResolvedValue([]);
     search.searchFullText.mockResolvedValue([]);
-    await expect(hybrid.search('org-1', 'zzz')).resolves.toEqual([]);
+    graph.searchByEntities.mockResolvedValue([]);
+    await expect(hybrid.search('org-1', 'Acme Corporation')).resolves.toEqual([]);
   });
 });

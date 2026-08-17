@@ -134,10 +134,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     requesting member's org (any authenticated role)
   - `document.indexed` outbox event; `search-jobs` queue registered; `SEARCH_UNAVAILABLE` error
     code; `OPENSEARCH_*` env validation; health reports `search` as a configured dependency
-  - `@opensearch-project/opensearch` dependency
+- `@opensearch-project/opensearch` dependency
   - Unit tests: config resolution, index lifecycle/bulk/search + error mapping, worker orchestration
     (happy path, not configured, storage down, cluster down, outbox down), RRF fusion + degradation
     matrix; e2e: unauthenticated search → 401 error envelope
+- Knowledge-graph indexing + graph-expanded retrieval (Neo4j, ADR-0005, DATABASE_SPEC §4):
+  - `GraphModule` with a BullMQ `graph-jobs` worker (`GraphWorker`, `@Processor`): consumes
+    `document.graph` jobs enqueued by ingestion, downloads the `clean.txt` sidecar, re-chunks, and
+    merges the subgraph `(:Document)-[:HAS_CHUNK]->(:Chunk)-[:CONTAINS]->(:Entity)` into Neo4j with
+    idempotent `MERGE`s keyed on deterministic ids (re-runs converge)
+  - `EntityExtractor`: deterministic LLM-free extraction (emails, URLs, ALL-CAPS acronyms,
+    capitalized multi-word phrases; honorific-prefixed names become `person`) with canonical
+    lowercasing, dedupe, and per-chunk caps
+  - `GraphService`: upsert + `searchByEntities` (chunks mentioning query entities, scored by
+    matches); failures map to `GRAPH_UNAVAILABLE` (503); not configured → fail-soft
+  - `HybridSearchService` graph stage: entities extracted from the query are expanded 1 hop through
+    the graph; three-store RRF fusion with the same graceful degradation contract
+  - `document.graph_indexed` outbox event; `graph-jobs` queue registered; `GRAPH_UNAVAILABLE` error
+    code; `NEO4J_*` env validation; health reports `graph` as a configured dependency
+  - `neo4j-driver` dependency (`disableLosslessIntegers` for plain-number scores)
+  - Unit tests: extractor heuristics, config resolution, MERGE params + hit mapping + error mapping,
+    worker orchestration (happy path, not configured, storage down, graph down, outbox down), hybrid
+    3-way fusion + degradation matrix
 
 ### Changed
 

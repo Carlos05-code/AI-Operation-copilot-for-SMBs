@@ -98,6 +98,22 @@ export class AppConfig {
   opensearchPassword?: string;
 
   @IsString()
+  @IsOptional()
+  neo4jUri?: string;
+
+  @IsString()
+  @IsOptional()
+  neo4jUser?: string;
+
+  @IsString()
+  @IsOptional()
+  neo4jPassword?: string;
+
+  @IsString()
+  @IsOptional()
+  neo4jDatabase?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

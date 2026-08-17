@@ -105,6 +105,13 @@ erDiagram
 
 ## 4. Neo4j Graph Model
 
+> Status: the core subgraph is implemented — `(:Document {id, org_id})`,
+> `(:Chunk {id, document_id, org_id, index, text})`, and `(:Entity {canonical, org_id, kind})` with
+> `HAS_CHUNK` / `CONTAINS` edges, written idempotently (MERGE) by the `graph-jobs` worker from a
+> deterministic regex entity extractor (emails, URLs, acronyms, capitalized names — LLM-free;
+> honorific-prefixed names become `person`). Retrieval expands 1 hop from query entities. `Person`,
+> `Policy`, `Conversation`, `Task`, `RELATED_TO`/`EXPERT_IN` arrive with later units.
+
 Purpose: model **knowledge** relationships that are expensive/impossible in SQL: documents ↔
 entities ↔ people ↔ policies, and organizational expertise.
 

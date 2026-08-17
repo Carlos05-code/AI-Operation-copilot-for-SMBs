@@ -15,6 +15,7 @@ import { StorageModule } from './modules/storage/storage.module.js';
 import { IngestionModule } from './modules/ingestion/ingestion.module.js';
 import { EmbeddingsModule } from './modules/embeddings/embeddings.module.js';
 import { SearchModule } from './modules/search/search.module.js';
+import { GraphModule } from './modules/graph/graph.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -31,6 +32,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     IngestionModule,
     EmbeddingsModule,
     SearchModule,
+    GraphModule,
     HealthModule,
     OpenApiModule,
   ],

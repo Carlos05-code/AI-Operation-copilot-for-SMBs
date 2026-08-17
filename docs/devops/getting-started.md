@@ -86,6 +86,12 @@ Keyword search uses OpenSearch (`OPENSEARCH_URL`/`OPENSEARCH_USERNAME`/`OPENSEAR
 store is unconfigured the endpoint degrades to the available one and only fails with
 `SEARCH_UNAVAILABLE` (503) when nothing is configured.
 
+The knowledge graph uses Neo4j (`NEO4J_URI`/`NEO4J_USER`/`NEO4J_PASSWORD`/`NEO4J_DATABASE`): a
+`graph-jobs` BullMQ worker extracts entities (deterministic, LLM-free) from each chunk and merges
+the document/chunk/entity subgraph (`DATABASE_SPEC` §4). Hybrid search then expands the query's
+entities through the graph, so results mentioning the same people/companies rank higher. Without
+`NEO4J_URI` the graph stage is skipped and search still works.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

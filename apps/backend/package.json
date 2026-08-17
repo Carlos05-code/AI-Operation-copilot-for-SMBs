@@ -42,6 +42,7 @@
     "ioredis": "^6.0.0",
     "jose": "^6.2.7",
     "minio": "^8.0.7",
+    "neo4j-driver": "^6.2.0",
     "pdf-parse": "^1.1.1",
     "pino": "^9.5.0",
     "reflect-metadata": "^0.2.2",

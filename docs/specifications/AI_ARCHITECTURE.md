@@ -44,12 +44,13 @@ flowchart LR
 
 ## 4. Chunking & Ingestion pipelести
 
-> Status (Phase 2): ingestion, embeddings, and keyword indexing are shipped (register → MinIO →
-> extract → clean → chunk → embed → Qdrant `doc_chunks_{org}` → `document.embedded` event; chunk →
-> OpenSearch `search_{org}` via the `search-jobs` worker → `document.indexed` event). The chunker
-> targets 384 tokens with 64-token overlap and never splits mid-sentence. Scanned-PDF OCR and DOCX
-> extraction are deferred (`UNSUPPORTED_DOCUMENT` 422 today); graph (Neo4j) indexing lands in a
-> later unit of Phase 2.
+> Status (Phase 2): ingestion, embeddings, keyword indexing, and graph indexing are shipped
+> (register → MinIO → extract → clean → chunk → embed → Qdrant `doc_chunks_{org}` →
+> `document.embedded` event; chunk → OpenSearch `search_{org}` via the `search-jobs` worker →
+> `document.indexed` event; chunk + entities → Neo4j via the `graph-jobs` worker →
+> `document.graph_indexed` event). The chunker targets 384 tokens with 64-token overlap and never
+> splits mid-sentence. Entity extraction is deterministic (regex, LLM-free) for now. Scanned-PDF OCR
+> and DOCX extraction are deferred (`UNSUPPORTED_DOCUMENT` 422 today).
 
 ```mermaid
 flowchart LR
@@ -73,9 +74,10 @@ Chunking rules:
 
 ## 5. Retrieval Strategy (Hybrid + GraphRAG)
 
-> Status: `POST /api/v1/search` implements steps 1–2 + 4 today: top-20 candidates per configured
-> store (Qdrant vector + OpenSearch BM25), fused by RRF (k=60), degraded gracefully when a store is
-> unconfigured/unavailable. Graph expansion (step 3) and reranking (step 5) are planned.
+> Status: `POST /api/v1/search` implements steps 1–4 today: top-20 candidates per configured store
+> (Qdrant vector + OpenSearch BM25 + Neo4j graph expansion from query entities), fused by RRF
+> (k=60), degraded gracefully when a store is unconfigured/unavailable. Reranking (step 5) is
+> planned.
 
 Pipeline (with the retriever):
 

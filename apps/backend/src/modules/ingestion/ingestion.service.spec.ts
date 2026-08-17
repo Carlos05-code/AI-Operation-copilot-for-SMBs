@@ -181,6 +181,11 @@ describe('IngestionService', () => {
         organizationId: 'org-1',
         objectKey: 'org-1/doc-1/clean.txt',
       });
+      expect(queue.enqueue).toHaveBeenCalledWith('graph-jobs', 'document.graph', {
+        documentId: 'doc-1',
+        organizationId: 'org-1',
+        objectKey: 'org-1/doc-1/clean.txt',
+      });
     });
 
     it('rejects re-ingestion of an INDEXED document', async () => {

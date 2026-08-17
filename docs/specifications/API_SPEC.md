@@ -153,9 +153,10 @@ Content-Type: application/json
 ### 11.2 Hybrid search
 
 Implemented as `POST /api/v1/search` (any authenticated member; results are scoped to the org from
-the verified token). Fuses Qdrant vector similarity with OpenSearch BM25 via RRF (k=60, top-20
-candidates per store) and degrades gracefully when a store is unconfigured/unavailable. Fails with
-`SEARCH_UNAVAILABLE` (503) only when no store could be queried.
+the verified token). Fuses Qdrant vector similarity, OpenSearch BM25, and Neo4j graph expansion
+(query entities → chunks that mention them) via RRF (k=60, top-20 candidates per store) and degrades
+gracefully when a store is unconfigured/unavailable. Fails with `SEARCH_UNAVAILABLE` (503) only when
+no store could be queried.
 
 ```http
 POST /api/v1/search

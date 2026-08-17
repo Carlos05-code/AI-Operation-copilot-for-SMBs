@@ -8,6 +8,7 @@
 import { Module } from '@nestjs/common';
 import { Client as OpenSearchClient } from '@opensearch-project/opensearch';
 import { EmbeddingsModule } from '../embeddings/embeddings.module';
+import { GraphModule } from '../graph/graph.module';
 import { HybridSearchService } from './hybrid-search.service';
 import { searchConfig } from './search.config';
 import { SearchController } from './search.controller';
@@ -15,7 +16,7 @@ import { SearchService } from './search.service';
 import { SearchWorker } from './search.worker';
 
 @Module({
-  imports: [EmbeddingsModule],
+  imports: [EmbeddingsModule, GraphModule],
   controllers: [SearchController],
   providers: [
     {

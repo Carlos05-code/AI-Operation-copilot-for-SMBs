@@ -1,17 +1,22 @@
 /**
- * HybridSearchService: fuses vector (Qdrant) and keyword (OpenSearch) results
- * with Reciprocal Rank Fusion (AI_ARCHITECTURE §5, ADR-0006/0012).
+ * HybridSearchService: fuses vector (Qdrant), keyword (OpenSearch), and graph
+ * (Neo4j) results with Reciprocal Rank Fusion (AI_ARCHITECTURE §5,
+ * ADR-0006/0012/0005).
  *
  * Each configured store contributes its top-k candidates; scores from
  * different stores are incomparable, so fusion ranks by position
- * (`1/(k + rank)`). A store that is unconfigured or failing contributes
- * nothing: the request degrades gracefully to whatever is available and only
- * fails with `SEARCH_UNAVAILABLE` (503) when no store could be queried.
+ * (`1/(k + rank)`). The graph stage extracts entities from the query and
+ * expands 1 hop to chunks that mention them. A store that is unconfigured or
+ * failing contributes nothing: the request degrades gracefully to whatever is
+ * available and only fails with `SEARCH_UNAVAILABLE` (503) when no store
+ * could be queried.
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { ApiError, HttpErrorCode } from '../../shared/errors/error-contract';
 import { EmbeddingProvider } from '../embeddings/embedding.provider';
 import { VectorStoreService } from '../embeddings/vector-store.service';
+import { extractEntities } from '../graph/entity-extractor';
+import { GraphService } from '../graph/graph.service';
 import { DEFAULT_SEARCH_LIMIT, RRF_K, SEARCH_CANDIDATES } from './search.constants';
 import { SearchHit, SearchService } from './search.service';
 
@@ -23,6 +28,7 @@ export class HybridSearchService {
     private readonly provider: EmbeddingProvider,
     private readonly vectorStore: VectorStoreService,
     private readonly searchService: SearchService,
+    private readonly graph: GraphService,
   ) {}
 
   /**
@@ -43,6 +49,9 @@ export class HybridSearchService {
       runs.push(
         this.tryRun(() => this.searchService.searchFullText(organizationId, query, candidates)),
       );
+    }
+    if (this.graph.isConfigured) {
+      runs.push(this.tryRun(() => this.graphSearch(organizationId, query, candidates)));
     }
     if (runs.length === 0) {
       throw new ApiError({
@@ -75,6 +84,17 @@ export class HybridSearchService {
   ): Promise<SearchHit[]> {
     const [vector] = await this.provider.embed([query]);
     return this.vectorStore.searchSimilar(organizationId, vector, limit);
+  }
+
+  /** Graph expansion: chunks mentioning entities extracted from the query. */
+  private async graphSearch(
+    organizationId: string,
+    query: string,
+    limit: number,
+  ): Promise<SearchHit[]> {
+    const entities = extractEntities(query).map((entity) => entity.canonical);
+    if (entities.length === 0) return [];
+    return this.graph.searchByEntities(organizationId, entities, limit);
   }
 
   private async tryRun(run: () => Promise<SearchHit[]>): Promise<SearchHit[] | null> {

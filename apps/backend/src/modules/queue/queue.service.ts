@@ -10,6 +10,7 @@ import { Injectable } from '@nestjs/common';
 import type { JobsOptions, Queue } from 'bullmq';
 import {
   QUEUE_AI_JOBS,
+  QUEUE_GRAPH_JOBS,
   QUEUE_NOTIFICATIONS,
   QUEUE_SEARCH_JOBS,
   QueueName,
@@ -23,8 +24,14 @@ export class QueueService {
     @InjectQueue(QUEUE_NOTIFICATIONS) notifications: Queue,
     @InjectQueue(QUEUE_AI_JOBS) aiJobs: Queue,
     @InjectQueue(QUEUE_SEARCH_JOBS) searchJobs: Queue,
+    @InjectQueue(QUEUE_GRAPH_JOBS) graphJobs: Queue,
   ) {
-    this.queues = { notifications, 'ai-jobs': aiJobs, 'search-jobs': searchJobs };
+    this.queues = {
+      notifications,
+      'ai-jobs': aiJobs,
+      'search-jobs': searchJobs,
+      'graph-jobs': graphJobs,
+    };
   }
 
   /** Adds a job to the named queue with default retry/backoff options. */
