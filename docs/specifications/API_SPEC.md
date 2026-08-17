@@ -152,29 +152,42 @@ Content-Type: application/json
 
 ### 11.2 Hybrid search
 
+Implemented as `POST /api/v1/search` (any authenticated member; results are scoped to the org from
+the verified token). Fuses Qdrant vector similarity with OpenSearch BM25 via RRF (k=60, top-20
+candidates per store) and degrades gracefully when a store is unconfigured/unavailable. Fails with
+`SEARCH_UNAVAILABLE` (503) only when no store could be queried.
+
 ```http
-GET /api/v1/search?query=winter+stock&type=hybrid&limit=20
+POST /api/v1/search
 Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "query": "winter stock",
+  "limit": 20
+}
 ```
 
 ```json
 {
   "data": {
+    "query": "winter stock",
     "results": [
       {
-        "documentId": "...",
-        "chunkId": "...",
-        "score": 0.93,
-        "sourceType": "invoice",
-        "text": "...",
-        "citations": [],
-        "highlights": []
+        "documentId": "0b1a...",
+        "chunkId": "0b1a...:4",
+        "text": "Winter stock levels...",
+        "page": null,
+        "score": 0.0245
       }
     ]
   },
   "meta": { "requestId": "..." }
 }
 ```
+
+`score` is the fused RRF score (position-based, not comparable across queries). `page` is reserved
+for page-aware extraction (OCR pipeline, deferred).
 
 ### 11.3 Presigned storage upload (MinIO)
 

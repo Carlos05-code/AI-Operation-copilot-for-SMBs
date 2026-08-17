@@ -176,6 +176,11 @@ describe('IngestionService', () => {
         organizationId: 'org-1',
         objectKey: 'org-1/doc-1/clean.txt',
       });
+      expect(queue.enqueue).toHaveBeenCalledWith('search-jobs', 'document.index', {
+        documentId: 'doc-1',
+        organizationId: 'org-1',
+        objectKey: 'org-1/doc-1/clean.txt',
+      });
     });
 
     it('rejects re-ingestion of an INDEXED document', async () => {
@@ -233,7 +238,7 @@ describe('IngestionService', () => {
       );
     });
 
-    it('keeps ingestion successful when the embedding enqueue fails', async () => {
+    it('keeps ingestion successful when the job enqueues fail', async () => {
       const prisma = prismaMock([document]);
       const failingQueue: typeof queue = {
         enqueue: jest.fn().mockRejectedValue(new Error('redis down')),

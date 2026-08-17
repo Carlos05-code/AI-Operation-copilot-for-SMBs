@@ -116,6 +116,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Queue reliability fix: BullMQ Redis `retryStrategy` is now bounded (gives up after ~20s) so a dead
   Redis can no longer hang `Worker.close()` during app shutdown (previously the e2e suite and
   `app.close()` would wait forever on `waitUntilReady`)
+- Full-text search + hybrid retrieval (OpenSearch, ADR-0012, AI_ARCHITECTURE §5, DATABASE_SPEC §7):
+  - `SearchModule` with a BullMQ `search-jobs` worker (`SearchWorker`, `@Processor`): consumes
+    `document.index` jobs enqueued by ingestion alongside the embedding job, downloads the
+    `clean.txt` sidecar, re-chunks with the shared chunker, and bulk-indexes chunks into the org's
+    `search_{org}` index (deterministic `sha1(documentId:index)` ids, idempotent re-runs)
+  - `SearchService`: per-org OpenSearch index with analyzed `text` + keyword payload fields;
+    `multi_match` keyword search with an org filter; missing index = empty result; failures map to
+    `SEARCH_UNAVAILABLE` (503); not configured → fail-soft (worker skips, API keeps working)
+  - `VectorStoreService.searchSimilar` (Qdrant `query` endpoint) returning store-agnostic hits;
+    Qdrant payloads now carry the full chunk `text` (≤ 4000 chars) so vector-only retrieval can
+    serve citations
+  - `HybridSearchService`: top-20 candidates per configured store fused with RRF (k=60); degrades
+    gracefully when a store is unconfigured or fails at query time, throwing `SEARCH_UNAVAILABLE`
+    only when nothing could be queried
+  - `POST /api/v1/search` (`{query, limit}`) behind the standard guard chain, scoped to the
+    requesting member's org (any authenticated role)
+  - `document.indexed` outbox event; `search-jobs` queue registered; `SEARCH_UNAVAILABLE` error
+    code; `OPENSEARCH_*` env validation; health reports `search` as a configured dependency
+  - `@opensearch-project/opensearch` dependency
+  - Unit tests: config resolution, index lifecycle/bulk/search + error mapping, worker orchestration
+    (happy path, not configured, storage down, cluster down, outbox down), RRF fusion + degradation
+    matrix; e2e: unauthenticated search → 401 error envelope
 
 ### Changed
 

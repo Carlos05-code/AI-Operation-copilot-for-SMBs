@@ -14,4 +14,6 @@ export const TOKENS_PER_CHAR = 1 / 4;
 
 export const QDRANT_COLLECTION_PREFIX = 'doc_chunks_';
 export const QDRANT_DISTANCE = 'Cosine';
-export const TEXT_PREVIEW_CHARS = 200;
+
+/** Chunk text stored in the vector payload (full chunk text, safety cap). */
+export const CHUNK_TEXT_PAYLOAD_LIMIT = 4000;

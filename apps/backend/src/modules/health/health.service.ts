@@ -50,6 +50,7 @@ export class HealthService {
         status: this.hasUrl('EMBEDDINGS_API_URL') ? 'configured' : 'configured',
       },
       { name: 'qdrant', status: this.hasUrl('QDRANT_URL') ? 'configured' : 'configured' },
+      { name: 'search', status: this.hasUrl('OPENSEARCH_URL') ? 'configured' : 'configured' },
     ];
 
     if (this.prisma && process.env.DATABASE_URL) {

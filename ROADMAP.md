@@ -52,7 +52,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Knowledge base surface + organization-scoped access control
 - [x] Embeddings (BGE-M3, fallback OpenAI) and chunking service
 - [ ] Knowledge graph (Neo4j): documents, entities, people, policies
-- [ ] Hybrid search (vector + full-text via OpenSearch)
+- [x] Hybrid search (vector + full-text via OpenSearch)
 - [ ] AI chat and document Q&A with citations and confidence scoring
 
 **Version: 0.2.0**

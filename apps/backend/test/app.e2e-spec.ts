@@ -73,4 +73,13 @@ describe('API (e2e)', () => {
     expect(res.body.openapi).toBe('3.1.0');
     expect(res.body.paths['/api/v1/health']).toBeDefined();
   });
+
+  it('rejects unauthenticated hybrid search (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/search')
+      .send({ query: 'invoice total' })
+      .expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });

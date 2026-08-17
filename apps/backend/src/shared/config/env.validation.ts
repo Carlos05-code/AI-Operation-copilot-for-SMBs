@@ -86,6 +86,18 @@ export class AppConfig {
   qdrantApiKey?: string;
 
   @IsString()
+  @IsOptional()
+  opensearchUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  opensearchUsername?: string;
+
+  @IsString()
+  @IsOptional()
+  opensearchPassword?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

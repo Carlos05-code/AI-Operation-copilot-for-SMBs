@@ -142,6 +142,7 @@ export class IngestionService {
         },
       });
       await this.enqueueEmbedding(organizationId, document.id, cleanKey);
+      await this.enqueueSearch(organizationId, document.id, cleanKey);
       this.logger.log(`document ingested: ${document.id}`);
       return updated;
     } catch (error) {
@@ -176,6 +177,25 @@ export class IngestionService {
       // Redis down must not fail ingestion; the event bus still carries the
       // fact and embedding can be re-scheduled later.
       this.logger.warn(`embedding job enqueue skipped: ${(error as Error)?.message}`);
+    }
+  }
+
+  private async enqueueSearch(
+    organizationId: string,
+    documentId: string,
+    objectKey: string,
+  ): Promise<void> {
+    if (!this.queue) return;
+    try {
+      await this.queue.enqueue('search-jobs', 'document.index', {
+        documentId,
+        organizationId,
+        objectKey,
+      });
+    } catch (error) {
+      // Same fail-soft contract as the embedding job: indexing can be
+      // re-scheduled later from the event bus.
+      this.logger.warn(`search job enqueue skipped: ${(error as Error)?.message}`);
     }
   }
 

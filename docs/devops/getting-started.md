@@ -80,6 +80,12 @@ overlap), embeds in batches, and upserts vectors into the org's `doc_chunks_{org
 `DATABASE_SPEC` §5). Without those env vars the worker skips embedding jobs and the API keeps
 working (fail-soft).
 
+Keyword search uses OpenSearch (`OPENSEARCH_URL`/`OPENSEARCH_USERNAME`/`OPENSEARCH_PASSWORD`): a
+`search-jobs` BullMQ worker consumes `document.index` jobs and indexes chunks into the org's
+`search_{org}` index. `POST /api/v1/search` fuses Qdrant + OpenSearch results with RRF; if either
+store is unconfigured the endpoint degrades to the available one and only fails with
+`SEARCH_UNAVAILABLE` (503) when nothing is configured.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

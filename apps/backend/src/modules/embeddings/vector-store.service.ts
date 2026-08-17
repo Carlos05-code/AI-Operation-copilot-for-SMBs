@@ -14,17 +14,27 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import { ApiError, HttpErrorCode } from '../../shared/errors/error-contract';
+import { SEARCH_CANDIDATES } from '../search/search.constants';
+import { SearchHit } from '../search/search.service';
 import {
+  CHUNK_TEXT_PAYLOAD_LIMIT,
   DEFAULT_EMBEDDING_DIMENSION,
   QDRANT_COLLECTION_PREFIX,
   QDRANT_DISTANCE,
-  TEXT_PREVIEW_CHARS,
 } from './embeddings.constants';
 
 export interface ChunkVector {
   text: string;
   vector: number[];
   index: number;
+}
+
+/** Payload shape stored on each Qdrant point (upserted by this service). */
+interface QdrantPayload {
+  source_document_id?: string;
+  chunk_id?: string;
+  text?: string;
+  page?: number | null;
 }
 
 @Injectable()
@@ -87,13 +97,47 @@ export class VectorStoreService {
         org_id: organizationId,
         chunk_id: `${documentId}:${chunk.index}`,
         page: null,
-        text_preview: chunk.text.slice(0, TEXT_PREVIEW_CHARS),
+        text: chunk.text.slice(0, CHUNK_TEXT_PAYLOAD_LIMIT),
       },
     }));
     try {
       await this.requireClient().upsert(name, { wait: true, points });
     } catch (error) {
       this.logger.error(`upsert into ${name} failed: ${(error as Error)?.message}`);
+      throw this.unavailable('Vector store is unavailable');
+    }
+  }
+
+  /** Vector similarity search over the org collection (hybrid fusion input). */
+  async searchSimilar(
+    organizationId: string,
+    vector: number[],
+    limit: number = SEARCH_CANDIDATES,
+  ): Promise<SearchHit[]> {
+    const client = this.requireClient();
+    const name = this.collectionName(organizationId);
+    try {
+      const existing = await client.getCollections();
+      if (!existing.collections.some((entry) => entry.name === name)) {
+        return [];
+      }
+      const response = await client.query(name, {
+        query: vector,
+        limit,
+        with_payload: true,
+      });
+      return response.points.map((hit) => {
+        const payload = (hit.payload ?? {}) as QdrantPayload;
+        return {
+          documentId: payload.source_document_id ?? '',
+          chunkId: payload.chunk_id ?? '',
+          text: payload.text ?? '',
+          page: payload.page ?? null,
+          score: hit.score,
+        };
+      });
+    } catch (error) {
+      this.logger.error(`search on ${name} failed: ${(error as Error)?.message}`);
       throw this.unavailable('Vector store is unavailable');
     }
   }

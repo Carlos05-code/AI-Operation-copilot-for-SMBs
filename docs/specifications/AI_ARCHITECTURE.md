@@ -44,11 +44,12 @@ flowchart LR
 
 ## 4. Chunking & Ingestion pipelести
 
-> Status (Phase 2): document ingestion and the embedding pipeline are shipped (register → MinIO →
-> extract → clean → chunk → embed → Qdrant `doc_chunks_{org}` → `document.embedded` event). The
-> chunker targets 384 tokens with 64-token overlap and never splits mid-sentence. Scanned-PDF OCR
-> and DOCX extraction are deferred (`UNSUPPORTED_DOCUMENT` 422 today); keyword (OpenSearch) and
-> graph (Neo4j) indexing land in later units of Phase 2.
+> Status (Phase 2): ingestion, embeddings, and keyword indexing are shipped (register → MinIO →
+> extract → clean → chunk → embed → Qdrant `doc_chunks_{org}` → `document.embedded` event; chunk →
+> OpenSearch `search_{org}` via the `search-jobs` worker → `document.indexed` event). The chunker
+> targets 384 tokens with 64-token overlap and never splits mid-sentence. Scanned-PDF OCR and DOCX
+> extraction are deferred (`UNSUPPORTED_DOCUMENT` 422 today); graph (Neo4j) indexing lands in a
+> later unit of Phase 2.
 
 ```mermaid
 flowchart LR
@@ -71,6 +72,10 @@ Chunking rules:
 - Segmenter: hierarchical (document → section → paragraph) for structure.
 
 ## 5. Retrieval Strategy (Hybrid + GraphRAG)
+
+> Status: `POST /api/v1/search` implements steps 1–2 + 4 today: top-20 candidates per configured
+> store (Qdrant vector + OpenSearch BM25), fused by RRF (k=60), degraded gracefully when a store is
+> unconfigured/unavailable. Graph expansion (step 3) and reranking (step 5) are planned.
 
 Pipeline (with the retriever):
 

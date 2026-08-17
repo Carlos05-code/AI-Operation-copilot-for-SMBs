@@ -10,12 +10,14 @@ function mockQdrant(): {
   createCollection: jest.Mock;
   createPayloadIndex: jest.Mock;
   upsert: jest.Mock;
+  query: jest.Mock;
 } {
   return {
     getCollections: jest.fn(),
     createCollection: jest.fn(),
     createPayloadIndex: jest.fn(),
     upsert: jest.fn(),
+    query: jest.fn(),
   };
 }
 
@@ -105,7 +107,7 @@ describe('VectorStoreService', () => {
             org_id: 'org-1',
             chunk_id: 'doc-1:0',
             page: null,
-            text_preview: 'first chunk',
+            text: 'first chunk',
           },
         },
         {
@@ -116,7 +118,7 @@ describe('VectorStoreService', () => {
             org_id: 'org-1',
             chunk_id: 'doc-1:1',
             page: null,
-            text_preview: 'second chunk',
+            text: 'second chunk',
           },
         },
       ],
@@ -130,6 +132,61 @@ describe('VectorStoreService', () => {
     await expect(
       service(client).upsertChunks('org-1', 'doc-1', [{ text: 'x', vector: [1], index: 0 }]),
     ).rejects.toMatchObject({
+      code: HttpErrorCode.VECTOR_STORE_UNAVAILABLE,
+      status: 503,
+    });
+  });
+
+  it('returns no results when the org collection does not exist', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({ collections: [] });
+    const hits = await service(client).searchSimilar('org-1', [0.1]);
+    expect(hits).toEqual([]);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
+  it('maps search hits from payload into store-agnostic results', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({
+      collections: [{ name: 'doc_chunks_org-1' }],
+    });
+    client.query.mockResolvedValue({
+      points: [
+        {
+          score: 0.87,
+          payload: {
+            source_document_id: 'doc-1',
+            chunk_id: 'doc-1:3',
+            page: null,
+            text: 'the matching chunk',
+          },
+        },
+      ],
+    });
+    const hits = await service(client).searchSimilar('org-1', [0.1, 0.2], 5);
+    expect(client.query).toHaveBeenCalledWith('doc_chunks_org-1', {
+      query: [0.1, 0.2],
+      limit: 5,
+      with_payload: true,
+    });
+    expect(hits).toEqual([
+      {
+        documentId: 'doc-1',
+        chunkId: 'doc-1:3',
+        text: 'the matching chunk',
+        page: null,
+        score: 0.87,
+      },
+    ]);
+  });
+
+  it('maps search failures to VECTOR_STORE_UNAVAILABLE', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({
+      collections: [{ name: 'doc_chunks_org-1' }],
+    });
+    client.query.mockRejectedValue(new Error('connection refused'));
+    await expect(service(client).searchSimilar('org-1', [0.1])).rejects.toMatchObject({
       code: HttpErrorCode.VECTOR_STORE_UNAVAILABLE,
       status: 503,
     });

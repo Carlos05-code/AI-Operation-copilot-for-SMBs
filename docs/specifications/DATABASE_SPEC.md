@@ -147,13 +147,14 @@ org).
 > deterministic points (`sha1(documentId:index)`) for idempotent re-runs. `conversation_{org}`
 > arrives with conversation ingestion.
 
-| Collection           | Vector size                | Distance | Payload                                                  |
-| -------------------- | -------------------------- | -------- | -------------------------------------------------------- |
-| `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text_preview, chunk_id |
-| `conversation_{org}` | 1024                       | Cosine   | customer_id, channel, timestamp                          |
+| Collection           | Vector size                | Distance | Payload                                          |
+| -------------------- | -------------------------- | -------- | ------------------------------------------------ |
+| `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text, chunk_id |
+| `conversation_{org}` | 1024                       | Cosine   | customer_id, channel, timestamp                  |
 
 Quotas: one collection per org (namespace pattern) to support tenancy and rewrite/deletion. Payload
-indexed on `org_id` and `source_document_id`.
+indexed on `org_id` and `source_document_id`; `text` carries the full chunk text (≤ 4000 chars) so
+vector-only retrieval can serve citations without a second store lookup.
 
 ## 6. Redis Usage
 
@@ -168,13 +169,18 @@ indexed on `org_id` and `source_document_id`.
 
 ## 7. Search Index (OpenSearch)
 
+> Status: `search_{org}` is implemented — the search worker creates indices on first use with the
+> chunk mappings below, bulk-indexes chunks with deterministic ids (`sha1(documentId:index)`), and
+> retrieval happens through `POST /api/v1/search` (API_SPEC §11.5).
+
 - One index per org: `search_{org}`.
-- Fields indexed: title, text, source_type, org_id, updated_at.
+- Fields indexed: `text` (analyzed), `org_id`, `source_document_id`, `chunk_id` (keyword), `page`.
 - Hybrid retrieval pipeline combines:
   - BM25 from OpenSearch
   - vector similarity from Qdrant
-  - graph proximity from Neo4j
-- Ranking: RRF (Reciprocal Rank Fusion) merging, then rerank via LLM (optional).
+  - graph proximity from Neo4j (planned)
+- Ranking: RRF (Reciprocal Rank Fusion) merging (k=60, top-20 candidates per store), then rerank via
+  LLM (optional, later).
 
 ## 8. Indexes & Constraints (PostgreSQL foundation)
 
