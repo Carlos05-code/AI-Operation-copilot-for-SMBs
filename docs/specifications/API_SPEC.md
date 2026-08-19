@@ -374,6 +374,40 @@ Content-Type: application/json
 - On success the service publishes `conversation.ingested` to the outbox and enqueues a
   `conversation.embed` job (fail-soft — a Redis outage never fails the write).
 
+### 11.7 Knowledge base surface
+
+`GET /api/v1/knowledge` lists the org's knowledge registry (documents that reached `INDEXED`),
+newest first; `GET /api/v1/knowledge/:id` fetches one entry. Any authenticated member may read;
+every query is scoped to the org from the verified token and cross-org entries surface as 404
+(API_SPEC §6 entity-level access control).
+
+```http
+GET /api/v1/knowledge?page=1&limit=20
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "items": [
+      {
+        "id": "kb-1",
+        "organizationId": "org-1",
+        "documentId": "doc-1",
+        "title": "invoice.pdf",
+        "objectKey": "org-1/doc-1/clean.txt",
+        "document": { "fileName": "invoice.pdf", "contentType": "application/pdf", "sizeBytes": 20480, "status": "INDEXED" }
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "pages": 1 }
+  },
+  "meta": { "requestId": "...", "statusCode": 200 }
+}
+```
+
+- Pagination per §4: `page` ≥ 1, `limit` 1–100 (default 20); `X-Total-Count` header mirrors
+  `pagination.total`.
+
 ## 12. Related
 
 - [API index](../api/README.md)

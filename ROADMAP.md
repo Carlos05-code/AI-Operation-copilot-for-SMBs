@@ -49,7 +49,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [x] Ingestion pipelines: documents (PDF → OCR → clean text)
 - [ ] Email ingestion (IMAP) and WhatsApp parsing
-- [ ] Knowledge base surface + organization-scoped access control
+- [x] Knowledge base surface + organization-scoped access control
 - [x] Embeddings (BGE-M3, fallback OpenAI) and chunking service
 - [x] Knowledge graph (Neo4j): documents, entities, people, policies
 - [x] Hybrid search (vector + full-text via OpenSearch)

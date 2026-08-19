@@ -191,10 +191,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `conversation.embedded`; fail-soft skips when not configured
   - `VectorStoreService` conversation collection support (`ensureConversationCollection`,
     `upsertConversationMessages`, `conversationMessagePointId`)
-  - Unit tests: service (persist, external-id idempotency, customer scoping 404, outbox/queue
-    failure swallowing, DB unconfigured), worker (skip rules, batching, upsert payloads, embedding
-    failure propagation, outbox swallowing), vector store (collection lifecycle, deterministic ids,
-    payloads, error mapping); e2e: unauthenticated ingestion → 401
+- Unit tests: service (persist, external-id idempotency, customer scoping 404, outbox/queue failure
+  swallowing, DB unconfigured), worker (skip rules, batching, upsert payloads, embedding failure
+  propagation, outbox swallowing), vector store (collection lifecycle, deterministic ids, payloads,
+  error mapping); e2e: unauthenticated ingestion → 401
+- Knowledge base surface with org-scoped access control (`GET /api/v1/knowledge[/:id]`, ROADMAP
+  Phase 2, API_SPEC §11.7):
+  - `KnowledgeModule` with read-only browsing of the org knowledge registry (INDEXED documents
+    only): paginated list (newest first, `page`/`limit` with `pagination` metadata and
+    `X-Total-Count` header) and single-entry fetch
+  - Entity-level tenancy: every query filters by `organizationId` from the verified token;
+    foreign/absent entries surface as 404 (existence never leaks across orgs)
+  - `knowledge_documents.document_id` now a real FK to `documents` (migration
+    `knowledge_document_relation`); entries expose linked document metadata (name, type, size,
+    status)
+  - Unit tests: pagination math, empty org, cross-org 404 scoping, DB unconfigured; e2e:
+    unauthenticated list/get → 401
 
 ### Changed
 

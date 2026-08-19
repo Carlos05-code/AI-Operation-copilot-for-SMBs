@@ -103,4 +103,11 @@ describe('API (e2e)', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
     expect(res.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated knowledge-base reads (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/knowledge').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const getRes = await request(app.getHttpServer()).get('/api/v1/knowledge/kb-1').expect(401);
+    expect(getRes.body.error.status).toBe(401);
+  });
 });

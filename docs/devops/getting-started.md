@@ -106,6 +106,9 @@ bodies into the `conversation_{org}` Qdrant collection for retrieval alongside d
 extra env vars are needed beyond `QDRANT_URL`/`EMBEDDINGS_*`; without them ingestion still persists
 but the embedding job is skipped (fail-soft).
 
+Browse the knowledge base with `GET /api/v1/knowledge` / `GET /api/v1/knowledge/:id` — an org-scoped
+read-only surface over the INDEXED documents registry (API_SPEC §11.7).
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

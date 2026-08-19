@@ -30,6 +30,7 @@ model Organization {
   tasks      Task[]
   documents  Document[]
   conversations Conversation[]
+  knowledgeDocuments KnowledgeDocument[]
   auditLogs  AuditLog[]
 
   @@index([slug])
@@ -263,6 +264,7 @@ model Document {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  knowledgeDocument KnowledgeDocument?
 
   @@index([organizationId])
   @@map("documents")
@@ -283,6 +285,8 @@ model KnowledgeDocument {
   objectKey      String   @map("object_key")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  document       Document     @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@map("knowledge_documents")
