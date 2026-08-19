@@ -219,9 +219,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `X-Total-Count`) and `GET /api/v1/conversations/:id` (thread + summary) expose it
   - `conversations.summary` + `summary_generated_at` columns (migration `add_conversation_summary`);
     `LlmProvider.complete` gained an optional `maxTokens` override
-  - Unit tests: worker (happy path + event, freshness skip, regeneration, windowing/truncation note,
-    malformed payload retry, fail-soft), service (scheduling, org-scoped 404, list/get); e2e:
-    unauthenticated list/get/summarize → 401
+- Unit tests: worker (happy path + event, freshness skip, regeneration, windowing/truncation note,
+  malformed payload retry, fail-soft), service (scheduling, org-scoped 404, list/get); e2e:
+  unauthenticated list/get/summarize → 401
+- Channel connectors: WhatsApp / email / Slack inbound adapters (ROADMAP Phase 2, API_SPEC §11.9):
+  - `POST /api/v1/connectors/:channel/inbound` accepts channel-native payloads and funnels them into
+    the canonical conversation pipeline (agent-or-above; org-scoped)
+  - Customer resolution by channel identity: WhatsApp via normalized `Customer.whatsapp`, email via
+    `Customer.email` (case-insensitive), Slack via profile email — unknown identities provision a
+    new org customer
+  - Deterministic thread keys (`wa:{number}`, `mail:{threadId|messageId|sha1(subject)}`,
+    `slack:{threadTs|channel:user}`) make re-delivered webhooks idempotent via the existing
+    `(organization_id, external_id)` upsert
+  - Per-channel payload validation: missing required fields or invalid timestamps → 400
+    (`VALIDATION_ERROR`); unknown channels → 400
+  - Unit tests: per-channel mapping/normalization, customer match + provisioning, thread key
+    derivation, 400s, DB unconfigured; e2e: unauthenticated inbound → 401
 
 ### Changed
 

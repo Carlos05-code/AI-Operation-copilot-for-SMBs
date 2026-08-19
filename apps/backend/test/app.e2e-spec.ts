@@ -123,4 +123,13 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(sumRes.body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('rejects unauthenticated channel connector inbound (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/connectors/whatsapp/inbound')
+      .send({ from: '+15550101234', text: 'Hello' })
+      .expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });

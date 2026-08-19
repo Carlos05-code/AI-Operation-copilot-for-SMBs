@@ -113,6 +113,11 @@ Conversations can be browsed (`GET /api/v1/conversations[/:id]`) and summarized:
 `POST /api/v1/conversations/:id/summarize` schedules an LLM handoff summary on the `summary-jobs`
 queue (API_SPEC §11.8). Without `LLM_API_URL` the job is skipped, never failing the request.
 
+Channel connectors translate native payloads into conversations:
+`POST /api/v1/connectors/:channel/inbound` with `whatsapp` / `email` / `slack` payloads (API_SPEC
+§11.9) — customers are resolved by channel identity (`Customer.whatsapp` / `Customer.email`) and
+provisioned when unknown.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

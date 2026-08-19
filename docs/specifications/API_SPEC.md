@@ -448,6 +448,40 @@ Authorization: Bearer <jwt>
   key points on the `conversation.summarized` outbox event), and fails soft — no LLM config means
   the job is skipped, a Redis outage never fails the scheduling request.
 
+### 11.9 Channel connectors
+
+`POST /api/v1/connectors/:channel/inbound` receives channel-native payloads (`whatsapp` | `email` |
+`slack`) and funnels them into the conversation pipeline (ROADMAP Phase 2). The adapter resolves the
+customer by channel identity — WhatsApp by normalized number (`Customer.whatsapp`), email by address
+(`Customer.email`, case-insensitive), Slack by profile email — provisioning a new customer when
+unknown; derives a deterministic thread external id so re-delivered webhooks upsert instead of
+duplicating; and persists via the canonical ingestion service (API_SPEC §11.6). Authenticated
+(agent-or-above — connector service accounts); every write is org-scoped.
+
+```http
+POST /api/v1/connectors/whatsapp/inbound
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{ "from": "+1 (555) 010-1234", "text": "Hi, I need a refund", "messageId": "wa-msg-1" }
+```
+
+```json
+200 {
+  "data": { "conversationId": "conv-1", "customerId": "cust-1", "messagesCreated": 1, "threadId": "wa:+15550101234" },
+  "meta": { "requestId": "...", "statusCode": 200 }
+}
+```
+
+- WhatsApp: `{from, text, messageId?, timestamp?}` — `from` normalized to E.164-ish digits; thread
+  key `wa:{number}`.
+- Email: `{fromAddress, fromName?, subject, body, messageId?, threadId?, timestamp?}` — thread key
+  `mail:{threadId | messageId | sha1(subject)}`; subject becomes the conversation title.
+- Slack: `{user, userEmail?, text, channel, threadTs?, messageId?, timestamp?}` — thread key
+  `slack:{threadTs | channel:user}`.
+- All inbound messages are `CUSTOMER`-sender. Missing required fields or invalid `timestamp` → 400
+  (`VALIDATION_ERROR`); unknown channels → 400.
+
 ## 12. Related
 
 - [API index](../api/README.md)
