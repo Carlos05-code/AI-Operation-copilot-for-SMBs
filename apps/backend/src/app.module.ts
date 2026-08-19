@@ -20,6 +20,7 @@ import { ChatModule } from './modules/chat/chat.module.js';
 import { ConversationsModule } from './modules/conversations/conversation.module.js';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module.js';
 import { ConnectorsModule } from './modules/connectors/connector.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -41,6 +42,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     ConversationsModule,
     KnowledgeModule,
     ConnectorsModule,
+    DashboardModule,
     HealthModule,
     OpenApiModule,
   ],

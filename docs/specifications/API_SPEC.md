@@ -482,6 +482,35 @@ Content-Type: application/json
 - All inbound messages are `CUSTOMER`-sender. Missing required fields or invalid `timestamp` → 400
   (`VALIDATION_ERROR`); unknown channels → 400.
 
+### 11.10 Executive dashboard
+
+`GET /api/v1/dashboard/summary` returns an org-scoped executive snapshot (ROADMAP Phase 3): revenue
+recognized (`PAID` invoices — all-time, this calendar month, last calendar month), open receivables
+(`SENT` + `OVERDUE` totals, overdue split, open count), task load (open, overdue, due today, open
+split by priority), and alert state (unread count + the 5 latest unread). Readable by any member.
+
+```http
+GET /api/v1/dashboard/summary
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "generatedAt": "2026-08-19T12:00:00.000Z",
+    "revenue": { "total": "10000.00", "thisMonth": "2000.00", "lastMonth": "1500.00", "paidInvoices": 3 },
+    "receivables": { "outstanding": "5000.00", "overdue": "1200.00", "openInvoices": 2 },
+    "tasks": { "open": 6, "overdue": 2, "dueToday": 1, "byPriority": { "HIGH": 3, "LOW": 3 } },
+    "alerts": { "unread": 4, "recent": [{ "id": "n1", "kind": "IN_APP", "title": "Overdue invoice", "body": null, "createdAt": "2026-08-19T09:00:00.000Z" }] }
+  },
+  "meta": { "requestId": "...", "statusCode": 200 }
+}
+```
+
+- Money fields are exact decimal strings (`toFixed(2)`), never floats.
+- Period boundaries are UTC calendar months; "due today" spans the current UTC day.
+- Empty orgs render as zeros with an empty `byPriority`/`recent`.
+
 ## 12. Related
 
 - [API index](../api/README.md)

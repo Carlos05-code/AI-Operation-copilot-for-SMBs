@@ -118,6 +118,9 @@ Channel connectors translate native payloads into conversations:
 §11.9) — customers are resolved by channel identity (`Customer.whatsapp` / `Customer.email`) and
 provisioned when unknown.
 
+The executive dashboard (`GET /api/v1/dashboard/summary`, API_SPEC §11.10) gives an org-scoped
+snapshot of revenue, receivables, task load, and alerts over the seeded tables.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

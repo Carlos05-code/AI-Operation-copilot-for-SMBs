@@ -132,4 +132,10 @@ describe('API (e2e)', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
     expect(res.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated dashboard summary (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/dashboard/summary').expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });

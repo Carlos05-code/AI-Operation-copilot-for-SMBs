@@ -235,6 +235,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`VALIDATION_ERROR`); unknown channels → 400
   - Unit tests: per-channel mapping/normalization, customer match + provisioning, thread key
     derivation, 400s, DB unconfigured; e2e: unauthenticated inbound → 401
+- Executive dashboard (ROADMAP Phase 3, API_SPEC §11.10):
+  - `GET /api/v1/dashboard/summary` — org-scoped snapshot: revenue (`PAID` totals, all-time +
+    current/last UTC calendar month), receivables (`SENT`+`OVERDUE` outstanding/overdue split), task
+    load (open, overdue, due-today, open split by priority), alerts (unread count + 5 latest)
+  - Money as exact decimal strings (`toFixed(2)`) — first endpoint to serialize money; convention
+    documented in API_SPEC §11.10
+  - Unit tests: full aggregation + org scoping of every query, empty-org zeros, DB unconfigured;
+    e2e: unauthenticated summary → 401
 
 ### Changed
 
