@@ -96,19 +96,24 @@ Errors use the standard error contract (see §8).
 
 Common codes:
 
-| HTTP | Code                   | Meaning                                                        |
-| ---- | ---------------------- | -------------------------------------------------------------- |
-| 400  | `VALIDATION_ERROR`     | Malformed payload                                              |
-| 401  | `UNAUTHORIZED`         | Missing/invalid token                                          |
-| 403  | `FORBIDDEN`            | Role/tenant denied                                             |
-| 404  | `*_NOT_FOUND`          | Resource absent                                                |
-| 409  | `CONFLICT`             | State conflict                                                 |
-| 413  | `PAYLOAD_TOO_LARGE`    | Upload over `MAX_UPLOAD_SIZE_MB`                               |
-| 422  | `VALIDATION_FAILED`    | DTO validation failed                                          |
-| 422  | `UNSUPPORTED_DOCUMENT` | Unsupported format or scanned PDF (no text layer; OCR pending) |
-| 429  | `TOO_MANY_REQUESTS`    | Rate limit                                                     |
-| 503  | `STORAGE_UNAVAILABLE`  | Object storage not configured/unreachable                      |
-| 500  | `INTERNAL_ERROR`       | Unexpected                                                     |
+| HTTP | Code                       | Meaning                                                          |
+| ---- | -------------------------- | ---------------------------------------------------------------- |
+| 400  | `VALIDATION_ERROR`         | Malformed payload                                                |
+| 401  | `UNAUTHORIZED`             | Missing/invalid token                                            |
+| 403  | `FORBIDDEN`                | Role/tenant denied                                               |
+| 404  | `*_NOT_FOUND`              | Resource absent                                                  |
+| 409  | `CONFLICT`                 | State conflict                                                   |
+| 413  | `PAYLOAD_TOO_LARGE`        | Upload over `MAX_UPLOAD_SIZE_MB`                                 |
+| 422  | `VALIDATION_FAILED`        | DTO validation failed                                            |
+| 422  | `UNSUPPORTED_DOCUMENT`     | Unsupported format or scanned PDF (no text layer; OCR pending)   |
+| 429  | `TOO_MANY_REQUESTS`        | Rate limit                                                       |
+| 503  | `STORAGE_UNAVAILABLE`      | Object storage not configured/unreachable                        |
+| 503  | `EMBEDDINGS_UNAVAILABLE`   | Embeddings API not configured/unreachable                        |
+| 503  | `VECTOR_STORE_UNAVAILABLE` | Qdrant not configured/unreachable                                |
+| 503  | `SEARCH_UNAVAILABLE`       | No search store could be queried (chat also surfaces this)       |
+| 503  | `GRAPH_UNAVAILABLE`        | Neo4j not configured/unreachable                                 |
+| 503  | `LLM_UNAVAILABLE`          | LLM not configured/unreachable or returned an unparseable answer |
+| 500  | `INTERNAL_ERROR`           | Unexpected                                                       |
 
 ## 10. OpenAPI
 
@@ -288,6 +293,49 @@ Status lifecycle: `PENDING → PROCESSING → INDEXED | FAILED`. Re-ingestion of
 returns `409 CONFLICT`. Scanned PDFs (no text layer) return `422 UNSUPPORTED_DOCUMENT` until OCR
 lands. On completion the service publishes `document.ingested` to the domain event bus and queues an
 embedding job.
+
+### 11.5 Grounded chat (RAG)
+
+`POST /api/v1/chat` answers a question over the org knowledge base with citations, confidence, and a
+grounding verdict (AI_ARCHITECTURE §6–§10). The question is answered from the org's own corpus only
+(org id from the verified token, never cross-tenant). When retrieval finds no relevant context, the
+LLM is not called and a disclaimer is returned (retrieval quality gate, §9.1).
+
+```http
+POST /api/v1/chat
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "query": "What is our return policy for winter stock?",
+  "limit": 5
+}
+```
+
+```json
+200 {
+  "query": "What is our return policy for winter stock?",
+  "answer": {
+    "answer": "Returns for winter stock are accepted within 30 days [source:doc-1:doc-1:0].",
+    "citations": [
+      { "documentId": "doc-1", "chunkId": "doc-1:0", "page": null, "score": 0.0328 }
+    ],
+    "confidence": 0.9,
+    "grounded": true,
+    "synthesis": "direct"
+  }
+}
+```
+
+- `query` ≤ 500 chars, `limit` 1–10 (context chunks; default 5).
+- `answer` text embeds `[source:<document_id>:<chunk_id>]` tags; `citations` lists every validated
+  chunk used, with the fused RRF score.
+- **Grounding is deterministic**: citations not present in the retrieved context are dropped;
+  `grounded` requires a cited chunk at or above the quality threshold; `synthesis` is `direct` (best
+  source cited) | `derived` (grounded on lower-ranked chunks) | `fallback` (no/weak citations, or
+  nothing retrieved).
+- `LLM_UNAVAILABLE` (503) when the LLM is unconfigured, unreachable, or returns an unparseable
+  answer; `SEARCH_UNAVAILABLE` (503) when no retrieval store could be queried.
 
 ## 12. Related
 

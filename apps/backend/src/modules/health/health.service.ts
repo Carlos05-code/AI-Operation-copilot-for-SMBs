@@ -52,6 +52,7 @@ export class HealthService {
       { name: 'qdrant', status: this.hasUrl('QDRANT_URL') ? 'configured' : 'configured' },
       { name: 'search', status: this.hasUrl('OPENSEARCH_URL') ? 'configured' : 'configured' },
       { name: 'graph', status: this.hasUrl('NEO4J_URI') ? 'configured' : 'configured' },
+      { name: 'llm', status: this.hasUrl('LLM_API_URL') ? 'configured' : 'configured' },
     ];
 
     if (this.prisma && process.env.DATABASE_URL) {

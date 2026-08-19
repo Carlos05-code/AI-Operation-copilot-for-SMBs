@@ -93,6 +93,11 @@ Config: `AI_RAG_TOP_K`, `AI_CONTEXT_BUDGET_TOKENS`, etc. (see `configs/`).
 
 ## 6. Prompt Strategy
 
+> Status: `qa.document` (`CHAT_PROMPT_VERSION = 'qa.document.v1'`) is live in `POST /api/v1/chat`
+> with the full system boundary (knowledge-base only, tenancy refusal, citation format) and the
+> structured JSON answer contract below. The prompt catalog in `packages/config/prompts` lands with
+> the remaining capabilities (summarize, plan, insight, ...).
+
 - Prompts are **modular and versioned**: system prompt, tool/anchor prompts, and a per-capability
   prompt. Stored in `packages/config/prompts` with a version.
 - Every prompt contains a **system boundary**: knowledge base, tenancy clues, refusal behavior,
@@ -125,6 +130,13 @@ Config: `AI_RAG_TOP_K`, `AI_CONTEXT_BUDGET_TOKENS`, etc. (see `configs/`).
 
 ## 8. Citation & Answer contract
 
+> Status: `POST /api/v1/chat` returns this contract today. `grounded` is **deterministic** (no
+> entailment LLM yet): citations are validated against the retrieved context and `grounded` requires
+> a cited chunk at/above `CHAT_GROUND_MIN_SCORE`; `confidence` = 0.30 + 18·(best cited fused
+> score) + 0.10·min(3, cited), clamped to [0.10, 0.97]; `synthesis` = `direct` (best source cited) |
+> `derived` (grounded on lower-ranked chunks) | `fallback`. LLM-as-judge verification (§9.3) is
+> planned.
+
 Every AI answer returns:
 
 ```json
@@ -143,6 +155,10 @@ Every AI answer returns:
 
 ## 9. Hallucination Mitigation
 
+> Status: gates 1 and 2 are live in `POST /api/v1/chat` (retrieval quality gate: no relevant context
+> → disclaimer, no LLM call; constrained generation: citations validated against the actual
+> retrieved context). LLM-as-judge grounding (3) and the human feedback loop (4) are planned.
+
 1. Retrieval quality gating — if top-1 score below threshold, say "not in your data".
 2. Constrained generation with citations and JSON schema.
 3. Grounding verification pass (LLM-as-judge on entailment; deterministic first) — flaps between
@@ -150,6 +166,9 @@ Every AI answer returns:
 4. Human feedback loop: thumbs up/down stored as eval sets.
 
 ## 10. Confidence Scoring
+
+> Status: deterministic heuristic shipped with chat (see §8); Platt-scaled calibration on human
+> labels (§11) is planned.
 
 - combine: retrieval score distribution, reranking margin, model self-reported uncertainty
   (entropy/logprob), keyword overlap with top sources.

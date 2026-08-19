@@ -92,6 +92,14 @@ the document/chunk/entity subgraph (`DATABASE_SPEC` §4). Hybrid search then exp
 entities through the graph, so results mentioning the same people/companies rank higher. Without
 `NEO4J_URI` the graph stage is skipped and search still works.
 
+Grounded chat (`POST /api/v1/chat`) uses an OpenAI-compatible chat completions endpoint
+(`LLM_API_URL`/`LLM_API_KEY`/`LLM_MODEL`, e.g. OpenAI, Azure OpenAI, or a local vLLM gateway). It
+retrieves context via the hybrid search above, sends the `qa.document.v1` prompt, and returns the
+answer with validated citations, confidence, and a grounding verdict (AI_ARCHITECTURE §6–§10). When
+retrieval finds nothing, the LLM is not called and a disclaimer is returned; without `LLM_API_URL`
+the endpoint fails with `LLM_UNAVAILABLE` (503) — chat is the one surface that cannot degrade, since
+answering requires a model.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

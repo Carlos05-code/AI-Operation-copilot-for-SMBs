@@ -82,4 +82,13 @@ describe('API (e2e)', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
     expect(res.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated chat (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/chat')
+      .send({ query: 'what is the return policy?' })
+      .expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });

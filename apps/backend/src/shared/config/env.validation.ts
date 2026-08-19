@@ -114,6 +114,18 @@ export class AppConfig {
   neo4jDatabase?: string;
 
   @IsString()
+  @IsOptional()
+  llmApiUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  llmApiKey?: string;
+
+  @IsString()
+  @IsOptional()
+  llmModel?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 }
 

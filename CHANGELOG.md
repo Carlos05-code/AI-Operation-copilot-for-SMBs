@@ -156,6 +156,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Unit tests: extractor heuristics, config resolution, MERGE params + hit mapping + error mapping,
     worker orchestration (happy path, not configured, storage down, graph down, outbox down), hybrid
     3-way fusion + degradation matrix
+- Grounded chat with citations and confidence scoring (`POST /api/v1/chat`, AI_ARCHITECTURE §6–§10,
+  API_SPEC §11.5):
+  - `ChatModule` with `LlmProvider`: OpenAI-compatible `/chat/completions` client (non-streaming,
+    single-shot, `temperature 0.2`, `max_tokens 700`); unconfigured/unreachable → `LLM_UNAVAILABLE`
+    (503); `LLM_API_URL`/`LLM_API_KEY`/`LLM_MODEL` env (`.env.example`)
+  - `qa.document.v1` prompt with the full system boundary: knowledge-base only, tenancy refusal,
+    `[source:<document_id>:<chunk_id>]` tags, and the structured JSON answer contract
+  - `ChatService` pipeline: hybrid retrieval (3-store RRF) → context budget (800 chars/chunk, 12 000
+    total, tail elided) → single-shot LLM → deterministic grounding
+  - **Deterministic grounding first**: model citations validated against the actual retrieved
+    context (unknown citations dropped — constrained generation), `grounded` gated on the fused
+    score threshold, `confidence` heuristic formula, `synthesis` `direct|derived|fallback`;
+    LLM-as-judge verification planned
+  - Retrieval quality gate: no relevant context → disclaimer answer, LLM never called
+  - `LLM_UNAVAILABLE` error code; `LLM_*` env validation; health reports `llm` dependency
+  - Unit tests: LLM config, provider (HTTP/error/shape mapping), grounding (fences, validation,
+    thresholds, synthesis tiers, caps), chat service (disclaimer, grounding, invented-citation drop,
+    budget trimming, LLM/malformed/retrieval failures); e2e: unauthenticated chat → 401
 
 ### Changed
 
