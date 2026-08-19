@@ -13,7 +13,11 @@ export const CHUNK_OVERLAP_TOKENS = 64;
 export const TOKENS_PER_CHAR = 1 / 4;
 
 export const QDRANT_COLLECTION_PREFIX = 'doc_chunks_';
+export const QDRANT_CONVERSATION_COLLECTION_PREFIX = 'conversation_';
 export const QDRANT_DISTANCE = 'Cosine';
 
 /** Chunk text stored in the vector payload (full chunk text, safety cap). */
 export const CHUNK_TEXT_PAYLOAD_LIMIT = 4000;
+
+/** Message text stored in the conversation vector payload (safety cap). */
+export const CONVERSATION_TEXT_PAYLOAD_LIMIT = 4000;

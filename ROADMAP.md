@@ -54,6 +54,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Knowledge graph (Neo4j): documents, entities, people, policies
 - [x] Hybrid search (vector + full-text via OpenSearch)
 - [x] AI chat and document Q&A with citations and confidence scoring
+- [x] Conversation ingestion (messages schema + `conversation_{org}` embeddings)
 
 **Version: 0.2.0**
 

@@ -91,4 +91,16 @@ describe('API (e2e)', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
     expect(res.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated conversation ingestion (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/conversations')
+      .send({
+        channel: 'WHATSAPP',
+        messages: [{ sender: 'CUSTOMER', body: 'hi', sentAt: '2026-08-19T09:00:00Z' }],
+      })
+      .expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });

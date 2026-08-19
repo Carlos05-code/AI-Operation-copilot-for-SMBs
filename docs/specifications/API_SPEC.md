@@ -337,6 +337,43 @@ Content-Type: application/json
 - `LLM_UNAVAILABLE` (503) when the LLM is unconfigured, unreachable, or returns an unparseable
   answer; `SEARCH_UNAVAILABLE` (503) when no retrieval store could be queried.
 
+### 11.6 Conversation ingestion
+
+`POST /api/v1/conversations` ingests a customer conversation with its messages (DATABASE_SPEC §3).
+WhatsApp/email/Slack connectors feed this endpoint or the underlying service; message bodies are
+embedded into `conversation_{org}` asynchronously for retrieval (DATABASE_SPEC §5).
+
+```http
+POST /api/v1/conversations
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "channel": "WHATSAPP",
+  "externalId": "wa-7b02e1b2",
+  "customerId": "cust-1",
+  "messages": [
+    { "sender": "CUSTOMER", "body": "Hi, when will my order arrive?", "sentAt": "2026-08-19T09:00:00Z" },
+    { "sender": "AGENT", "body": "Your order ships tomorrow.", "sentAt": "2026-08-19T09:05:00Z" }
+  ]
+}
+```
+
+```json
+200 {
+  "conversation": { "id": "conv-1", "organizationId": "org-1", "channel": "WHATSAPP" },
+  "messagesCreated": 2
+}
+```
+
+- `channel` ∈ `WHATSAPP | EMAIL | SLACK`; `sender` ∈ `CUSTOMER | AGENT | SYSTEM`; `sentAt` is ISO
+  8601; up to 500 messages per request; `body` ≤ 8000 chars.
+- Idempotent: with `externalId`, re-posting upserts the conversation and `skipDuplicates` dedupes
+  messages by `(conversation_id, external_id)` — replays never duplicate rows.
+- `customerId` must belong to the org (404 otherwise); writes require agent-or-above.
+- On success the service publishes `conversation.ingested` to the outbox and enqueues a
+  `conversation.embed` job (fail-soft — a Redis outage never fails the write).
+
 ## 12. Related
 
 - [API index](../api/README.md)

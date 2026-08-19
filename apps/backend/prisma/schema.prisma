@@ -29,6 +29,7 @@ model Organization {
   invoices   Invoice[]
   tasks      Task[]
   documents  Document[]
+  conversations Conversation[]
   auditLogs  AuditLog[]
 
   @@index([slug])
@@ -89,6 +90,7 @@ model Customer {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   salesOrders    SalesOrder[]
   invoices       Invoice[]
+  conversations  Conversation[]
 
   @@index([organizationId])
   @@map("customers")
@@ -284,6 +286,54 @@ model KnowledgeDocument {
 
   @@index([organizationId])
   @@map("knowledge_documents")
+}
+
+// ── Customer conversations (DATABASE_SPEC §3) ─────────────────────────────
+
+enum ConversationChannel {
+  WHATSAPP
+  EMAIL
+  SLACK
+}
+
+enum MessageSender {
+  CUSTOMER
+  AGENT
+  SYSTEM
+}
+
+model Conversation {
+  id             String              @id @default(uuid())
+  organizationId String              @map("organization_id")
+  customerId     String?             @map("customer_id")
+  channel        ConversationChannel @default(WHATSAPP)
+  externalId     String?             @map("external_id")
+  title          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer?           @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  messages       Message[]
+
+  @@unique([organizationId, externalId])
+  @@index([organizationId, channel])
+  @@index([customerId])
+  @@map("conversations")
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversationId String        @map("conversation_id")
+  sender         MessageSender @default(CUSTOMER)
+  body           String
+  sentAt         DateTime      @map("sent_at")
+  externalId     String?       @map("external_id")
+  createdAt      DateTime      @default(now())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, externalId])
+  @@index([conversationId, sentAt])
+  @@map("messages")
 }
 
 enum NotificationKind {

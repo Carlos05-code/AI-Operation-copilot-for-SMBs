@@ -18,8 +18,10 @@ import { SEARCH_CANDIDATES } from '../search/search.constants';
 import { SearchHit } from '../search/search.service';
 import {
   CHUNK_TEXT_PAYLOAD_LIMIT,
+  CONVERSATION_TEXT_PAYLOAD_LIMIT,
   DEFAULT_EMBEDDING_DIMENSION,
   QDRANT_COLLECTION_PREFIX,
+  QDRANT_CONVERSATION_COLLECTION_PREFIX,
   QDRANT_DISTANCE,
 } from './embeddings.constants';
 
@@ -29,12 +31,26 @@ export interface ChunkVector {
   index: number;
 }
 
+export interface ConversationMessageVector {
+  messageId: string;
+  sender: string;
+  body: string;
+  sentAt: Date;
+  vector: number[];
+}
+
 /** Payload shape stored on each Qdrant point (upserted by this service). */
 interface QdrantPayload {
   source_document_id?: string;
   chunk_id?: string;
   text?: string;
   page?: number | null;
+  conversation_id?: string;
+  customer_id?: string | null;
+  channel?: string;
+  sender?: string;
+  message_id?: string;
+  sent_at?: number;
 }
 
 @Injectable()
@@ -52,6 +68,10 @@ export class VectorStoreService {
 
   collectionName(organizationId: string): string {
     return `${QDRANT_COLLECTION_PREFIX}${organizationId}`;
+  }
+
+  conversationCollectionName(organizationId: string): string {
+    return `${QDRANT_CONVERSATION_COLLECTION_PREFIX}${organizationId}`;
   }
 
   /** Ensures the org collection exists (created once with payload indexes). */
@@ -98,6 +118,67 @@ export class VectorStoreService {
         chunk_id: `${documentId}:${chunk.index}`,
         page: null,
         text: chunk.text.slice(0, CHUNK_TEXT_PAYLOAD_LIMIT),
+      },
+    }));
+    try {
+      await this.requireClient().upsert(name, { wait: true, points });
+    } catch (error) {
+      this.logger.error(`upsert into ${name} failed: ${(error as Error)?.message}`);
+      throw this.unavailable('Vector store is unavailable');
+    }
+  }
+
+  /** Ensures the org conversation collection exists (created once). */
+  async ensureConversationCollection(organizationId: string): Promise<string> {
+    const client = this.requireClient();
+    const name = this.conversationCollectionName(organizationId);
+    try {
+      const existing = await client.getCollections();
+      if (!existing.collections.some((entry) => entry.name === name)) {
+        await client.createCollection(name, {
+          vectors: { size: this.dimension, distance: QDRANT_DISTANCE },
+        });
+        await client.createPayloadIndex(name, {
+          field_name: 'org_id',
+          field_schema: 'keyword',
+        });
+        await client.createPayloadIndex(name, {
+          field_name: 'conversation_id',
+          field_schema: 'keyword',
+        });
+        this.logger.log(`created conversation collection ${name} (${this.dimension}d)`);
+      }
+      return name;
+    } catch (error) {
+      this.logger.error(
+        `conversation collection ${name} unavailable: ${(error as Error)?.message}`,
+      );
+      throw this.unavailable('Vector store is unavailable');
+    }
+  }
+
+  /** Upserts message vectors for a conversation into `conversation_{org}`. */
+  async upsertConversationMessages(
+    organizationId: string,
+    conversationId: string,
+    customerId: string | null,
+    channel: string,
+    messages: ConversationMessageVector[],
+  ): Promise<void> {
+    if (messages.length === 0) return;
+    const name = await this.ensureConversationCollection(organizationId);
+    const points = messages.map((message) => ({
+      id: conversationMessagePointId(conversationId, message.messageId),
+      vector: message.vector,
+      payload: {
+        org_id: organizationId,
+        conversation_id: conversationId,
+        customer_id: customerId,
+        channel,
+        sender: message.sender,
+        message_id: message.messageId,
+        sent_at: message.sentAt.getTime(),
+        text: message.body.slice(0, CONVERSATION_TEXT_PAYLOAD_LIMIT),
       },
     }));
     try {
@@ -165,4 +246,9 @@ export class VectorStoreService {
 /** Deterministic point id for a document chunk (idempotent upserts). */
 export function chunkPointId(documentId: string, index: number): string {
   return createHash('sha1').update(`${documentId}:${index}`).digest('hex');
+}
+
+/** Deterministic point id for a conversation message (idempotent upserts). */
+export function conversationMessagePointId(conversationId: string, messageId: string): string {
+  return createHash('sha1').update(`${conversationId}:${messageId}`).digest('hex');
 }

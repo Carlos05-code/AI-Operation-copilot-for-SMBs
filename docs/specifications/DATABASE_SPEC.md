@@ -55,12 +55,19 @@ Key entities (foundation only — see ROADMAP/ API_SPEC for the full boundary):
 │ status, total    │      │ due_date, status │      │ (branch/warehouse)
 └──────────────────┘      └──────────────────┘      └──────────────────┘
 
-┌──────────────────┐      ┌──────────────────┐
-│ tasks            │      │ notifications    │
-│ org_id, assignee │      │ org_id, user_id  │
-│ title, due_date  │      │ kind, payload    │
-│ status, priority │      │ read_at          │
-└──────────────────┘      └──────────────────┘
+┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐
+│ tasks            │      │ notifications    │      │ conversations    │
+│ org_id, assignee │      │ org_id, user_id  │      │ org_id, channel  │
+│ title, due_date  │      │ kind, payload    │      │ customer_id      │
+│ status, priority │      │ read_at          │      │ external_id      │
+└──────────────────┘      └──────────────────┘      └──────────────────┘
+
+┌──────────────────┐
+│ messages         │
+│ conversation_id  │
+│ sender, body     │
+│ sent_at          │
+└──────────────────┘
 ```
 
 ### 3.1 Core tables (foundation)
@@ -80,6 +87,8 @@ Key entities (foundation only — see ROADMAP/ API_SPEC for the full boundary):
 | `documents`           | metadata about uploads; content in MinIO; status lifecycle `PENDING → PROCESSING → INDEXED / FAILED`; `clean_text_key` sidecar holds cleaned text |
 | `knowledge_documents` | org-scoped KB entries (reference to the cleaned-text MinIO object)                                                                                |
 | `notifications`       | notifications per user/org channel                                                                                                                |
+| `conversations`       | customer conversation threads per org/channel (whatsapp/email/slack); `(organization_id, external_id)` unique for idempotent ingestion            |
+| `messages`            | individual messages inside a conversation; sender (`CUSTOMER`/`AGENT`/`SYSTEM`); `(conversation_id, external_id)` unique for dedupe               |
 | `audit_logs`          | audit events (compliance)                                                                                                                         |
 
 ### 3.2 ER Diagram (foundation)
@@ -100,6 +109,9 @@ erDiagram
     ORGANIZATIONS ||--o{ TASKS : "plans"
     USERS ||--o{ TASKS : "assigned"
     ORGANIZATIONS ||--o{ DOCUMENTS : "stores"
+    ORGANIZATIONS ||--o{ CONVERSATIONS : "hosts"
+    CUSTOMERS ||--o{ CONVERSATIONS : "participates"
+    CONVERSATIONS ||--o{ MESSAGES : "contains"
     ORGANIZATIONS ||--o{ AUDIT_LOGS : "logs"
 ```
 
@@ -149,15 +161,15 @@ org).
 
 ## 5. Qdrant Collections
 
-> Status: `doc_chunks_{org}` is implemented — the embedding worker creates collections on first use
-> with Cosine distance and payload indexes on `org_id` / `source_document_id`, and upserts
-> deterministic points (`sha1(documentId:index)`) for idempotent re-runs. `conversation_{org}`
-> arrives with conversation ingestion.
+> Status: `doc_chunks_{org}` and `conversation_{org}` are implemented — the embedding workers create
+> collections on first use with Cosine distance and payload indexes (`org_id` + `source_document_id`
+> / `conversation_id`), and upsert deterministic points (`sha1(documentId:index)` /
+> `sha1(conversationId:messageId)`) for idempotent re-runs.
 
-| Collection           | Vector size                | Distance | Payload                                          |
-| -------------------- | -------------------------- | -------- | ------------------------------------------------ |
-| `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text, chunk_id |
-| `conversation_{org}` | 1024                       | Cosine   | customer_id, channel, timestamp                  |
+| Collection           | Vector size                | Distance | Payload                                                                          |
+| -------------------- | -------------------------- | -------- | -------------------------------------------------------------------------------- |
+| `doc_chunks_{org}`   | 1024 (EMBEDDING_DIMENSION) | Cosine   | source_document_id, org_id, page, text, chunk_id                                 |
+| `conversation_{org}` | 1024                       | Cosine   | org_id, conversation_id, customer_id, channel, sender, message_id, sent_at, text |
 
 Quotas: one collection per org (namespace pattern) to support tenancy and rewrite/deletion. Payload
 indexed on `org_id` and `source_document_id`; `text` carries the full chunk text (≤ 4000 chars) so

@@ -171,9 +171,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     LLM-as-judge verification planned
   - Retrieval quality gate: no relevant context → disclaimer answer, LLM never called
   - `LLM_UNAVAILABLE` error code; `LLM_*` env validation; health reports `llm` dependency
-  - Unit tests: LLM config, provider (HTTP/error/shape mapping), grounding (fences, validation,
-    thresholds, synthesis tiers, caps), chat service (disclaimer, grounding, invented-citation drop,
-    budget trimming, LLM/malformed/retrieval failures); e2e: unauthenticated chat → 401
+- Unit tests: LLM config, provider (HTTP/error/shape mapping), grounding (fences, validation,
+  thresholds, synthesis tiers, caps), chat service (disclaimer, grounding, invented-citation drop,
+  budget trimming, LLM/malformed/retrieval failures); e2e: unauthenticated chat → 401
+- Customer conversation ingestion (`POST /api/v1/conversations`, DATABASE_SPEC §3, §5, API_SPEC
+  §11.6):
+  - Prisma `conversations` + `messages` tables (migration `add_conversation_messages`): org-scoped
+    threads with `channel` (`WHATSAPP | EMAIL | SLACK`) and per-message `sender`
+    (`CUSTOMER | AGENT | SYSTEM`), `sent_at`; idempotency via `(organization_id, external_id)` /
+    `(conversation_id, external_id)` uniques
+  - `ConversationsModule` with `POST /api/v1/conversations` (agent-or-above): persists the
+    conversation (upsert by external id), inserts messages (`createMany` + `skipDuplicates`), emits
+    `conversation.ingested` on the outbox, and enqueues a `conversation.embed` job — outbox/queue
+    failures are logged, never fatal (DB row is the system of record)
+  - `ConversationWorker` on the shared `ai-jobs` queue: loads messages from PostgreSQL, embeds
+    bodies in batches, and upserts per-message vectors into `conversation_{org}` with deterministic
+    ids (`sha1(conversationId:messageId)`) and payload
+    (`org_id, conversation_id, customer_id, channel, sender, message_id, sent_at, text`); emits
+    `conversation.embedded`; fail-soft skips when not configured
+  - `VectorStoreService` conversation collection support (`ensureConversationCollection`,
+    `upsertConversationMessages`, `conversationMessagePointId`)
+  - Unit tests: service (persist, external-id idempotency, customer scoping 404, outbox/queue
+    failure swallowing, DB unconfigured), worker (skip rules, batching, upsert payloads, embedding
+    failure propagation, outbox swallowing), vector store (collection lifecycle, deterministic ids,
+    payloads, error mapping); e2e: unauthenticated ingestion → 401
 
 ### Changed
 

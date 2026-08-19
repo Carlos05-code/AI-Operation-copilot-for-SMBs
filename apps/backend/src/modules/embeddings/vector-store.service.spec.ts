@@ -3,7 +3,11 @@
  */
 import type { QdrantClient } from '@qdrant/js-client-rest';
 import { HttpErrorCode } from '../../shared/errors/error-contract';
-import { chunkPointId, VectorStoreService } from './vector-store.service';
+import {
+  conversationMessagePointId,
+  chunkPointId,
+  VectorStoreService,
+} from './vector-store.service';
 
 function mockQdrant(): {
   getCollections: jest.Mock;
@@ -33,6 +37,81 @@ describe('VectorStoreService', () => {
 
   it('names collections with the org namespace pattern', () => {
     expect(service(mockQdrant()).collectionName('org-1')).toBe('doc_chunks_org-1');
+    expect(service(mockQdrant()).conversationCollectionName('org-1')).toBe('conversation_org-1');
+  });
+
+  it('creates a missing conversation collection with indexes', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({ collections: [{ name: 'other' }] });
+    const name = await service(client).ensureConversationCollection('org-1');
+    expect(name).toBe('conversation_org-1');
+    expect(client.createCollection).toHaveBeenCalledWith('conversation_org-1', {
+      vectors: { size: 1024, distance: 'Cosine' },
+    });
+    expect(client.createPayloadIndex).toHaveBeenCalledWith('conversation_org-1', {
+      field_name: 'org_id',
+      field_schema: 'keyword',
+    });
+    expect(client.createPayloadIndex).toHaveBeenCalledWith('conversation_org-1', {
+      field_name: 'conversation_id',
+      field_schema: 'keyword',
+    });
+  });
+
+  it('upserts conversation messages with deterministic ids and payload', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({ collections: [{ name: 'conversation_org-1' }] });
+    client.upsert.mockResolvedValue({ status: 'completed' });
+    const store = service(client);
+    const sentAt = new Date('2026-08-19T10:00:00Z');
+    await store.upsertConversationMessages('org-1', 'conv-1', 'cust-1', 'WHATSAPP', [
+      {
+        messageId: 'msg-1',
+        sender: 'CUSTOMER',
+        body: 'Hello',
+        sentAt,
+        vector: [0.1, 0.2],
+      },
+    ]);
+    expect(client.upsert).toHaveBeenCalledWith('conversation_org-1', {
+      wait: true,
+      points: [
+        {
+          id: conversationMessagePointId('conv-1', 'msg-1'),
+          vector: [0.1, 0.2],
+          payload: {
+            org_id: 'org-1',
+            conversation_id: 'conv-1',
+            customer_id: 'cust-1',
+            channel: 'WHATSAPP',
+            sender: 'CUSTOMER',
+            message_id: 'msg-1',
+            sent_at: sentAt.getTime(),
+            text: 'Hello',
+          },
+        },
+      ],
+    });
+  });
+
+  it('skips the upsert with no messages', async () => {
+    const client = mockQdrant();
+    await service(client).upsertConversationMessages('org-1', 'conv-1', null, 'EMAIL', []);
+    expect(client.upsert).not.toHaveBeenCalled();
+  });
+
+  it('maps conversation upsert failures to VECTOR_STORE_UNAVAILABLE', async () => {
+    const client = mockQdrant();
+    client.getCollections.mockResolvedValue({ collections: [{ name: 'conversation_org-1' }] });
+    client.upsert.mockRejectedValue(new Error('connection refused'));
+    await expect(
+      service(client).upsertConversationMessages('org-1', 'conv-1', null, 'SLACK', [
+        { messageId: 'msg-1', sender: 'AGENT', body: 'x', sentAt: new Date(), vector: [1] },
+      ]),
+    ).rejects.toMatchObject({
+      code: HttpErrorCode.VECTOR_STORE_UNAVAILABLE,
+      status: 503,
+    });
   });
 
   it('creates a missing collection with indexes', async () => {

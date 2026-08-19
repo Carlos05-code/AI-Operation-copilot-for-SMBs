@@ -100,6 +100,12 @@ retrieval finds nothing, the LLM is not called and a disclaimer is returned; wit
 the endpoint fails with `LLM_UNAVAILABLE` (503) — chat is the one surface that cannot degrade, since
 answering requires a model.
 
+Customer conversations are ingested via `POST /api/v1/conversations` (DATABASE_SPEC §3): threads and
+messages land in PostgreSQL (idempotent via external ids), and the `ai-jobs` worker embeds message
+bodies into the `conversation_{org}` Qdrant collection for retrieval alongside documents (§5). No
+extra env vars are needed beyond `QDRANT_URL`/`EMBEDDINGS_*`; without them ingestion still persists
+but the embedding job is skipped (fail-soft).
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.
