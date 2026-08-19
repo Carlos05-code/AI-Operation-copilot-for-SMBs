@@ -109,6 +109,10 @@ but the embedding job is skipped (fail-soft).
 Browse the knowledge base with `GET /api/v1/knowledge` / `GET /api/v1/knowledge/:id` — an org-scoped
 read-only surface over the INDEXED documents registry (API_SPEC §11.7).
 
+Conversations can be browsed (`GET /api/v1/conversations[/:id]`) and summarized:
+`POST /api/v1/conversations/:id/summarize` schedules an LLM handoff summary on the `summary-jobs`
+queue (API_SPEC §11.8). Without `LLM_API_URL` the job is skipped, never failing the request.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

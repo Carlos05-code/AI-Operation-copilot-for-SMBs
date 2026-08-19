@@ -80,7 +80,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 **Goal**: decision support and automatic workflow execution.
 
-- [ ] Customer conversation summaries
+- [x] Customer conversation summaries
 - [ ] Sales forecasting (trend + seasonality on aggregated data)
 - [ ] Purchase recommendations v2 (demand-aware)
 - [ ] Low-risk task auto-completion with human-in-the-loop

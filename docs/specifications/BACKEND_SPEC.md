@@ -87,7 +87,7 @@ Each feature module must keep:
 - RabbitMQ fanouts to semantic queues; workers as backing job processor.
 - Queues: `invoice`, `embed`, `graph`, `notify`, `summary`, `import`.
 - Implemented queues today: `notifications`, `ai-jobs` (document + conversation embedding),
-  `search-jobs`, `graph-jobs`.
+  `search-jobs`, `graph-jobs`, `summary-jobs` (`conversation.summarize` → LLM handoff summaries).
 - Retry policy: `attempts: 3, backoff: exponential(2s)`; DLQ after exhausted.
 - Jobs are idempotent (re-run safe).
 

@@ -408,6 +408,46 @@ Authorization: Bearer <jwt>
 - Pagination per §4: `page` ≥ 1, `limit` 1–100 (default 20); `X-Total-Count` header mirrors
   `pagination.total`.
 
+### 11.8 Conversation summaries
+
+`GET /api/v1/conversations` lists the org's conversations (newest updated first, §4 pagination);
+`GET /api/v1/conversations/:id` fetches one thread with messages (ascending) plus the AI summary;
+`POST /api/v1/conversations/:id/summarize` schedules an LLM handoff summary on the `summary-jobs`
+queue (`conversation.summarize`, AI_ARCHITECTURE §6.1 `summarize.conversation`). Writes require
+agent-or-above; reads are open to any member; every query is org-scoped and foreign threads surface
+as 404.
+
+```http
+POST /api/v1/conversations/conv-1/summarize
+Authorization: Bearer <jwt>
+```
+
+```json
+200 { "data": { "conversationId": "conv-1", "summaryStatus": "QUEUED" }, "meta": { "requestId": "...", "statusCode": 200 } }
+```
+
+```http
+GET /api/v1/conversations/conv-1
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "conversation": { "id": "conv-1", "channel": "WHATSAPP", "summary": "Customer asked about pricing tiers.", "summaryGeneratedAt": "2026-08-19T10:05:00Z" },
+    "messages": [{ "sender": "CUSTOMER", "body": "Hello", "sentAt": "2026-08-19T09:00:00Z" }]
+  },
+  "meta": { "requestId": "...", "statusCode": 200 }
+}
+```
+
+- Summary generation is idempotent: a job is a no-op when the stored summary is newer than the last
+  message; it regenerates once new messages arrive.
+- The worker windows the transcript to a 20k-char budget (oldest messages dropped, noted in the
+  prompt), runs `summarize.conversation.v1`, persists `{summary, keyPoints}` (summary on the row,
+  key points on the `conversation.summarized` outbox event), and fails soft — no LLM config means
+  the job is skipped, a Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)

@@ -26,7 +26,7 @@ export class LlmProvider {
   }
 
   /** Runs a single completion; returns the model's text output. */
-  async complete(system: string, user: string): Promise<string> {
+  async complete(system: string, user: string, maxTokens?: number): Promise<string> {
     if (!this.config) {
       throw new ApiError({
         code: HttpErrorCode.LLM_UNAVAILABLE,
@@ -48,7 +48,7 @@ export class LlmProvider {
             { role: 'user', content: user },
           ],
           temperature: 0.2,
-          max_tokens: CHAT_MAX_TOKENS,
+          max_tokens: maxTokens ?? CHAT_MAX_TOKENS,
         }),
       });
       if (!response.ok) {

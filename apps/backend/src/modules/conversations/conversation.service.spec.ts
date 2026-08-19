@@ -11,7 +11,13 @@ function harness(
   overrides: {
     prisma?: {
       customer?: { findFirst: jest.Mock };
-      conversation?: { upsert: jest.Mock; create: jest.Mock };
+      conversation?: {
+        upsert: jest.Mock;
+        create: jest.Mock;
+        findFirst: jest.Mock;
+        findMany: jest.Mock;
+        count: jest.Mock;
+      };
       message?: { createMany: jest.Mock };
     };
     outbox?: { append: jest.Mock };
@@ -21,7 +27,13 @@ function harness(
   service: ConversationService;
   prisma: {
     customer: { findFirst: jest.Mock };
-    conversation: { upsert: jest.Mock; create: jest.Mock };
+    conversation: {
+      upsert: jest.Mock;
+      create: jest.Mock;
+      findFirst: jest.Mock;
+      findMany: jest.Mock;
+      count: jest.Mock;
+    };
     message: { createMany: jest.Mock };
   };
   outbox: { append: jest.Mock };
@@ -31,6 +43,9 @@ function harness(
   const conversation = overrides.prisma?.conversation ?? {
     upsert: jest.fn(),
     create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
   };
   const message = overrides.prisma?.message ?? { createMany: jest.fn() };
   const prisma = { customer, conversation, message } as unknown as PrismaService;
@@ -132,6 +147,86 @@ describe('ConversationService', () => {
     await expect(service.create(input)).rejects.toMatchObject({
       code: HttpErrorCode.INTERNAL_ERROR,
       status: 503,
+    });
+  });
+
+  it('schedules a summary job for an org conversation', async () => {
+    const { service, prisma, queue } = harness();
+    prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-1' });
+    await service.requestSummary('org-1', 'conv-1');
+    expect(prisma.conversation.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'conv-1', organizationId: 'org-1' } }),
+    );
+    expect(queue.enqueue).toHaveBeenCalledWith('summary-jobs', 'conversation.summarize', {
+      conversationId: 'conv-1',
+      organizationId: 'org-1',
+    });
+  });
+
+  it('returns 404 when scheduling a summary for a foreign conversation', async () => {
+    const { service, prisma, queue } = harness();
+    prisma.conversation.findFirst.mockResolvedValue(null);
+    await expect(service.requestSummary('org-2', 'conv-1')).rejects.toMatchObject({
+      code: HttpErrorCode.NOT_FOUND,
+      status: 404,
+    });
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('swallows enqueue failures when scheduling a summary', async () => {
+    const { service, prisma, queue } = harness();
+    prisma.conversation.findFirst.mockResolvedValue({ id: 'conv-1' });
+    queue.enqueue.mockRejectedValue(new Error('redis down'));
+    await expect(service.requestSummary('org-1', 'conv-1')).resolves.toBeUndefined();
+  });
+
+  it('lists the org conversations with counts, newest updated first', async () => {
+    const { service, prisma } = harness();
+    prisma.conversation.findMany.mockResolvedValue([
+      {
+        id: 'conv-1',
+        channel: 'WHATSAPP',
+        title: null,
+        externalId: null,
+        customerId: null,
+        summary: 'Customer asked about pricing.',
+        summaryGeneratedAt: new Date('2026-08-19T10:00:00Z'),
+        updatedAt: new Date('2026-08-19T11:00:00Z'),
+        _count: { messages: 7 },
+        messages: [{ sentAt: new Date('2026-08-19T10:30:00Z') }],
+      },
+    ]);
+    prisma.conversation.count.mockResolvedValue(1);
+    const result = await service.list('org-1', 1, 20);
+    expect(prisma.conversation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { organizationId: 'org-1' }, skip: 0, take: 20 }),
+    );
+    expect(result.items[0]).toMatchObject({
+      id: 'conv-1',
+      messageCount: 7,
+      lastMessageAt: new Date('2026-08-19T10:30:00Z'),
+      summary: 'Customer asked about pricing.',
+    });
+    expect(result.total).toBe(1);
+  });
+
+  it('fetches an org conversation with its messages', async () => {
+    const { service, prisma } = harness();
+    const message = { id: 'm1', sender: 'CUSTOMER', body: 'Hello', sentAt: new Date() };
+    prisma.conversation.findFirst.mockResolvedValue({
+      id: 'conv-1',
+      messages: [message],
+    });
+    const result = await service.get('org-1', 'conv-1');
+    expect(result.messages[0]).toMatchObject({ sender: 'CUSTOMER', body: 'Hello' });
+  });
+
+  it('returns 404 for a foreign conversation on get', async () => {
+    const { service, prisma } = harness();
+    prisma.conversation.findFirst.mockResolvedValue(null);
+    await expect(service.get('org-2', 'conv-1')).rejects.toMatchObject({
+      code: HttpErrorCode.NOT_FOUND,
+      status: 404,
     });
   });
 });

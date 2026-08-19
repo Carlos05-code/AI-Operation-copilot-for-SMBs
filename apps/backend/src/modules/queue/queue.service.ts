@@ -13,6 +13,7 @@ import {
   QUEUE_GRAPH_JOBS,
   QUEUE_NOTIFICATIONS,
   QUEUE_SEARCH_JOBS,
+  QUEUE_SUMMARY_JOBS,
   QueueName,
 } from './queue.constants';
 
@@ -25,12 +26,14 @@ export class QueueService {
     @InjectQueue(QUEUE_AI_JOBS) aiJobs: Queue,
     @InjectQueue(QUEUE_SEARCH_JOBS) searchJobs: Queue,
     @InjectQueue(QUEUE_GRAPH_JOBS) graphJobs: Queue,
+    @InjectQueue(QUEUE_SUMMARY_JOBS) summaryJobs: Queue,
   ) {
     this.queues = {
       notifications,
       'ai-jobs': aiJobs,
       'search-jobs': searchJobs,
       'graph-jobs': graphJobs,
+      'summary-jobs': summaryJobs,
     };
   }
 

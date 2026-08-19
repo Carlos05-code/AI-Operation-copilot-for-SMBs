@@ -207,6 +207,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     status)
   - Unit tests: pagination math, empty org, cross-org 404 scoping, DB unconfigured; e2e:
     unauthenticated list/get → 401
+- Conversation summaries with org-scoped surface (ROADMAP Phase 4, AI_ARCHITECTURE §6.1, API_SPEC
+  §11.8):
+  - `ConversationSummaryWorker` on the new `summary-jobs` queue (`conversation.summarize`): loads
+    the thread, windows the transcript to a 20k-char tail budget, runs the
+    `summarize.conversation.v1` prompt through the shared LLM, persists `{summary}` +
+    `summaryGeneratedAt` on the row (idempotent — no-op when the stored summary is newer than the
+    last message), and emits `conversation.summarized` on the outbox
+  - `POST /api/v1/conversations/:id/summarize` schedules the job (agent-or-above, org-scoped 404,
+    fail-soft enqueue); `GET /api/v1/conversations` (paginated, newest updated first,
+    `X-Total-Count`) and `GET /api/v1/conversations/:id` (thread + summary) expose it
+  - `conversations.summary` + `summary_generated_at` columns (migration `add_conversation_summary`);
+    `LlmProvider.complete` gained an optional `maxTokens` override
+  - Unit tests: worker (happy path + event, freshness skip, regeneration, windowing/truncation note,
+    malformed payload retry, fail-soft), service (scheduling, org-scoped 404, list/get); e2e:
+    unauthenticated list/get/summarize → 401
 
 ### Changed
 

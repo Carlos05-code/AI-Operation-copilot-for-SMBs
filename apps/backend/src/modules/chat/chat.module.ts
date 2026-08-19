@@ -25,6 +25,6 @@ import { LlmProvider } from './llm.provider';
     },
     ChatService,
   ],
-  exports: [ChatService],
+  exports: [ChatService, LlmProvider],
 })
 export class ChatModule {}

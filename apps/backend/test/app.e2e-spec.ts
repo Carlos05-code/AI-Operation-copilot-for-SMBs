@@ -110,4 +110,17 @@ describe('API (e2e)', () => {
     const getRes = await request(app.getHttpServer()).get('/api/v1/knowledge/kb-1').expect(401);
     expect(getRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated conversation reads and summary scheduling (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/conversations').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const getRes = await request(app.getHttpServer())
+      .get('/api/v1/conversations/conv-1')
+      .expect(401);
+    expect(getRes.body.error.status).toBe(401);
+    const sumRes = await request(app.getHttpServer())
+      .post('/api/v1/conversations/conv-1/summarize')
+      .expect(401);
+    expect(sumRes.body.error.code).toBe('UNAUTHORIZED');
+  });
 });

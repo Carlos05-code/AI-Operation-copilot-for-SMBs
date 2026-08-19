@@ -18,7 +18,11 @@ import { ApiError, HttpErrorCode } from '../../shared/errors/error-contract';
 import { PrismaService } from '../database/prisma.service';
 import { OutboxService } from '../events/outbox.service';
 import { QueueService } from '../queue/queue.service';
-import { EVENT_CONVERSATION_INGESTED, JOB_CONVERSATION_EMBED } from './conversation.constants';
+import {
+  EVENT_CONVERSATION_INGESTED,
+  JOB_CONVERSATION_EMBED,
+  JOB_CONVERSATION_SUMMARIZE,
+} from './conversation.constants';
 
 export interface CreateConversationInput {
   organizationId: string;
@@ -134,6 +138,121 @@ export class ConversationService {
       // later from the event bus.
       this.logger.warn(`conversation embed job enqueue skipped: ${(error as Error)?.message}`);
     }
+  }
+
+  /** Schedules a summary job for an org-scoped conversation (fire-and-forget). */
+  async requestSummary(organizationId: string, conversationId: string): Promise<void> {
+    const prisma = this.requirePrisma();
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: conversationId, organizationId },
+      select: { id: true },
+    });
+    if (!conversation) {
+      throw new ApiError({
+        code: HttpErrorCode.NOT_FOUND,
+        status: 404,
+        message: 'Conversation not found',
+      });
+    }
+    if (!this.queue) return;
+    try {
+      await this.queue.enqueue('summary-jobs', JOB_CONVERSATION_SUMMARIZE, {
+        conversationId,
+        organizationId,
+      });
+    } catch (error) {
+      // Redis down must not fail the request; the job can be re-scheduled.
+      this.logger.warn(`conversation summary job enqueue skipped: ${(error as Error)?.message}`);
+    }
+  }
+
+  /** Lists the org's conversations, newest updated first (offset pagination). */
+  async list(
+    organizationId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    items: Array<{
+      id: string;
+      channel: Conversation['channel'];
+      title: string | null;
+      externalId: string | null;
+      customerId: string | null;
+      summary: string | null;
+      summaryGeneratedAt: Date | null;
+      messageCount: number;
+      lastMessageAt: Date | null;
+      updatedAt: Date;
+    }>;
+    total: number;
+  }> {
+    const prisma = this.requirePrisma();
+    const [items, total] = await Promise.all([
+      prisma.conversation.findMany({
+        where: { organizationId },
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          channel: true,
+          title: true,
+          externalId: true,
+          customerId: true,
+          summary: true,
+          summaryGeneratedAt: true,
+          updatedAt: true,
+          _count: { select: { messages: true } },
+          messages: { orderBy: { sentAt: 'desc' as const }, take: 1, select: { sentAt: true } },
+        },
+      }),
+      prisma.conversation.count({ where: { organizationId } }),
+    ]);
+    return {
+      items: items.map((item) => ({
+        id: item.id,
+        channel: item.channel,
+        title: item.title,
+        externalId: item.externalId,
+        customerId: item.customerId,
+        summary: item.summary,
+        summaryGeneratedAt: item.summaryGeneratedAt,
+        messageCount: item._count.messages,
+        lastMessageAt: item.messages[0]?.sentAt ?? null,
+        updatedAt: item.updatedAt,
+      })),
+      total,
+    };
+  }
+
+  /** Fetches one org-scoped conversation with its messages (404 if foreign). */
+  async get(
+    organizationId: string,
+    conversationId: string,
+  ): Promise<{
+    conversation: Conversation;
+    messages: Array<{ sender: MessageSender; body: string; sentAt: Date }>;
+  }> {
+    const prisma = this.requirePrisma();
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: conversationId, organizationId },
+      include: { messages: { orderBy: { sentAt: 'asc' as const } } },
+    });
+    if (!conversation) {
+      throw new ApiError({
+        code: HttpErrorCode.NOT_FOUND,
+        status: 404,
+        message: 'Conversation not found',
+      });
+    }
+    return {
+      conversation,
+      messages: conversation.messages.map((message) => ({
+        sender: message.sender,
+        body: message.body,
+        sentAt: message.sentAt,
+      })),
+    };
   }
 
   private requirePrisma(): PrismaService {

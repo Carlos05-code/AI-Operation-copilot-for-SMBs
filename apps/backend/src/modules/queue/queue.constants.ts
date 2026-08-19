@@ -7,12 +7,14 @@ export const QUEUE_NOTIFICATIONS = 'notifications';
 export const QUEUE_AI_JOBS = 'ai-jobs';
 export const QUEUE_SEARCH_JOBS = 'search-jobs';
 export const QUEUE_GRAPH_JOBS = 'graph-jobs';
+export const QUEUE_SUMMARY_JOBS = 'summary-jobs';
 
 export const QUEUES = [
   QUEUE_NOTIFICATIONS,
   QUEUE_AI_JOBS,
   QUEUE_SEARCH_JOBS,
   QUEUE_GRAPH_JOBS,
+  QUEUE_SUMMARY_JOBS,
 ] as const;
 export type QueueName = (typeof QUEUES)[number];
 

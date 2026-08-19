@@ -1,10 +1,10 @@
 /**
  * QueueModule: BullMQ job queues on Redis (ADR-0007, ADR-0013).
  *
- * Registers the `notifications`, `ai-jobs`, `search-jobs`, and `graph-jobs`
- * queues with exponential-retry defaults and a connection derived from
- * `REDIS_URL`. Fail-soft by design: BullMQ connects lazily, so booting
- * without Redis is fine; only enqueue attempts fail.
+ * Registers the `notifications`, `ai-jobs`, `search-jobs`, `graph-jobs`,
+ * and `summary-jobs` queues with exponential-retry defaults and a connection
+ * derived from `REDIS_URL`. Fail-soft by design: BullMQ connects lazily, so
+ * booting without Redis is fine; only enqueue attempts fail.
  */
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
@@ -15,6 +15,7 @@ import {
   QUEUE_GRAPH_JOBS,
   QUEUE_NOTIFICATIONS,
   QUEUE_SEARCH_JOBS,
+  QUEUE_SUMMARY_JOBS,
 } from './queue.constants';
 import { redisConnectionOptions } from './redis.config';
 
@@ -32,6 +33,7 @@ import { redisConnectionOptions } from './redis.config';
       { name: QUEUE_AI_JOBS },
       { name: QUEUE_SEARCH_JOBS },
       { name: QUEUE_GRAPH_JOBS },
+      { name: QUEUE_SUMMARY_JOBS },
     ),
   ],
   providers: [QueueService],
