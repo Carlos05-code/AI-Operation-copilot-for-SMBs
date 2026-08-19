@@ -243,6 +243,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     documented in API_SPEC §11.10
   - Unit tests: full aggregation + org scoping of every query, empty-org zeros, DB unconfigured;
     e2e: unauthenticated summary → 401
+- AI task planning (ROADMAP Phase 3, AI_ARCHITECTURE §6.1 `plan.tasks`, API_SPEC §11.11):
+  - `POST /api/v1/tasks/plan` schedules a `task.plan` job on the shared `ai-jobs` queue;
+    `TaskPlanningWorker` collects deterministic signals (overdue invoices top-20, products below
+    reorder point with stock = `sum(IN) − sum(OUT) + sum(ADJUST)`), runs `plan.tasks.v1` through the
+    shared LLM, validates the JSON plan (priorities, ISO dates), and persists tasks with
+    `agentMetadata` (`promptVersion`, `signalKey`, `reason`)
+  - Dedupe by signal key: an open task with the same `agentMetadata.signalKey` (jsonb path query) is
+    never duplicated across runs; `task.planned` outbox event with counts
+  - Task surface: `GET /api/v1/tasks` (priority-desc order, §4 pagination, `status` filter),
+    `GET /api/v1/tasks/:id`, `PATCH /api/v1/tasks/:id` (status updates) — all org-scoped, foreign
+    tasks 404
+  - Unit tests: worker (signals, LLM plan validation, dedupe, low-stock convention, skips, malformed
+    payload retry, outbox swallow), service (list/get/update org scoping, plan scheduling
+    fail-soft); e2e: unauthenticated list/get/patch/plan → 401
 
 ### Changed
 

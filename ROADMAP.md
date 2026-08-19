@@ -65,7 +65,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 **Goal**: proactive operations for the daily business.
 
 - [x] Executive dashboard (revenue, AR, tasks, alerts)
-- [ ] AI task planning (context-aware priorities, dependencies, deadlines)
+- [x] AI task planning (context-aware priorities, dependencies, deadlines)
 - [ ] Invoice generation and recurring invoicing
 - [ ] Inventory tracking with reorder alerts
 - [ ] Appointment scheduling

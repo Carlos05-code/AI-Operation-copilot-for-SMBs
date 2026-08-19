@@ -138,4 +138,18 @@ describe('API (e2e)', () => {
     expect(res.body.error.code).toBe('UNAUTHORIZED');
     expect(res.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated task endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/tasks').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const getRes = await request(app.getHttpServer()).get('/api/v1/tasks/task-1').expect(401);
+    expect(getRes.body.error.status).toBe(401);
+    const patchRes = await request(app.getHttpServer())
+      .patch('/api/v1/tasks/task-1')
+      .send({ status: 'DONE' })
+      .expect(401);
+    expect(patchRes.body.error.code).toBe('UNAUTHORIZED');
+    const planRes = await request(app.getHttpServer()).post('/api/v1/tasks/plan').expect(401);
+    expect(planRes.body.error.status).toBe(401);
+  });
 });

@@ -121,6 +121,10 @@ provisioned when unknown.
 The executive dashboard (`GET /api/v1/dashboard/summary`, API_SPEC §11.10) gives an org-scoped
 snapshot of revenue, receivables, task load, and alerts over the seeded tables.
 
+AI task planning (`POST /api/v1/tasks/plan`, API_SPEC §11.11) schedules the `task.plan` worker,
+which turns business signals (overdue invoices, low stock) into prioritized tasks with deadlines;
+browse and close them via `GET/PATCH /api/v1/tasks`. Without `LLM_API_URL` the job is skipped.
+
 ## Troubleshooting
 
 - Port conflicts: edit `docker-compose.yml` port mappings.

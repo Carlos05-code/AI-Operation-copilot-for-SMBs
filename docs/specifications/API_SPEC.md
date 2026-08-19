@@ -511,6 +511,47 @@ Authorization: Bearer <jwt>
 - Period boundaries are UTC calendar months; "due today" spans the current UTC day.
 - Empty orgs render as zeros with an empty `byPriority`/`recent`.
 
+### 11.11 Tasks & AI planning
+
+`GET /api/v1/tasks` lists the org's tasks (priority desc, then creation order; §4 pagination,
+optional `status` filter); `GET /api/v1/tasks/:id` fetches one; `PATCH /api/v1/tasks/:id` updates
+its status (`{status: "DONE"}`) for humans closing planned work; `POST /api/v1/tasks/plan` schedules
+AI task planning (ROADMAP Phase 3, AI_ARCHITECTURE §6.1 `plan.tasks`). Writes require
+agent-or-above; reads are open to any member; every query is org-scoped and foreign tasks surface
+as 404.
+
+```http
+POST /api/v1/tasks/plan
+Authorization: Bearer <jwt>
+```
+
+```json
+200 { "data": { "planStatus": "QUEUED" }, "meta": { "requestId": "...", "statusCode": 200 } }
+```
+
+```http
+GET /api/v1/tasks?status=TODO
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "items": [{ "id": "task-1", "title": "Follow up invoice INV-001", "priority": "HIGH", "status": "TODO", "dueDate": "2026-08-22T00:00:00.000Z" }],
+    "pagination": { "page": 1, "limit": 20, "total": 1, "pages": 1 }
+  },
+  "meta": { "requestId": "...", "statusCode": 200 }
+}
+```
+
+- The `task.plan` job (shared `ai-jobs` queue) collects deterministic signals — overdue invoices
+  (top 20) and products below their reorder point (stock = `sum(IN) − sum(OUT) + sum(ADJUST)`,
+  DATABASE_SPEC §5) — then runs `plan.tasks.v1` and persists validated tasks with `agentMetadata`
+  (`promptVersion`, `signalKey`, `reason`).
+- Dedupe: an open task carrying the same `signalKey` is never duplicated across runs.
+- Fail-soft: no signals / no database / no LLM config → job skipped; malformed model output retries
+  via BullMQ; a Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)
