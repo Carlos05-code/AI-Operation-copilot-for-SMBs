@@ -47,4 +47,4 @@ Self-hostable, Apache-licensed alternative to Elasticsearch with the feature par
 
 ## References
 
-- [DATABASE_SPEC](../specifications/DATABASE_SPEC.md)
+- [DATABASE_SPEC](../../specifications/DATABASE_SPEC.md)

@@ -46,5 +46,5 @@ Use **Qdrant** as the vector database.
 
 ## References
 
-- [DATABASE_SPEC](../specifications/DATABASE_SPEC.md)
-- [AI_ARCHITECTURE](../specifications/AI_ARCHITECTURE.md)
+- [DATABASE_SPEC](../../specifications/DATABASE_SPEC.md)
+- [AI_ARCHITECTURE](../../specifications/AI_ARCHITECTURE.md)

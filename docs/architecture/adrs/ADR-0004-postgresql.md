@@ -47,5 +47,5 @@ Use **PostgreSQL** as the primary relational database, accessed via **Prisma** O
 
 ## References
 
-- [DATABASE_SPEC](../specifications/DATABASE_SPEC.md)
-- [`apps/backend/prisma/`](../../apps/backend/prisma/)
+- [DATABASE_SPEC](../../specifications/DATABASE_SPEC.md)
+- [`apps/backend/prisma/`](../../../apps/backend/prisma/)

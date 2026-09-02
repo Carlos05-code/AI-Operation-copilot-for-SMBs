@@ -23,4 +23,4 @@ monitoring/
 
 ## Read more
 
-- [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md)
+- [DEVOPS_SPEC](../../docs/specifications/DEVOPS_SPEC.md)

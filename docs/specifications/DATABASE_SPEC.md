@@ -244,5 +244,7 @@ CREATE INDEX idx_audit_org ON audit_logs (organization_id, created_at DESC);
 
 ## 12. Related Documents
 
-- [Neo4j ADR](ADR-0005.md) · [Qdrant ADR](ADR-0006.md) · [Redis ADR](ADR-0013.md)
+- [Neo4j ADR](../architecture/adrs/ADR-0005-neo4j.md) ·
+  [Qdrant ADR](../architecture/adrs/ADR-0006-qdrant.md) ·
+  [Redis ADR](../architecture/adrs/ADR-0013-redis.md)
 - [Data flow diagrams](../diagrams/data-flow.md)

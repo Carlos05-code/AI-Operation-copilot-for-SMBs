@@ -1,23 +1,29 @@
 <p align="center">
   <br/>
-  <img src="screenshots/logo.png" alt="AI Operations Copilot" width="160"/>
   <br/>
   <h1 align="center">AI Operations Copilot for SMBs</h1>
   <p align="center">
     A virtual operations manager for small and medium businesses.
-    Centralize WhatsApp, Email, Excel, invoices, inventory, calendars, and CRM into one intelligent, AI-powered operations hub.
+    Centralize WhatsApp, Email, Excel, invoices, inventory, calendars, and CRM
+    into one intelligent, AI-powered operations hub.
   </p>
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
-  <a href="ROADMAP.md"><img src="https://img.shields.io/badge/status-foundation-%2309b3a5" alt="Status"></a>
-  <a href="docs/specifications/ARCHITECTURE_SPEC.md"><img src="https://img.shields.io/badge/docs-architecture-orange" alt="Architecture docs"></a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License">
+  </a>
+  <a href="ROADMAP.md">
+    <img src="https://img.shields.io/badge/status-foundation-%2309b3a5" alt="Status">
+  </a>
+  <a href="docs/specifications/ARCHITECTURE_SPEC.md">
+    <img src="https://img.shields.io/badge/docs-architecture-orange" alt="Architecture docs">
+  </a>
 </p>
 
 ---
 
-English | [Coming soon](docs/i18n/zh_TW.md)
+English
 
 ---
 
@@ -87,7 +93,7 @@ flowchart LR
     BullMQ --> Minio
 ```
 
-See the full [System Architecture](/docs/diagrams/system-architecture.md).
+See the full [System Architecture](docs/diagrams/system-architecture.md).
 
 ## Technology Stack
 

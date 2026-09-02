@@ -21,3 +21,10 @@ MD046:
 
 # Detailed style enforcement
 MD041: false
+
+# Keep a Changelog repeats "### Added" / "### Fixed" under each release heading
+MD024:
+  siblings_only: true
+
+# Issue templates and roadmap use bold labels as lightweight section markers
+MD036: false

@@ -1,7 +1,7 @@
 # AI Evaluation Harness
 
 Offline (CI) evaluation for AI capabilities, per
-[AI_ARCHITECTURE](../specifications/AI_ARCHITECTURE.md) §11.
+[AI_ARCHITECTURE](../../docs/specifications/AI_ARCHITECTURE.md) §11.
 
 ## Layout
 

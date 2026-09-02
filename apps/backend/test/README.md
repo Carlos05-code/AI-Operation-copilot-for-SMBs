@@ -2,7 +2,7 @@
 
 > Automated tests for the NestJS backend live here.
 
-Planned layers (see [Testing Spec](../../../../docs/specifications/TESTING_SPEC.md)):
+Planned layers (see [Testing Spec](../../../docs/specifications/TESTING_SPEC.md)):
 
 | Layer       | Command                 | Location            |
 | ----------- | ----------------------- | ------------------- |

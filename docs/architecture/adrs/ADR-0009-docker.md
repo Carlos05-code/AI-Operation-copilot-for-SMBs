@@ -47,5 +47,5 @@ environment.
 
 ## References
 
-- [docker-compose.yml](../../docker-compose.yml)
-- [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md)
+- [docker-compose.yml](../../../docker-compose.yml)
+- [DEVOPS_SPEC](../../specifications/DEVOPS_SPEC.md)

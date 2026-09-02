@@ -49,5 +49,5 @@ module boundaries.
 
 ## References
 
-- [BACKEND_SPEC](../specifications/BACKEND_SPEC.md)
-- [ARCHITECTURE_SPEC](../specifications/ARCHITECTURE_SPEC.md)
+- [BACKEND_SPEC](../../specifications/BACKEND_SPEC.md)
+- [ARCHITECTURE_SPEC](../../specifications/ARCHITECTURE_SPEC.md)

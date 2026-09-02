@@ -115,4 +115,4 @@ Pr release: all check workflows must be green; PR must pass `Definition of Done`
 
 ## 12. Related
 
-- [Terraform notes](./infrastructure/devops/) (stub for IaC decision)
+- Terraform notes — stub, pending the IaC decision (no `infrastructure/` Terraform yet)
