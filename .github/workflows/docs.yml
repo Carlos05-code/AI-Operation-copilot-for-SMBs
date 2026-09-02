@@ -31,6 +31,7 @@ jobs:
         uses: gaurav-nelson/github-action-markdown-link-check@v1
         with:
           use-quiet-mode: 'yes'
+          config-file: '.github/markdown-link-check.json'
 
   mermaid:
     name: Mermaid syntax check
@@ -40,7 +41,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Install mermaid validator
-        run: npm i -g @mermaid-js/parser-cli
-      - name: Validate mermaid blocks
-        run: npx mermaid-validate "docs/**/*.md" "*.md"
+      - name: Validate mermaid code blocks
+        run: node .github/scripts/check-mermaid.mjs

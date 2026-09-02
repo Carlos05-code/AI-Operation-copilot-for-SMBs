@@ -41,6 +41,8 @@ jobs:
       - name: ESLint (root config)
         run: npx eslint "**/*.{ts,tsx,js}" --max-warnings 0
 
+      # Activates once the Flutter app is scaffolded (apps/mobile/pubspec.yaml).
       - name: Flutter analyze
+        if: ${{ hashFiles('apps/mobile/pubspec.yaml') != '' }}
         working-directory: apps/mobile
         run: flutter analyze

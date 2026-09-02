@@ -50,6 +50,9 @@ jobs:
   flutter-build:
     name: Build Flutter (Android)
     runs-on: ubuntu-latest
+    # The Flutter app is not scaffolded yet (apps/mobile is a placeholder).
+    # This job activates automatically once a pubspec.yaml lands.
+    if: ${{ hashFiles('apps/mobile/pubspec.yaml') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
