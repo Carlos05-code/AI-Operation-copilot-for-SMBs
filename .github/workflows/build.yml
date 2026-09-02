@@ -50,21 +50,34 @@ jobs:
   flutter-build:
     name: Build Flutter (Android)
     runs-on: ubuntu-latest
-    # The Flutter app is not scaffolded yet (apps/mobile is a placeholder).
-    # This job activates automatically once a pubspec.yaml lands.
-    if: ${{ hashFiles('apps/mobile/pubspec.yaml') != '' }}
     steps:
       - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      # The Flutter app is not scaffolded yet (apps/mobile is a placeholder).
+      # Every step below activates automatically once a pubspec.yaml lands;
+      # until then the job is a green no-op. (hashFiles is not allowed in a
+      # job-level `if`, so the guard lives on each step.)
+      - id: guard
+        run: |
+          if [ -f apps/mobile/pubspec.yaml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/mobile/pubspec.yaml not found — skipping the Flutter build."
+          fi
+      - if: steps.guard.outputs.present == 'true'
+        uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
       - name: Analyze
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter analyze
       - name: Test
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter test --coverage
       - name: Build apk
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter build apk --debug
