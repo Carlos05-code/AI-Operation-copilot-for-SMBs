@@ -21,6 +21,7 @@ import { ConversationsModule } from './modules/conversations/conversation.module
 import { KnowledgeModule } from './modules/knowledge/knowledge.module.js';
 import { ConnectorsModule } from './modules/connectors/connector.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { InvoicesModule } from './modules/invoices/invoice.module.js';
 import { TasksModule } from './modules/tasks/task.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
@@ -44,6 +45,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     KnowledgeModule,
     ConnectorsModule,
     DashboardModule,
+    InvoicesModule,
     TasksModule,
     HealthModule,
     OpenApiModule,

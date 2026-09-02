@@ -8,6 +8,8 @@ export const QUEUE_AI_JOBS = 'ai-jobs';
 export const QUEUE_SEARCH_JOBS = 'search-jobs';
 export const QUEUE_GRAPH_JOBS = 'graph-jobs';
 export const QUEUE_SUMMARY_JOBS = 'summary-jobs';
+/** Non-AI operational jobs: recurring invoicing, overdue sweeps, reorder checks. */
+export const QUEUE_OPS_JOBS = 'ops-jobs';
 
 export const QUEUES = [
   QUEUE_NOTIFICATIONS,
@@ -15,6 +17,7 @@ export const QUEUES = [
   QUEUE_SEARCH_JOBS,
   QUEUE_GRAPH_JOBS,
   QUEUE_SUMMARY_JOBS,
+  QUEUE_OPS_JOBS,
 ] as const;
 export type QueueName = (typeof QUEUES)[number];
 

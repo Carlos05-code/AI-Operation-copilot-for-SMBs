@@ -125,35 +125,9 @@ Common codes:
 
 ### 11.1 Create invoice
 
-```http
-POST /api/v1/invoices
-Authorization: Bearer <jwt>
-Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
-Content-Type: application/json
-
-{
-  "customerId": "550e8400-e29b-41d4-a716-446655440000",
-  "items": [
-    { "productId": "...", "quantity": 2, "unitPriceCents": 1000 }
-  ],
-  "dueDate": "2026-08-16",
-  "note": "Standard monthly order"
-}
-```
-
-```json
-201 {
-  "data": {
-    "id": "7b02e1b2-...",
-    "invoiceNumber": "INV-2026-0042",
-    "customerId": "...",
-    "totalCents": 2000,
-    "status": "draft",
-    "dueDate": "2026-08-16"
-  },
-  "meta": { "requestId": "..." }
-}
-```
+> Implemented — see [§11.12 Invoices & recurring invoicing](#1112-invoices--recurring-invoicing) for
+> the current request/response contract, numbering, lifecycle, and the recurring-invoice surface.
+> Money crosses the wire as exact decimal strings (`unitPrice`, `total`, …), not integer cents.
 
 ### 11.2 Hybrid search
 
@@ -551,6 +525,89 @@ Authorization: Bearer <jwt>
 - Dedupe: an open task carrying the same `signalKey` is never duplicated across runs.
 - Fail-soft: no signals / no database / no LLM config → job skipped; malformed model output retries
   via BullMQ; a Redis outage never fails the scheduling request.
+
+### 11.12 Invoices & recurring invoicing
+
+Implemented as `/api/v1/invoices` and `/api/v1/recurring-invoices` (ROADMAP Phase 3). Writes require
+agent-or-above (`void`, and every recurring-invoice write, require manager-or-above); reads are open
+to any member; every query is org-scoped and foreign ids surface as 404. Money is returned as exact
+decimal strings (`toFixed(2)`), never floats — the §11.10 convention.
+
+```http
+POST /api/v1/invoices
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "customerId": "550e8400-e29b-41d4-a716-446655440000",
+  "items": [
+    { "productId": "…", "description": "Espresso Beans 1kg", "quantity": 3, "unitPrice": 18.5, "taxRate": 0 }
+  ],
+  "dueDate": "2026-10-01",
+  "note": "Standard monthly order",
+  "issue": false
+}
+```
+
+```json
+201 {
+  "data": {
+    "id": "7b02e1b2-…",
+    "invoiceNumber": "INV-2026-0042",
+    "customerId": "550e8400-…",
+    "recurringInvoiceId": null,
+    "status": "DRAFT",
+    "dueDate": "2026-10-01T00:00:00.000Z",
+    "subtotal": "55.50", "taxTotal": "0.00", "total": "55.50",
+    "issuedAt": null, "paidAt": null,
+    "items": [{ "id": "…", "description": "Espresso Beans 1kg", "quantity": 3, "unitPrice": "18.50", "taxRate": "0.00", "lineTotal": "55.50" }]
+  },
+  "meta": { "requestId": "…", "statusCode": 201 }
+}
+```
+
+- **Numbering**: `INV-<UTC year>-<seq>` (`seq` zero-padded to 4), allocated per org per year and
+  retried up to 5× on a concurrent unique-constraint collision; `409 CONFLICT` if it still can't be
+  allocated.
+- **Lifecycle**: `POST /api/v1/invoices/:id/issue` (`DRAFT → SENT`, stamps `issuedAt`), `…/pay`
+  (`SENT | OVERDUE → PAID`, stamps `paidAt`), `…/void` (`DRAFT | SENT | OVERDUE → VOID`). Any other
+  transition is `409 CONFLICT`; asking for the current state is an idempotent no-op. Each emits
+  `invoice.{created,issued,paid,voided}` on the transactional outbox.
+- `GET /api/v1/invoices` (newest first, §4 pagination, optional `status`),
+  `GET /api/v1/invoices/:id` (with line items).
+- `POST /api/v1/invoices/sweep-overdue` schedules the `invoice.overdue.sweep` job on the `ops-jobs`
+  queue → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The worker flips past-due `SENT` invoices to
+  `OVERDUE` and raises an in-app `Notification` for every OWNER/ADMIN/MANAGER of the org (surfaced
+  by the §11.10 dashboard `alerts` lens); a guarded `updateMany` means a re-run never re-notifies.
+
+**Recurring invoicing** — `POST /api/v1/recurring-invoices` stores a validated invoice template plus
+a cadence (`WEEKLY | MONTHLY | QUARTERLY | YEARLY`, `interval`, `netTermsDays`, `issueOnCreate`):
+
+```json
+201 {
+  "data": {
+    "id": "sch-1", "customerId": "550e8400-…",
+    "cadence": "MONTHLY", "interval": 1, "netTermsDays": 30, "issueOnCreate": true, "active": true,
+    "lineItems": [{ "productId": "…", "description": "Espresso Beans 1kg", "quantity": 10, "unitPrice": 18.5, "taxRate": 0 }],
+    "preview": { "subtotal": "185.00", "taxTotal": "0.00", "total": "185.00" },
+    "nextRunAt": "2026-10-08T00:00:00.000Z", "lastRunAt": null, "generatedCount": 0
+  },
+  "meta": { "requestId": "…", "statusCode": 201 }
+}
+```
+
+- `GET /api/v1/recurring-invoices`, `GET /api/v1/recurring-invoices/:id`,
+  `POST /api/v1/recurring-invoices/:id/{pause,resume}` (resuming a past-due schedule pulls
+  `nextRunAt` to now so exactly one invoice fires on the next tick),
+  `DELETE /api/v1/recurring-invoices/:id` (issued invoices are kept, their `recurringInvoiceId` is
+  set null).
+- `POST /api/v1/recurring-invoices/run` schedules the `invoice.recurrence.run` job on `ops-jobs` →
+  `{ "runStatus": "QUEUED" | "SKIPPED" }`. The worker loads active schedules with
+  `nextRunAt <= now`, generates the next invoice for each, and advances `nextRunAt` (skipping past
+  periods) in the same transaction — guarded on the observed `nextRunAt`, so a concurrent run can't
+  double-bill.
+- Fail-soft: no database → jobs skipped; a per-item failure is logged and the batch continues; a
+  Redis outage never fails the scheduling request.
 
 ## 12. Related
 

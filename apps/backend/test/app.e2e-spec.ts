@@ -152,4 +152,33 @@ describe('API (e2e)', () => {
     const planRes = await request(app.getHttpServer()).post('/api/v1/tasks/plan').expect(401);
     expect(planRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated invoice endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/invoices').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/invoices')
+      .send({ customerId: 'c-1', items: [], dueDate: '2026-09-01' })
+      .expect(401);
+    expect(createRes.body.error.status).toBe(401);
+    const issueRes = await request(app.getHttpServer())
+      .post('/api/v1/invoices/inv-1/issue')
+      .expect(401);
+    expect(issueRes.body.error.code).toBe('UNAUTHORIZED');
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/invoices/sweep-overdue')
+      .expect(401);
+    expect(sweepRes.body.error.status).toBe(401);
+  });
+
+  it('rejects unauthenticated recurring-invoice endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer())
+      .get('/api/v1/recurring-invoices')
+      .expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const runRes = await request(app.getHttpServer())
+      .post('/api/v1/recurring-invoices/run')
+      .expect(401);
+    expect(runRes.body.error.status).toBe(401);
+  });
 });

@@ -66,7 +66,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [x] Executive dashboard (revenue, AR, tasks, alerts)
 - [x] AI task planning (context-aware priorities, dependencies, deadlines)
-- [ ] Invoice generation and recurring invoicing
+- [x] Invoice generation and recurring invoicing
 - [ ] Inventory tracking with reorder alerts
 - [ ] Appointment scheduling
 - [ ] Purchase recommendations
