@@ -70,7 +70,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Inventory tracking with reorder alerts
 - [ ] Appointment scheduling
 - [ ] Purchase recommendations
-- [ ] Notifications (in-app, WhatsApp, email)
+- [~] Notifications (in-app ✓, email ✓, WhatsApp pending a Business API/Twilio integration)
 
 **Version: 0.3.0**
 

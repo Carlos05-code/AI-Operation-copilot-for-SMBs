@@ -126,6 +126,28 @@ export class AppConfig {
   llmModel?: string;
 
   @IsString()
+  @IsOptional()
+  smtpHost?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  smtpPort?: number;
+
+  @IsString()
+  @IsOptional()
+  smtpUser?: string;
+
+  @IsString()
+  @IsOptional()
+  smtpPassword?: string;
+
+  @IsString()
+  @IsOptional()
+  smtpFrom?: string;
+
+  @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 
   /** Comma-separated allowed browser origins (SECURITY_SPEC §6); unset reflects the request Origin. */

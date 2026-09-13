@@ -659,6 +659,37 @@ Content-Type: application/json
 - Fail-soft: no database → jobs skipped; a per-product failure is logged and the batch continues; a
   Redis outage never fails the scheduling request.
 
+### 11.14 Notification delivery
+
+Implemented as `POST /api/v1/notifications/sweep-delivery` (ROADMAP Phase 3, BACKEND_SPEC §12).
+Manager-or-above; org-scoped from the token (though the sweep itself, like the invoice-overdue and
+inventory-reorder sweeps, runs globally across all orgs).
+
+```http
+POST /api/v1/notifications/sweep-delivery
+Authorization: Bearer <jwt>
+```
+
+```json
+200 { "data": { "sweepStatus": "QUEUED" | "SKIPPED" }, "meta": { "requestId": "…", "statusCode": 200 } }
+```
+
+- Every `Notification` row (created by, e.g., the invoice-overdue sweep — §11.12, or the
+  inventory-reorder-alert sweep — §11.13) starts `deliveryStatus: PENDING`. The
+  `notification.delivery.sweep` job on the `notifications` queue emails each `PENDING`/`FAILED` row
+  to its recipient's `User.email` via SMTP (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/
+  `SMTP_FROM`), and claims the outcome with a guarded `updateMany` — the same pattern as those
+  sweeps, so a concurrent run can't double-send.
+- Only `SENT` is terminal. A missing email, an unconfigured SMTP provider, or a thrown send error
+  leaves the row `FAILED` (with `deliveryError` set) rather than a permanent `SKIPPED` — the next
+  sweep re-queries `PENDING`/`FAILED` and retries, so a transient outage or a later-added
+  `SMTP_HOST` self-heals without operator intervention.
+- **WhatsApp delivery is not implemented.** `NotificationKind.WHATSAPP` is reserved for a future
+  WhatsApp Business API/Twilio integration (approved sender + templates) — building one without real
+  provider access would be an unexercisable stub, which the project principles rule out.
+- Fail-soft: no database → the job is a no-op; a per-notification failure is logged and the batch
+  continues; a Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)

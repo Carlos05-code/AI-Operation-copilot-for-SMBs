@@ -394,19 +394,29 @@ enum NotificationKind {
   EMAIL
 }
 
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Notification {
-  id             String           @id @default(uuid())
-  organizationId String           @map("organization_id")
-  userId         String           @map("user_id")
-  kind           NotificationKind @default(IN_APP)
+  id             String                     @id @default(uuid())
+  organizationId String                     @map("organization_id")
+  userId         String                     @map("user_id")
+  kind           NotificationKind           @default(IN_APP)
   title          String
   body           String?
   payload        Json?
-  readAt         DateTime?        @map("read_at")
-  createdAt      DateTime         @default(now())
+  readAt         DateTime?                  @map("read_at")
+  deliveryStatus NotificationDeliveryStatus @default(PENDING) @map("delivery_status")
+  deliveredAt    DateTime?                  @map("delivered_at")
+  deliveryError  String?                    @map("delivery_error")
+  createdAt      DateTime                   @default(now())
 
   @@index([organizationId])
   @@index([userId])
+  @@index([deliveryStatus, createdAt])
   @@map("notifications")
 }
 

@@ -204,4 +204,12 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(sweepRes.body.error.code).toBe('UNAUTHORIZED');
   });
+
+  it('rejects unauthenticated notification delivery sweep (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/notifications/sweep-delivery')
+      .expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
 });
