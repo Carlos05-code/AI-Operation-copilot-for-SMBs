@@ -18,13 +18,13 @@ jobs:
     name: Build, migrate & publish
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -39,7 +39,7 @@ jobs:
         run: pnpm test
 
       - name: Log in to container registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -47,9 +47,14 @@ jobs:
 
       - name: Build & push backend image
         working-directory: infrastructure/docker
+        # Route the tag name through the auto-exposed $GITHUB_REF_NAME shell
+        # variable rather than splicing ${{ github.ref_name }} into the run
+        # script — a tag name is attacker-controlled input and direct
+        # template interpolation into `run:` is a script-injection vector.
         run: |
-          docker build -f Dockerfile.api -t ${{ env.IMAGE_BASE }}/backend:${{ github.ref_name }} ..
-          docker push ${{ env.IMAGE_BASE }}/backend:${{ github.ref_name }}
+          IMAGE="${{ env.IMAGE_BASE }}/backend:${GITHUB_REF_NAME}"
+          docker build -f Dockerfile.api -t "$IMAGE" ..
+          docker push "$IMAGE"
 
       - name: Release notes from CHANGELOG
         id: notes
