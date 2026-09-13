@@ -181,4 +181,27 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(runRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated product & inventory endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/products').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/products')
+      .send({ name: 'Widget', sku: 'W-1', price: 1 })
+      .expect(401);
+    expect(createRes.body.error.status).toBe(401);
+    const stockRes = await request(app.getHttpServer())
+      .get('/api/v1/products/p-1/stock')
+      .expect(401);
+    expect(stockRes.body.error.code).toBe('UNAUTHORIZED');
+    const movementRes = await request(app.getHttpServer())
+      .post('/api/v1/products/p-1/movements')
+      .send({ type: 'IN', quantity: 1 })
+      .expect(401);
+    expect(movementRes.body.error.status).toBe(401);
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/inventory/sweep-reorder-alerts')
+      .expect(401);
+    expect(sweepRes.body.error.code).toBe('UNAUTHORIZED');
+  });
 });

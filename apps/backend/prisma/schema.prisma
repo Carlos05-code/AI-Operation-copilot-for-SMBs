@@ -107,6 +107,7 @@ model Product {
   price              Decimal             @db.Decimal(12, 2)
   cost               Decimal?            @db.Decimal(12, 2)
   reorderPoint       Int?                @default(0) @map("reorder_point")
+  belowReorderPoint  Boolean             @default(false) @map("below_reorder_point")
   active             Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -116,6 +117,7 @@ model Product {
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+  @@index([active, reorderPoint])
   @@map("products")
 }
 
