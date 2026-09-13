@@ -22,12 +22,23 @@ jobs:
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-latest
-    continue-on-error: false
+    container:
+      image: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - uses: returntocorp/semgrep-action@v2
+      # returntocorp/semgrep-action@v2 no longer resolves (archived in the
+      # Semgrep org rename). `semgrep scan --config auto` runs the community
+      # rule registry without SEMGREP_APP_TOKEN; add that secret later to
+      # pick up org policy + Supply Chain rules via `semgrep ci`.
+      - name: Semgrep scan
+        run: semgrep scan --config auto --error --metrics off --sarif --output semgrep.sarif
+      - name: Upload SARIF
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          generateSarif: '1'
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: ignore
 
   deps:
     name: Dependency audit
