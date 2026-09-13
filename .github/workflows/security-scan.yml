@@ -27,11 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # returntocorp/semgrep-action@v2 no longer resolves (archived in the
-      # Semgrep org rename). `semgrep scan --config auto` runs the community
-      # rule registry without SEMGREP_APP_TOKEN; add that secret later to
-      # pick up org policy + Supply Chain rules via `semgrep ci`.
+      # Semgrep org rename). `--config auto` needs metrics on (it personalizes
+      # rules via the registry), so run the public `p/default` ruleset
+      # instead — no SEMGREP_APP_TOKEN needed. Add that secret later to move
+      # to `semgrep ci --config auto` for org policy + Supply Chain rules.
       - name: Semgrep scan
-        run: semgrep scan --config auto --error --metrics off --sarif --output semgrep.sarif
+        run: semgrep scan --config p/default --error --metrics off --sarif --output semgrep.sarif
       - name: Upload SARIF
         if: always()
         uses: actions/upload-artifact@v4
