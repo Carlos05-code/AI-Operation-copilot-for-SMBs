@@ -257,6 +257,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - Unit tests: worker (signals, LLM plan validation, dedupe, low-stock convention, skips, malformed
     payload retry, outbox swallow), service (list/get/update org scoping, plan scheduling
     fail-soft); e2e: unauthenticated list/get/patch/plan → 401
+- Invoice generation & recurring invoicing (ROADMAP Phase 3, API_SPEC §11.12):
+  - `POST /api/v1/invoices` prices submitted line items in integer-cent math (per-line tax,
+    subtotal/taxTotal/total as exact decimal strings), allocates a per-org, per-year invoice number
+    `INV-<year>-<seq>` (retried on a concurrent P2002 collision), and writes the invoice + items in
+    one transaction; `issue: true` creates it already `SENT`
+  - Lifecycle state machine: `POST /api/v1/invoices/:id/{issue,pay,void}` — `DRAFT→SENT`,
+    `SENT|OVERDUE→PAID`, `DRAFT|SENT|OVERDUE→VOID`; illegal transitions are `409 CONFLICT`, repeat
+    of the current state is idempotent; `issuedAt`/`paidAt` stamped;
+    `invoice.{created,issued,paid,voided}` outbox events
+  - `GET /api/v1/invoices` (newest first, §4 pagination, `status` filter) and
+    `GET /api/v1/invoices/:id` (with line items) — org-scoped, foreign invoices 404
+  - Recurring invoicing: `RecurringInvoice` model (`RecurrenceCadence`
+    WEEKLY/MONTHLY/QUARTERLY/YEARLY, interval, net-terms, `issueOnCreate`, JSON template) with CRUD
+    at `/api/v1/recurring-invoices` (`create`, list, get, `:id/pause`, `:id/resume`, `DELETE :id`);
+    templates are priced and validated at create time. `InvoiceRecurrenceWorker` (`ops-jobs` queue,
+    `invoice.recurrence.run`) generates the next invoice for every due schedule and advances
+    `nextRunAt` in the same transaction, guarded on the observed `nextRunAt` so a concurrent run
+    can't double-bill (`invoice.recurrence.generated`)
+  - `InvoiceOverdueWorker` (`ops-jobs`, `invoice.overdue.sweep`) flips past-due `SENT` invoices to
+    `OVERDUE` and raises an in-app `Notification` for every OWNER/ADMIN/MANAGER — surfaced by the
+    executive dashboard `alerts` lens; guarded `updateMany` prevents re-notifying
+    (`invoice.overdue`)
+  - New `ops-jobs` BullMQ queue for non-AI operational jobs; migration
+    `20260902120000_add_recurring_invoices` (`recurring_invoices` table,
+    `invoices.recurring_invoice_id` / `note` / `issued_at` / `paid_at`, `(status, due_date)` index);
+    seed adds a monthly schedule
+  - Unit tests: money/schedule helpers (cent math, month-end clamping, cadence advance), invoice
+    service (pricing, numbering + collision retry, customer/product scoping, every transition +
+    409/404, recurrence generation + race), both workers (name-mismatch/not-configured skips, batch
+    counts, race vs. failure isolation, recipient caching, no-double-notify); e2e: unauthenticated
+    invoice + recurring-invoice endpoints → 401
 
 ### Changed
 

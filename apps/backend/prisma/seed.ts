@@ -1,7 +1,8 @@
 /**
  * Development seed data (idempotent — safe to re-run).
  * Creates a demo organization with an owner, products, a customer, an order,
- * an invoice, and sample tasks. DATABASE_SPEC §3 foundation entities.
+ * an invoice, a recurring-invoice schedule, and sample tasks.
+ * DATABASE_SPEC §3 foundation entities.
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -122,6 +123,38 @@ async function main(): Promise<void> {
           },
         ],
       },
+    },
+  });
+
+  await prisma.recurringInvoice.upsert({
+    where: { id: '00000000-0000-0000-0000-00000000f001' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-00000000f001',
+      organizationId: org.id,
+      customerId: customer.id,
+      cadence: 'MONTHLY',
+      interval: 1,
+      netTermsDays: 30,
+      issueOnCreate: true,
+      note: 'Monthly wholesale coffee subscription',
+      lineItems: [
+        {
+          productId: createdProducts[0].id,
+          description: 'Espresso Beans 1kg',
+          quantity: 10,
+          unitPrice: 18.5,
+          taxRate: 0,
+        },
+        {
+          productId: createdProducts[2].id,
+          description: 'Ceramic Mug 350ml',
+          quantity: 6,
+          unitPrice: 12.0,
+          taxRate: 0,
+        },
+      ],
+      nextRunAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
 

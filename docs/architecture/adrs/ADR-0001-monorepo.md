@@ -50,5 +50,5 @@ Use a **single monorepo** managed by **Turborepo** with **pnpm workspaces**.
 
 ## References
 
-- [`turbo.json`](../../turbo.json)
-- [`pnpm-workspace.yaml`](../../pnpm-workspace.yaml)
+- [`turbo.json`](../../../turbo.json)
+- [`pnpm-workspace.yaml`](../../../pnpm-workspace.yaml)

@@ -49,4 +49,4 @@ All services instrument via OTel SDK; correlation ID (`req_id` + `trace_id`) thr
 
 ## References
 
-- [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md)
+- [DEVOPS_SPEC](../../specifications/DEVOPS_SPEC.md)

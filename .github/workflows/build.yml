@@ -14,30 +14,36 @@ jobs:
     name: Typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/placeholder
       - run: pnpm typecheck
 
   api-build:
     name: Build API
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: pnpm prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/placeholder
       - run: pnpm build
         working-directory: apps/backend
 
@@ -45,17 +51,33 @@ jobs:
     name: Build Flutter (Android)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # The Flutter app is not scaffolded yet (apps/mobile is a placeholder).
+      # Every step below activates automatically once a pubspec.yaml lands;
+      # until then the job is a green no-op. (hashFiles is not allowed in a
+      # job-level `if`, so the guard lives on each step.)
+      - id: guard
+        run: |
+          if [ -f apps/mobile/pubspec.yaml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::apps/mobile/pubspec.yaml not found — skipping the Flutter build."
+          fi
+      - if: steps.guard.outputs.present == 'true'
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: stable
           cache: true
       - name: Analyze
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter analyze
       - name: Test
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter test --coverage
       - name: Build apk
+        if: steps.guard.outputs.present == 'true'
         working-directory: apps/mobile
         run: flutter build apk --debug

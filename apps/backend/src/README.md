@@ -1,7 +1,7 @@
 # Backend — Source
 
 > NestJS application source. Implemented per the
-> [Backend Specification](../../../../docs/specifications/BACKEND_SPEC.md), a Clean Architecture
+> [Backend Specification](../../../docs/specifications/BACKEND_SPEC.md), a Clean Architecture
 > modular monolith:
 
 ```
@@ -28,4 +28,4 @@ Database schema lives in `apps/backend/prisma/` (Prisma is the single source of 
 PostgreSQL schema, DATABASE_SPEC §9): `schema.prisma`, versioned migrations, and an idempotent
 `seed.ts` (run with `pnpm db:seed`).
 
-Workspace root: see [Backend design](../../../../docs/specifications/BACKEND_SPEC.md).
+Workspace root: see [Backend design](../../../docs/specifications/BACKEND_SPEC.md).

@@ -46,5 +46,5 @@ data; a derived read-model plus write-through for knowledge links.
 
 ## References
 
-- [DATABASE_SPEC](../specifications/DATABASE_SPEC.md)
-- [AI_ARCHITECTURE](../specifications/AI_ARCHITECTURE.md)
+- [DATABASE_SPEC](../../specifications/DATABASE_SPEC.md)
+- [AI_ARCHITECTURE](../../specifications/AI_ARCHITECTURE.md)

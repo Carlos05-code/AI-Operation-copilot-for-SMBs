@@ -46,5 +46,5 @@ Build the client with **Flutter** (current stable channel).
 
 ## References
 
-- [mobile/](../../apps/mobile/)
-- [FRONTEND_SPEC](../specifications/FRONTEND_SPEC.md)
+- [mobile/](../../../apps/mobile/)
+- [FRONTEND_SPEC](../../specifications/FRONTEND_SPEC.md)

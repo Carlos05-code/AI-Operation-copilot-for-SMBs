@@ -127,6 +127,11 @@ export class AppConfig {
 
   @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
+
+  /** Comma-separated allowed browser origins (SECURITY_SPEC §6); unset reflects the request Origin. */
+  @IsString()
+  @IsOptional()
+  corsOrigin?: string;
 }
 
 export function validateEnv(raw: Record<string, unknown>): AppConfig {

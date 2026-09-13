@@ -48,5 +48,5 @@ Option: use Redis Cluster in production as data grows.
 
 ## References
 
-- [DATABASE_SPEC](../specifications/DATABASE_SPEC.md)
-- [BullMQ within BACKEND_SPEC](../specifications/BACKEND_SPEC.md)
+- [DATABASE_SPEC](../../specifications/DATABASE_SPEC.md)
+- [BullMQ within BACKEND_SPEC](../../specifications/BACKEND_SPEC.md)

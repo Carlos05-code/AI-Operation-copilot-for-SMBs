@@ -47,4 +47,4 @@ queue processing where RabbitMQ doesn't provide native scheduler semantics.
 
 ## References
 
-- [ThenEvent-driven design section in ARCHITECTURE_SPEC](../specifications/ARCHITECTURE_SPEC.md)
+- [ThenEvent-driven design section in ARCHITECTURE_SPEC](../../specifications/ARCHITECTURE_SPEC.md)

@@ -51,4 +51,4 @@ roles.
 
 ## References
 
-- [SECURITY_SPEC](../specifications/SECURITY_SPEC.md)
+- [SECURITY_SPEC](../../specifications/SECURITY_SPEC.md)

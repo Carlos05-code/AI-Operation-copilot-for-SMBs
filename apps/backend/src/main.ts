@@ -18,7 +18,14 @@ async function bootstrap(): Promise<void> {
 
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.enableCors();
+  // CORS_ORIGIN: comma-separated allowlist for browser clients (SECURITY_SPEC
+  // §6). Unset reflects the request Origin (open by default for local/dev —
+  // the API is bearer-token authenticated, not cookie-based, so this is not a
+  // credentialed-CORS risk); set it in production to the deployed UI origin(s).
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: corsOrigin && corsOrigin.length > 0 ? corsOrigin : true });
 
   app.useGlobalPipes(
     new ValidationPipe({

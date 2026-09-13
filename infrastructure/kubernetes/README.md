@@ -46,5 +46,5 @@ kubernetes/
 
 ## See
 
-- [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md)
-- [ADR-0010](/docs/architecture/adrs/ADR-0010-kubernetes.md)
+- [DEVOPS_SPEC](../../docs/specifications/DEVOPS_SPEC.md)
+- [ADR-0010](../../docs/architecture/adrs/ADR-0010-kubernetes.md)

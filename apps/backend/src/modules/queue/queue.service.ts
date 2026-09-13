@@ -12,6 +12,7 @@ import {
   QUEUE_AI_JOBS,
   QUEUE_GRAPH_JOBS,
   QUEUE_NOTIFICATIONS,
+  QUEUE_OPS_JOBS,
   QUEUE_SEARCH_JOBS,
   QUEUE_SUMMARY_JOBS,
   QueueName,
@@ -27,6 +28,7 @@ export class QueueService {
     @InjectQueue(QUEUE_SEARCH_JOBS) searchJobs: Queue,
     @InjectQueue(QUEUE_GRAPH_JOBS) graphJobs: Queue,
     @InjectQueue(QUEUE_SUMMARY_JOBS) summaryJobs: Queue,
+    @InjectQueue(QUEUE_OPS_JOBS) opsJobs: Queue,
   ) {
     this.queues = {
       notifications,
@@ -34,6 +36,7 @@ export class QueueService {
       'search-jobs': searchJobs,
       'graph-jobs': graphJobs,
       'summary-jobs': summaryJobs,
+      'ops-jobs': opsJobs,
     };
   }
 

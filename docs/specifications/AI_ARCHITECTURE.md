@@ -183,13 +183,11 @@ Two feedback loops:
 
 1. **Offline evaluation** (CI batch) — `tests/ai` fixtures of queries + gold answers per capability;
    metrics:
-
-- Faithfulness (answer vs context)
-- Answer relevance vs query
-- Context precision/recall
-- Citation precision/accuracy
-- Latency + token cost
-
+   - Faithfulness (answer vs context)
+   - Answer relevance vs query
+   - Context precision/recall
+   - Citation precision/accuracy
+   - Latency + token cost
 2. **Online signals** — sparkline thumbs, split-test streaming, escalation to fallback model when
    confidence low.
 

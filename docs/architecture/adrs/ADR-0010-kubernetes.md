@@ -48,5 +48,5 @@ Use **Kubernetes** as the container orchestrator for production and staging.
 
 ## References
 
-- [DEVOPS_SPEC](../specifications/DEVOPS_SPEC.md)
-- [infrastructure/kubernetes](../../infrastructure/kubernetes)
+- [DEVOPS_SPEC](../../specifications/DEVOPS_SPEC.md)
+- [infrastructure/kubernetes](../../../infrastructure/kubernetes)
