@@ -288,6 +288,59 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     409/404, recurrence generation + race), both workers (name-mismatch/not-configured skips, batch
     counts, race vs. failure isolation, recipient caching, no-double-notify); e2e: unauthenticated
     invoice + recurring-invoice endpoints → 401
+- Inventory tracking with reorder alerts (ROADMAP Phase 3, DATABASE_SPEC §5):
+  - `ProductService`: `POST/GET/PATCH /api/v1/products` catalog CRUD; every response carries a
+    computed `onHand` (batched across a page, not N+1) from the on-hand convention shared with AI
+    task planning (`sum(IN) − sum(OUT) + sum(ADJUST)`); `sku` is immutable after creation (stripped
+    by the global validation whitelist); `active`/`lowStock` list filters
+  - `InventoryService`: `POST /api/v1/products/:id/movements` appends to the append-only
+    `inventory_movements` ledger (`IN`/`OUT` positive quantities, `ADJUST` signed for stocktake
+    corrections) and immediately re-evaluates the product's reorder state;
+    `GET /api/v1/products/:id/movements` (paginated ledger) and `GET /api/v1/products/:id/stock`
+    (on-hand snapshot)
+  - Reorder alerts are edge-triggered on a new `Product.belowReorderPoint` flag (guarded
+    `updateMany`, the same pattern as the invoice-overdue sweep): exactly one in-app `Notification`
+    to every OWNER/ADMIN/MANAGER per dip below the reorder point (`inventory.reorder_alert`), and
+    the flag clears silently once stock recovers (`inventory.restocked`), re-arming the next dip.
+    Fires immediately from `recordMovement`/updating `reorderPoint` or `active`;
+    `InventoryReorderWorker` (`ops-jobs`, `inventory.reorder.sweep`, triggered manually via
+    `POST /api/v1/inventory/sweep-reorder-alerts`) is the periodic safety net for crossings that
+    happen without a movement (e.g. a raised `reorderPoint`), caching each org's alert recipients
+    once per sweep batch
+  - Migration `20260913140000_add_product_reorder_alert_state` (`products.below_reorder_point`,
+    `(active, reorder_point)` index); seed adds receiving movements so one seeded product (the
+    brewing scale) starts below its reorder point
+  - Unit tests: stock-ledger helpers (on-hand math, low-stock predicate), product service
+    (create/409-duplicate-sku/validation, list with batched on-hand, update triggering
+    re-evaluation), inventory service (movements, quantity validation per movement type, the full
+    alert/restock/no-double-notify/inactive-product/recipient-cache matrix), the sweep worker
+    (skips, tallying, shared recipient cache, per-product failure isolation); e2e: unauthenticated
+    product + inventory endpoints → 401
+- Notification delivery — email (ROADMAP Phase 3, BACKEND_SPEC §12):
+  - `EmailProvider`: SMTP client (`nodemailer`) gated on `SMTP_HOST` + `SMTP_FROM`; takes an
+    already-constructed `Transporter` via DI (same pattern as `VectorStoreService`/`QdrantClient`),
+    fails soft with `EMAIL_UNAVAILABLE` (503) when unconfigured or the send throws
+  - `NotificationDeliveryWorker` (the long-registered, previously idle `notifications` queue,
+    `notification.delivery.sweep`): emails every `PENDING`/`FAILED` `Notification` row to its
+    recipient's `User.email`, decoupled from and requiring no changes to the invoice-overdue or
+    inventory-reorder-alert workers that create those rows. A guarded `updateMany` claims the
+    outcome (same pattern as those sweeps); only `SENT` is terminal — a missing email, an
+    unconfigured provider, or a thrown send error leaves the row `FAILED` and self-heals on the next
+    sweep rather than a permanent `SKIPPED`, so a transient SMTP outage or a later-added `SMTP_HOST`
+    recovers without operator intervention
+  - `POST /api/v1/notifications/sweep-delivery` triggers the sweep manually, mirroring
+    `/invoices/sweep-overdue` and `/inventory/sweep-reorder-alerts`
+  - New `Notification.deliveryStatus`/`deliveredAt`/`deliveryError` columns +
+    `(deliveryStatus, createdAt)` index (migration
+    `20260913150000_add_notification_delivery_status`); `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` /
+    `SMTP_PASSWORD` / `SMTP_FROM` env vars
+  - WhatsApp outbound delivery is explicitly deferred (not stubbed): it needs a WhatsApp Business
+    API/Twilio integration with an approved sender and templates, unavailable in this environment;
+    `NotificationKind.WHATSAPP` stays reserved for that provider
+  - Unit tests: SMTP config parsing, provider send/fail-soft, the delivery worker (name-mismatch/
+    not-configured skips, PENDING+FAILED query, send/claim, no-email-on-file, provider-not-
+    configured, thrown-error truncation, no-double-claim, batched recipient lookup); e2e:
+    unauthenticated sweep-delivery → 401
 - Appointment scheduling (ROADMAP Phase 3, DATABASE_SPEC §3):
   - `AppointmentService`: `POST/GET/PATCH /api/v1/appointments` booking CRUD. Overlap detection for
     an `assigneeId` rejects a new or rescheduled booking with `409 CONFLICT` when the assignee

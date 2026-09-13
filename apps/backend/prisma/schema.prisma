@@ -109,6 +109,7 @@ model Product {
   price              Decimal             @db.Decimal(12, 2)
   cost               Decimal?            @db.Decimal(12, 2)
   reorderPoint       Int?                @default(0) @map("reorder_point")
+  belowReorderPoint  Boolean             @default(false) @map("below_reorder_point")
   active             Boolean             @default(true)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
@@ -118,6 +119,7 @@ model Product {
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+  @@index([active, reorderPoint])
   @@map("products")
 }
 
@@ -427,19 +429,29 @@ enum NotificationKind {
   EMAIL
 }
 
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Notification {
-  id             String           @id @default(uuid())
-  organizationId String           @map("organization_id")
-  userId         String           @map("user_id")
-  kind           NotificationKind @default(IN_APP)
+  id             String                     @id @default(uuid())
+  organizationId String                     @map("organization_id")
+  userId         String                     @map("user_id")
+  kind           NotificationKind           @default(IN_APP)
   title          String
   body           String?
   payload        Json?
-  readAt         DateTime?        @map("read_at")
-  createdAt      DateTime         @default(now())
+  readAt         DateTime?                  @map("read_at")
+  deliveryStatus NotificationDeliveryStatus @default(PENDING) @map("delivery_status")
+  deliveredAt    DateTime?                  @map("delivered_at")
+  deliveryError  String?                    @map("delivery_error")
+  createdAt      DateTime                   @default(now())
 
   @@index([organizationId])
   @@index([userId])
+  @@index([deliveryStatus, createdAt])
   @@map("notifications")
 }
 
