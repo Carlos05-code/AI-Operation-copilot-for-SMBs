@@ -341,6 +341,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     not-configured skips, PENDING+FAILED query, send/claim, no-email-on-file, provider-not-
     configured, thrown-error truncation, no-double-claim, batched recipient lookup); e2e:
     unauthenticated sweep-delivery → 401
+- Appointment scheduling (ROADMAP Phase 3, DATABASE_SPEC §3):
+  - `AppointmentService`: `POST/GET/PATCH /api/v1/appointments` booking CRUD. Overlap detection for
+    an `assigneeId` rejects a new or rescheduled booking with `409 CONFLICT` when the assignee
+    already holds a `SCHEDULED`/`CONFIRMED` slot in that window — a cancelled, completed, or no-show
+    booking never blocks a new one; unassigned appointments skip the check entirely.
+  - Lifecycle state machine mirrors `InvoiceService`:
+    `POST /api/v1/appointments/:id/{confirm, cancel,complete,no-show}` —
+    `SCHEDULED → {CONFIRMED,CANCELLED,COMPLETED,NO_SHOW}`,
+    `CONFIRMED → {CANCELLED,COMPLETED,NO_SHOW}`; illegal transitions are `409 CONFLICT`, repeating
+    the current status is idempotent; `appointment.{created,rescheduled,status_changed}` outbox
+    events.
+  - `GET /api/v1/appointments` (soonest first, §4 pagination, `from`/`to`/`assigneeId`/`status`
+    filters), `GET /api/v1/appointments/:id` — org-scoped, foreign appointments 404.
+  - `AppointmentReminderWorker` (`ops-jobs`, `appointment.reminder.sweep`, triggered manually via
+    `POST /api/v1/appointments/sweep-reminders`) raises one in-app `Notification` per
+    `SCHEDULED`/`CONFIRMED` appointment starting within `REMINDER_WINDOW_HOURS` — to the assigned
+    staff member when set, otherwise every OWNER/ADMIN/MANAGER of the org (the same fallback the
+    invoice-overdue and inventory-reorder-alert sweeps use). `reminderSentAt` is a guarded one-shot
+    claim, the same pattern as those sweeps, so a re-run never double-reminds.
+  - Migration `20260913160000_add_appointments` (`appointments` table + `AppointmentStatus` enum;
+    `(organization_id, start_at)` / `(assignee_id, start_at)` / `(status, start_at)` indexes).
+  - Unit tests: service (booking + conflict detection, date-range/filter list, plain edits vs.
+    reschedule-with-re-check, every lifecycle transition + 409/idempotent/404, 503), the reminder
+    worker (name-mismatch/not-configured skips, assignee vs. org-wide recipients, no-double-remind,
+    recipient caching, per-appointment failure isolation); e2e: unauthenticated appointment
+    endpoints → 401
 
 ### Changed
 

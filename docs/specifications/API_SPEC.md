@@ -690,6 +690,58 @@ Authorization: Bearer <jwt>
 - Fail-soft: no database → the job is a no-op; a per-notification failure is logged and the batch
   continues; a Redis outage never fails the scheduling request.
 
+### 11.15 Appointment scheduling
+
+Implemented as `/api/v1/appointments` (ROADMAP Phase 3, DATABASE_SPEC §3). Writes require
+agent-or-above; the manual reminder-sweep trigger requires manager-or-above (mirrors
+`/invoices/sweep-overdue`); reads are open to any member; every query is org-scoped and foreign ids
+surface as 404.
+
+```http
+POST /api/v1/appointments
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "customerId": "550e8400-…", "assigneeId": "staff-1", "title": "Haircut",
+  "startAt": "2026-04-01T10:00:00Z", "endAt": "2026-04-01T11:00:00Z"
+}
+```
+
+```json
+201 {
+  "data": {
+    "id": "appt-1", "customerId": "550e8400-…", "assigneeId": "staff-1", "title": "Haircut",
+    "notes": null, "startAt": "2026-04-01T10:00:00.000Z", "endAt": "2026-04-01T11:00:00.000Z",
+    "status": "SCHEDULED"
+  },
+  "meta": { "requestId": "…", "statusCode": 201 }
+}
+```
+
+- **Conflict detection**: creating or rescheduling a booking with an `assigneeId` is `409 CONFLICT`
+  when that assignee already holds a `SCHEDULED`/`CONFIRMED` appointment overlapping the window — a
+  cancelled, completed, or no-show booking never blocks a new one; an unassigned appointment skips
+  the check entirely.
+- `GET /api/v1/appointments` (soonest first, §4 pagination, optional `from`/`to`/`assigneeId`/
+  `status` filters — `from`/`to` bound `startAt`), `GET /api/v1/appointments/:id`,
+  `PATCH /api/v1/appointments/:id` (`title`/`notes`/`startAt`/`endAt`; changing `startAt` or `endAt`
+  re-validates the window and re-runs the conflict check; rescheduling a terminal appointment is
+  `409 CONFLICT`).
+- **Lifecycle**: `POST /api/v1/appointments/:id/{confirm,cancel,complete,no-show}` —
+  `SCHEDULED → {CONFIRMED, CANCELLED, COMPLETED, NO_SHOW}`,
+  `CONFIRMED → {CANCELLED, COMPLETED, NO_SHOW}`. Any other transition is `409 CONFLICT`; repeating
+  the current status is an idempotent no-op. Each emits
+  `appointment.{created,rescheduled,status_changed}` on the transactional outbox.
+- `POST /api/v1/appointments/sweep-reminders` schedules the `appointment.reminder.sweep` job on
+  `ops-jobs` → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The worker raises one in-app
+  `Notification` per `SCHEDULED`/`CONFIRMED` appointment starting within the reminder window — to
+  the assigned staff member when set, otherwise every OWNER/ADMIN/MANAGER of the org (the §11.12
+  invoice-overdue fallback). `reminderSentAt` is a guarded one-shot claim, so a re-run never
+  double-reminds.
+- Fail-soft: no database → jobs skipped; a per-item failure is logged and the batch continues; a
+  Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)
