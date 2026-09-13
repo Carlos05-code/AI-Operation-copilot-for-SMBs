@@ -1,3 +1,11 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# Supply-chain hardening (pnpm.io/settings). These keys are ignored by the
+# pinned pnpm@9.15.0 (no-op today, confirmed via `pnpm install`) and take
+# effect automatically once the workspace moves to the pnpm version noted
+# next to each — declared now so the policy travels with that future bump.
+blockExoticSubdeps: true # pnpm >=10.26.0
+minimumReleaseAge: 10080 # minutes (7 days); pnpm >=10.16.0
+trustPolicy: no-downgrade # pnpm >=10.21.0
