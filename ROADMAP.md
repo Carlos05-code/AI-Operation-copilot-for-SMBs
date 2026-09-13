@@ -67,7 +67,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Executive dashboard (revenue, AR, tasks, alerts)
 - [x] AI task planning (context-aware priorities, dependencies, deadlines)
 - [x] Invoice generation and recurring invoicing
-- [ ] Inventory tracking with reorder alerts
+- [x] Inventory tracking with reorder alerts
 - [ ] Appointment scheduling
 - [ ] Purchase recommendations
 - [~] Notifications (in-app ✓, email ✓, WhatsApp pending a Business API/Twilio integration)

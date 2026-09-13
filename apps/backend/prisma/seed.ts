@@ -1,8 +1,8 @@
 /**
  * Development seed data (idempotent — safe to re-run).
- * Creates a demo organization with an owner, products, a customer, an order,
- * an invoice, a recurring-invoice schedule, and sample tasks.
- * DATABASE_SPEC §3 foundation entities.
+ * Creates a demo organization with an owner, products with receiving
+ * movements, a customer, an order, an invoice, a recurring-invoice
+ * schedule, and sample tasks. DATABASE_SPEC §3 foundation entities.
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -48,6 +48,31 @@ async function main(): Promise<void> {
     });
     createdProducts.push(product);
   }
+
+  // Receiving movements: beans and mugs land above their reorder point, the
+  // scale lands below — a ready-made example of the reorder-alert flag.
+  const receipts = [
+    { id: '00000000-0000-0000-0000-00000000i001', product: createdProducts[0], quantity: 30 },
+    { id: '00000000-0000-0000-0000-00000000i002', product: createdProducts[1], quantity: 2 },
+    { id: '00000000-0000-0000-0000-00000000i003', product: createdProducts[2], quantity: 50 },
+  ];
+  for (const r of receipts) {
+    await prisma.inventoryMovement.upsert({
+      where: { id: r.id },
+      update: {},
+      create: {
+        id: r.id,
+        productId: r.product.id,
+        type: 'IN',
+        quantity: r.quantity,
+        note: 'Initial stock receipt',
+      },
+    });
+  }
+  await prisma.product.update({
+    where: { id: createdProducts[1].id },
+    data: { belowReorderPoint: true },
+  });
 
   const customer = await prisma.customer.upsert({
     where: { id: '00000000-0000-0000-0000-00000000c001' },

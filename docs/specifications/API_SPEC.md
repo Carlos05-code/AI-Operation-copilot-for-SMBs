@@ -609,7 +609,57 @@ a cadence (`WEEKLY | MONTHLY | QUARTERLY | YEARLY`, `interval`, `netTermsDays`, 
 - Fail-soft: no database → jobs skipped; a per-item failure is logged and the batch continues; a
   Redis outage never fails the scheduling request.
 
-### 11.13 Notification delivery
+### 11.13 Inventory tracking & reorder alerts
+
+Implemented as `/api/v1/products` (catalog + nested stock/movements) and `/api/v1/inventory`
+(ROADMAP Phase 3, DATABASE_SPEC §5). Writes require agent-or-above; reads are open to any member;
+every query is org-scoped and foreign ids surface as 404. On-hand stock uses the convention shared
+with AI task planning (§11.11): `sum(IN) − sum(OUT) + sum(ADJUST)`.
+
+```http
+POST /api/v1/products
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{ "name": "Espresso Beans 1kg", "sku": "COF-001", "price": 18.5, "cost": 9.2, "reorderPoint": 20 }
+```
+
+```json
+201 {
+  "data": {
+    "id": "prod-1", "name": "Espresso Beans 1kg", "sku": "COF-001",
+    "price": "18.50", "cost": "9.20", "reorderPoint": 20, "belowReorderPoint": false,
+    "onHand": 0, "active": true
+  },
+  "meta": { "requestId": "…", "statusCode": 201 }
+}
+```
+
+- `GET /api/v1/products` (alphabetical, §4 pagination, optional `active`/`lowStock` filters),
+  `GET /api/v1/products/:id`, `PATCH /api/v1/products/:id` — `sku` is immutable (rejected by the
+  global validation whitelist). Every response carries a computed `onHand`, batched across a page
+  rather than N+1.
+- `GET /api/v1/products/:id/stock` →
+  `{ productId, name, sku, onHand, reorderPoint, belowReorderPoint }`.
+- `POST /api/v1/products/:id/movements` appends to the append-only ledger:
+  `{ "type": "IN" | "OUT" | "ADJUST", "quantity": 5, "note": "…" }`. `IN`/`OUT` quantities must be
+  positive (direction comes from `type`); `ADJUST` accepts a signed, non-zero integer for stocktake
+  corrections in either direction. `GET /api/v1/products/:id/movements` lists the ledger (newest
+  first, §4 pagination).
+- **Reorder alerts** are edge-triggered on `Product.belowReorderPoint` (guarded `updateMany`, the
+  same pattern as the invoice-overdue sweep, API_SPEC §11.12): exactly one in-app `Notification` to
+  every OWNER/ADMIN/MANAGER of the org per dip below the reorder point (`inventory.reorder_alert`),
+  and the flag clears silently once stock recovers (`inventory.restocked`) — re-arming the next dip.
+  This fires immediately from `POST /api/v1/products/:id/movements` and from
+  `PATCH /api/v1/products/:id` when `reorderPoint` or `active` changes.
+- `POST /api/v1/inventory/sweep-reorder-alerts` schedules the `inventory.reorder.sweep` job on
+  `ops-jobs` → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The periodic `InventoryReorderWorker` is
+  the safety net for crossings that happen without a movement (e.g. a raised `reorderPoint`); it
+  caches each org's alert recipients once per sweep batch.
+- Fail-soft: no database → jobs skipped; a per-product failure is logged and the batch continues; a
+  Redis outage never fails the scheduling request.
+
+### 11.14 Notification delivery
 
 Implemented as `POST /api/v1/notifications/sweep-delivery` (ROADMAP Phase 3, BACKEND_SPEC §12).
 Manager-or-above; org-scoped from the token (though the sweep itself, like the invoice-overdue and
@@ -624,8 +674,8 @@ Authorization: Bearer <jwt>
 200 { "data": { "sweepStatus": "QUEUED" | "SKIPPED" }, "meta": { "requestId": "…", "statusCode": 200 } }
 ```
 
-- Every `Notification` row (created by, e.g., the invoice-overdue sweep — API_SPEC §11.12, or a
-  future inventory-reorder-alert sweep) starts `deliveryStatus: PENDING`. The
+- Every `Notification` row (created by, e.g., the invoice-overdue sweep — §11.12, or the
+  inventory-reorder-alert sweep — §11.13) starts `deliveryStatus: PENDING`. The
   `notification.delivery.sweep` job on the `notifications` queue emails each `PENDING`/`FAILED` row
   to its recipient's `User.email` via SMTP (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/
   `SMTP_FROM`), and claims the outcome with a guarded `updateMany` — the same pattern as those
