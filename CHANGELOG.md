@@ -288,6 +288,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     409/404, recurrence generation + race), both workers (name-mismatch/not-configured skips, batch
     counts, race vs. failure isolation, recipient caching, no-double-notify); e2e: unauthenticated
     invoice + recurring-invoice endpoints → 401
+- Notification delivery — email (ROADMAP Phase 3, BACKEND_SPEC §12):
+  - `EmailProvider`: SMTP client (`nodemailer`) gated on `SMTP_HOST` + `SMTP_FROM`; takes an
+    already-constructed `Transporter` via DI (same pattern as `VectorStoreService`/`QdrantClient`),
+    fails soft with `EMAIL_UNAVAILABLE` (503) when unconfigured or the send throws
+  - `NotificationDeliveryWorker` (the long-registered, previously idle `notifications` queue,
+    `notification.delivery.sweep`): emails every `PENDING`/`FAILED` `Notification` row to its
+    recipient's `User.email`, decoupled from and requiring no changes to the invoice-overdue or
+    inventory-reorder-alert workers that create those rows. A guarded `updateMany` claims the
+    outcome (same pattern as those sweeps); only `SENT` is terminal — a missing email, an
+    unconfigured provider, or a thrown send error leaves the row `FAILED` and self-heals on the next
+    sweep rather than a permanent `SKIPPED`, so a transient SMTP outage or a later-added `SMTP_HOST`
+    recovers without operator intervention
+  - `POST /api/v1/notifications/sweep-delivery` triggers the sweep manually, mirroring
+    `/invoices/sweep-overdue` and `/inventory/sweep-reorder-alerts`
+  - New `Notification.deliveryStatus`/`deliveredAt`/`deliveryError` columns +
+    `(deliveryStatus, createdAt)` index (migration
+    `20260913150000_add_notification_delivery_status`); `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` /
+    `SMTP_PASSWORD` / `SMTP_FROM` env vars
+  - WhatsApp outbound delivery is explicitly deferred (not stubbed): it needs a WhatsApp Business
+    API/Twilio integration with an approved sender and templates, unavailable in this environment;
+    `NotificationKind.WHATSAPP` stays reserved for that provider
+  - Unit tests: SMTP config parsing, provider send/fail-soft, the delivery worker (name-mismatch/
+    not-configured skips, PENDING+FAILED query, send/claim, no-email-on-file, provider-not-
+    configured, thrown-error truncation, no-double-claim, batched recipient lookup); e2e:
+    unauthenticated sweep-delivery → 401
 
 ### Changed
 
