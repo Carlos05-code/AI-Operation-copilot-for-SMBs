@@ -181,4 +181,22 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(runRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated appointment endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/appointments').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/appointments')
+      .send({ title: 'Haircut', startAt: '2026-04-01T10:00:00Z', endAt: '2026-04-01T11:00:00Z' })
+      .expect(401);
+    expect(createRes.body.error.status).toBe(401);
+    const confirmRes = await request(app.getHttpServer())
+      .post('/api/v1/appointments/appt-1/confirm')
+      .expect(401);
+    expect(confirmRes.body.error.code).toBe('UNAUTHORIZED');
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/appointments/sweep-reminders')
+      .expect(401);
+    expect(sweepRes.body.error.status).toBe(401);
+  });
 });

@@ -68,7 +68,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] AI task planning (context-aware priorities, dependencies, deadlines)
 - [x] Invoice generation and recurring invoicing
 - [ ] Inventory tracking with reorder alerts
-- [ ] Appointment scheduling
+- [x] Appointment scheduling
 - [ ] Purchase recommendations
 - [ ] Notifications (in-app, WhatsApp, email)
 

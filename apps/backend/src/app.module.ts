@@ -20,6 +20,7 @@ import { ChatModule } from './modules/chat/chat.module.js';
 import { ConversationsModule } from './modules/conversations/conversation.module.js';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module.js';
 import { ConnectorsModule } from './modules/connectors/connector.module.js';
+import { AppointmentsModule } from './modules/appointments/appointment.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { InvoicesModule } from './modules/invoices/invoice.module.js';
 import { TasksModule } from './modules/tasks/task.module.js';
@@ -44,6 +45,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     ConversationsModule,
     KnowledgeModule,
     ConnectorsModule,
+    AppointmentsModule,
     DashboardModule,
     InvoicesModule,
     TasksModule,
