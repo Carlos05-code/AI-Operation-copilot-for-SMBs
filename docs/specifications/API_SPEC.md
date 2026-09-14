@@ -791,6 +791,60 @@ Authorization: Bearer <jwt>
   per-org failure is logged and the sweep continues with the next org; a Redis outage never fails
   the scheduling request.
 
+### 11.17 Workflow rules engine
+
+Implemented as `/api/v1/workflows/rules` (ROADMAP Phase 4, stretch — backend only, no LLM). Reads
+are open to any member; writes require agent-or-above; the manual sweep trigger requires
+manager-or-above (mirrors `/invoices/sweep-overdue`); every query is org-scoped and foreign rules
+surface as 404.
+
+```http
+POST /api/v1/workflows/rules
+Authorization: Bearer <jwt>
+Content-Type: application/json
+
+{
+  "name": "Notify manager on overdue invoices",
+  "triggerEntity": "INVOICE",
+  "conditions": [{ "field": "status", "operator": "eq", "value": "OVERDUE" }],
+  "actions": [{ "type": "SEND_NOTIFICATION", "title": "An invoice just went overdue" }]
+}
+```
+
+```json
+201 {
+  "data": {
+    "id": "rule-1", "name": "Notify manager on overdue invoices", "triggerEntity": "INVOICE",
+    "conditions": [{ "field": "status", "operator": "eq", "value": "OVERDUE" }],
+    "actions": [{ "type": "SEND_NOTIFICATION", "title": "An invoice just went overdue", "body": "An invoice just went overdue" }],
+    "active": true
+  },
+  "meta": { "requestId": "…", "statusCode": 201 }
+}
+```
+
+- A rule is "when `<conditions>`, do `<actions>`" over one `triggerEntity`
+  (`INVOICE`/`PRODUCT`/`TASK`/`APPOINTMENT`), immutable once created. `conditions` is a flat,
+  AND-only list of `{field, operator, value}` against an explicit per-entity field allowlist —
+  `INVOICE`: `status` (`eq`/`ne`), `total` (all six operators); `PRODUCT`: `belowReorderPoint`
+  (`eq`/`ne`), `reorderPoint` (all six); `TASK`: `status`/`priority` (`eq`/`ne`); `APPOINTMENT`:
+  `status` (`eq`/`ne`). Operators: `eq`/`ne`/`gt`/`gte`/`lt`/`lte`. At most 10 conditions.
+- `actions` is a flat list from a fixed, safe catalog — `CREATE_TASK` (`title`, optional
+  `description`/`priority`, default `MEDIUM`) or `SEND_NOTIFICATION` (`title`, optional `body`,
+  defaults to `title`) — both real operations against the existing Task/Notification tables, not
+  stubs. At most 5 actions.
+- `POST /api/v1/workflows/rules/sweep` schedules the `workflow.rules.sweep` job on `ops-jobs` →
+  `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The worker evaluates every active rule against its
+  org's current entities of the trigger type. **Fires once per entity, ever** — a `WorkflowRun`
+  (unique on rule + entity) is checked before acting and written inside the same transaction as the
+  actions, doubling as a full audit trail: `GET /api/v1/workflows/rules/:id/runs` lists it, newest
+  first.
+- `GET /api/v1/workflows/rules` (newest first, §4 pagination, optional `active` filter),
+  `GET /api/v1/workflows/rules/:id`, `PATCH /api/v1/workflows/rules/:id`
+  (`name`/`conditions`/`actions`/`active`).
+- Fail-soft: no database → sweep skipped; a per-rule/per-entity failure is logged and the sweep
+  continues; a Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)

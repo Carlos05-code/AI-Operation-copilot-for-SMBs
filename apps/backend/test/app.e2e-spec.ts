@@ -249,4 +249,26 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(sweepRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated workflow rule endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer()).get('/api/v1/workflows/rules').expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const createRes = await request(app.getHttpServer())
+      .post('/api/v1/workflows/rules')
+      .send({ name: 'x', triggerEntity: 'INVOICE', conditions: [], actions: [] })
+      .expect(401);
+    expect(createRes.body.error.status).toBe(401);
+    const getRes = await request(app.getHttpServer())
+      .get('/api/v1/workflows/rules/rule-1')
+      .expect(401);
+    expect(getRes.body.error.code).toBe('UNAUTHORIZED');
+    const runsRes = await request(app.getHttpServer())
+      .get('/api/v1/workflows/rules/rule-1/runs')
+      .expect(401);
+    expect(runsRes.body.error.status).toBe(401);
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/workflows/rules/sweep')
+      .expect(401);
+    expect(sweepRes.body.error.code).toBe('UNAUTHORIZED');
+  });
 });

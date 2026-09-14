@@ -390,6 +390,31 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a `productId` outside the signal set, per-org fail-soft on malformed output,
     not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
     fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
+- Visual workflow builder / rules engine (ROADMAP Phase 4, stretch) — backend only, no LLM:
+  - `WorkflowRule`: an org-defined "when `<conditions>`, do `<actions>`" automation over one entity
+    type (`INVOICE`/`PRODUCT`/`TASK`/`APPOINTMENT`). `conditions` and `actions` are structured JSON,
+    not free-form code or an expression language — a flat, AND-only list of
+    `{field, operator, value}` checks against an explicit per-entity field allowlist
+    (`workflow-condition.ts`), and a flat list of actions from a fixed, safe catalog (`CREATE_TASK`,
+    `SEND_NOTIFICATION`) — the same shape a future visual builder would target, one node per
+    condition/action.
+  - `WorkflowEngineWorker` (`ops-jobs`, `workflow.rules.sweep`, triggered manually via
+    `POST /api/v1/workflows/rules/sweep`): evaluates every active rule against its org's current
+    entities of the trigger type. A rule fires **once per entity, ever** — `WorkflowRun` is unique
+    on `(ruleId, entityId)`, checked before acting and written inside the same transaction as the
+    actions, which also doubles as a full audit trail of what fired and when.
+  - `WorkflowRuleService`/`Controller`: `POST /api/v1/workflows/rules` (create),
+    `GET /api/v1/workflows/rules` (+`:id`), `PATCH /api/v1/workflows/rules/:id`
+    (name/conditions/actions/active — `triggerEntity` is immutable once created),
+    `GET /api/v1/workflows/rules/:id/runs` (fire history). Reads open to any member; writes
+    agent-or-above; the sweep trigger manager-or-above (mirrors `/invoices/sweep-overdue`).
+  - Migration `20260915090000_add_workflow_rules` (`workflow_rules` + `workflow_runs` tables,
+    `WorkflowTriggerEntity` enum).
+  - Unit tests: pure condition/action validation and evaluation (every operator, field-schema
+    rejections, action-catalog rejections), worker (fires `CREATE_TASK`/`SEND_NOTIFICATION`,
+    no-match skip, fire-once guard, per-rule fail-soft, not-configured skip, outbox fail-soft),
+    service (CRUD/validation delegation/404/503, sweep enqueue fail-soft); e2e: unauthenticated
+    workflow-rule endpoints → 401
 
 ### Changed
 

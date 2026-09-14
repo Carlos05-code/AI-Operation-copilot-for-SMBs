@@ -27,6 +27,7 @@ import { InvoicesModule } from './modules/invoices/invoice.module.js';
 import { NotificationsModule } from './modules/notifications/notification.module.js';
 import { PurchasingModule } from './modules/purchasing/purchasing.module.js';
 import { TasksModule } from './modules/tasks/task.module.js';
+import { WorkflowsModule } from './modules/workflows/workflow.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
 @Module({
@@ -55,6 +56,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     NotificationsModule,
     PurchasingModule,
     TasksModule,
+    WorkflowsModule,
     HealthModule,
     OpenApiModule,
   ],
