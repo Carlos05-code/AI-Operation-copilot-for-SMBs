@@ -426,6 +426,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     malformed-output retry, not-configured/no-LLM skips, outbox fail-soft), service
     (list/get/latest/404/503, generate-enqueue fail-soft); e2e: unauthenticated executive-briefing
     endpoints → 401
+- Purchase recommendations v2 — demand-aware (ROADMAP Phase 4, AI_ARCHITECTURE §6.1
+  `recommend.reorder`):
+  - `PurchaseRecommendationWorker` now compares the trailing 30-day consumption against the 30 days
+    before that and classifies each product `increasing`/`decreasing`/`stable` (`±15%` swing to call
+    it a trend, not noise; a zero-prior period with any current consumption reads as `increasing`).
+    Both figures and the classification are fed to the `recommend.reorder.v2` prompt, which is
+    instructed to lean toward the higher end of the buffer when demand is increasing and the lower
+    end when it's decreasing.
+  - The trend snapshot (`consumedPriorPeriodDays`, `trend`) joins the existing signals in each
+    recommendation's `agentMetadata`, so every recommended quantity stays traceable to the exact
+    numbers the model reasoned over — no behavior or schema change beyond the richer signal set and
+    the `v1` → `v2` prompt-version bump.
+  - Unit tests: trend classification (`increasing`/`decreasing`/`stable`/zero-prior edge case) via
+    `it.each`, and the LLM prompt content assertion updated to check for the trend signal.
 
 ### Changed
 

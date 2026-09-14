@@ -82,7 +82,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 - [x] Customer conversation summaries
 - [x] Sales forecasting (trend + seasonality on aggregated data)
-- [ ] Purchase recommendations v2 (demand-aware)
+- [x] Purchase recommendations v2 (demand-aware)
 - [ ] Low-risk task auto-completion with human-in-the-loop
 - [ ] Visual workflow builder (rules engine) — stretch
 - [x] Executive insights briefings
