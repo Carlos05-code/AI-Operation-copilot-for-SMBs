@@ -390,6 +390,56 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a `productId` outside the signal set, per-org fail-soft on malformed output,
     not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
     fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
+- Sales forecasting (ROADMAP Phase 4, PROJECT_SPEC §7.7):
+  - `GET /api/v1/forecasting/sales` (`lookbackDays`/`horizonDays` query params) — a deliberately
+    simple, transparent forecast: buckets `PAID` invoice totals into UTC calendar days over
+    `[today - lookbackDays, today)`, fits an ordinary-least-squares linear trend, layers an additive
+    day-of-week seasonal adjustment on the residuals, and projects `horizonDays` forward. No LLM —
+    every number in the response (`trend.dailySlope`, `seasonality` per weekday) is derivable by
+    hand from the `history` it returns.
+  - Falls back to a flat average (`method: "insufficient_data_flat_average"`,
+    `insufficientData: true`) when fewer than 3 days in the window carry any revenue at all — too
+    little signal for a trend line to mean anything; forecast values are never negative.
+  - Pure math lives in `forecast.ts` (`bucketDailyRevenue`, `fitLinearTrend`, `weekdaySeasonality`,
+    `buildSalesForecast`) — no I/O, fully unit-testable; `SalesForecastService` wraps it with the
+    org-scoped Prisma query, mirroring `DashboardService`'s revenue convention. Read-only, open to
+    any member.
+  - Unit tests: pure math (bucketing/gap-filling, OLS trend recovery, weekday-bias isolation,
+    insufficient-data fallback, negative-forecast clamping), service (query bounds/clamping, revenue
+    bucketing, 503); e2e: unauthenticated sales-forecast endpoint → 401
+- Executive insights briefings (ROADMAP Phase 4, AI_ARCHITECTURE §6.1 `insight.executive`):
+  - `ExecutiveBriefingWorker` (`ai-jobs`, `insight.executive.briefing`, triggered per-org via
+    `POST /api/v1/insights/briefings/generate`): collects one KPI snapshot — revenue, receivables,
+    open/overdue tasks, below-reorder-point product count, pending purchase recommendations,
+    appointments in the next 7 days, unread alerts — and runs the `insight.executive.v1` prompt over
+    it to produce a short narrative grounded strictly in those numbers (summary, highlights, risks,
+    focus areas; at most 5 entries each). Malformed model output throws so BullMQ retries, same
+    contract as `TaskPlanningWorker`.
+  - `ExecutiveBriefingService`: `GET /api/v1/insights/briefings` (newest first, §4 pagination),
+    `GET /api/v1/insights/briefings/latest` (404 if none yet), `GET /api/v1/insights/briefings/:id`
+    — org-scoped, foreign briefings 404. Briefings are append-only — never edited, only generated
+    fresh — and persist the exact signal snapshot the model reasoned over (`signals`, plus
+    `promptVersion`) for transparency/audit.
+  - Migration `20260914150000_add_executive_briefings` (`executive_briefings` table,
+    `(organization_id, createdAt desc)` index).
+  - Unit tests: worker (signal collection, LLM briefing → persist, list truncation/validation,
+    malformed-output retry, not-configured/no-LLM skips, outbox fail-soft), service
+    (list/get/latest/404/503, generate-enqueue fail-soft); e2e: unauthenticated executive-briefing
+    endpoints → 401
+- Purchase recommendations v2 — demand-aware (ROADMAP Phase 4, AI_ARCHITECTURE §6.1
+  `recommend.reorder`):
+  - `PurchaseRecommendationWorker` now compares the trailing 30-day consumption against the 30 days
+    before that and classifies each product `increasing`/`decreasing`/`stable` (`±15%` swing to call
+    it a trend, not noise; a zero-prior period with any current consumption reads as `increasing`).
+    Both figures and the classification are fed to the `recommend.reorder.v2` prompt, which is
+    instructed to lean toward the higher end of the buffer when demand is increasing and the lower
+    end when it's decreasing.
+  - The trend snapshot (`consumedPriorPeriodDays`, `trend`) joins the existing signals in each
+    recommendation's `agentMetadata`, so every recommended quantity stays traceable to the exact
+    numbers the model reasoned over — no behavior or schema change beyond the richer signal set and
+    the `v1` → `v2` prompt-version bump.
+  - Unit tests: trend classification (`increasing`/`decreasing`/`stable`/zero-prior edge case) via
+    `it.each`, and the LLM prompt content assertion updated to check for the trend signal.
 - Low-risk task auto-completion with human-in-the-loop (ROADMAP Phase 4):
   - `TaskAutoCompletionWorker` (`ops-jobs`, `task.autocomplete.sweep`, triggered manually via
     `POST /api/v1/tasks/sweep-autocomplete`) — deterministic, no LLM. An open, AI-planned task
