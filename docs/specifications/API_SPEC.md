@@ -830,6 +830,51 @@ Authorization: Bearer <jwt>
 - Fail-soft: no database → `503`. Money fields are exact decimal strings (`toFixed(2)`), never
   floats.
 
+### 11.18 Executive insights briefings
+
+Implemented as `/api/v1/insights/briefings` (ROADMAP Phase 4, AI_ARCHITECTURE §6.1
+`insight.executive`). Reads are open to any member; the generation trigger requires agent-or-above
+(mirrors `POST /tasks/plan`); every query is org-scoped and foreign ids surface as 404.
+
+```http
+POST /api/v1/insights/briefings/generate
+Authorization: Bearer <jwt>
+```
+
+```json
+200 { "data": { "briefingStatus": "QUEUED" }, "meta": { "requestId": "…", "statusCode": 200 } }
+```
+
+```json
+200 {
+  "data": {
+    "id": "brief-1",
+    "summary": "Revenue is flat month over month and three invoices are overdue.",
+    "highlights": ["No new inventory alerts this week"],
+    "risks": ["3 invoices are overdue totalling $1,200.00"],
+    "focusAreas": ["Follow up on the overdue invoices before the next sweep"],
+    "signals": { "promptVersion": "insight.executive.v1", "revenue": { "total": "10000.00" } },
+    "createdAt": "2026-09-14T00:00:00.000Z"
+  },
+  "meta": { "requestId": "…", "statusCode": 200 }
+}
+```
+
+- `POST /api/v1/insights/briefings/generate` schedules the `insight.executive.briefing` job on
+  `ai-jobs` for the caller's org → `{ "briefingStatus": "QUEUED" | "SKIPPED" }`. The worker collects
+  one KPI snapshot — revenue, receivables, open/overdue tasks, below-reorder-point product count,
+  pending purchase recommendations, appointments in the next 7 days, and unread alerts (the same
+  figures §11.10's dashboard surfaces, plus a few more) — and runs the `insight.executive.v1` prompt
+  over it. The model may only ground its narrative in the given numbers, never invent one.
+- `GET /api/v1/insights/briefings` (newest first, §4 pagination),
+  `GET /api/v1/insights/briefings/latest` (404 if none generated yet),
+  `GET /api/v1/insights/briefings/:id`.
+- `signals` on every briefing is the exact input snapshot the model reasoned over (plus
+  `promptVersion`) — kept for transparency/audit, the same "ground every answer" principle as chat
+  citations. Briefings are append-only: never edited, only generated fresh.
+- Fail-soft: no database or LLM config → generation skipped; malformed model output is retried by
+  BullMQ (one org per job); a Redis outage never fails the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)

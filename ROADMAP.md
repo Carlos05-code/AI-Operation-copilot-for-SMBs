@@ -85,7 +85,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] Purchase recommendations v2 (demand-aware)
 - [ ] Low-risk task auto-completion with human-in-the-loop
 - [ ] Visual workflow builder (rules engine) — stretch
-- [ ] Executive insights briefings
+- [x] Executive insights briefings
 
 **Version: 0.4.0**
 

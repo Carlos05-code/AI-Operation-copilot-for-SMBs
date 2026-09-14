@@ -23,6 +23,7 @@ import { ConnectorsModule } from './modules/connectors/connector.module.js';
 import { AppointmentsModule } from './modules/appointments/appointment.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { ForecastingModule } from './modules/forecasting/forecasting.module.js';
+import { InsightsModule } from './modules/insights/insights.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { InvoicesModule } from './modules/invoices/invoice.module.js';
 import { NotificationsModule } from './modules/notifications/notification.module.js';
@@ -52,6 +53,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     AppointmentsModule,
     DashboardModule,
     ForecastingModule,
+    InsightsModule,
     InventoryModule,
     InvoicesModule,
     NotificationsModule,
