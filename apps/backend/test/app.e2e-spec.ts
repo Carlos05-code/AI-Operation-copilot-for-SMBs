@@ -139,6 +139,27 @@ describe('API (e2e)', () => {
     expect(res.body.error.status).toBe(401);
   });
 
+  it('rejects unauthenticated sales forecast (401, error envelope)', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/forecasting/sales').expect(401);
+    expect(res.body.error.code).toBe('UNAUTHORIZED');
+    expect(res.body.error.status).toBe(401);
+  });
+
+  it('rejects unauthenticated executive briefing endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer())
+      .get('/api/v1/insights/briefings')
+      .expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const latestRes = await request(app.getHttpServer())
+      .get('/api/v1/insights/briefings/latest')
+      .expect(401);
+    expect(latestRes.body.error.status).toBe(401);
+    const generateRes = await request(app.getHttpServer())
+      .post('/api/v1/insights/briefings/generate')
+      .expect(401);
+    expect(generateRes.body.error.code).toBe('UNAUTHORIZED');
+  });
+
   it('rejects unauthenticated task endpoints (401, error envelope)', async () => {
     const listRes = await request(app.getHttpServer()).get('/api/v1/tasks').expect(401);
     expect(listRes.body.error.code).toBe('UNAUTHORIZED');
