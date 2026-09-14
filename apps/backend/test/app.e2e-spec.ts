@@ -230,4 +230,23 @@ describe('API (e2e)', () => {
       .expect(401);
     expect(sweepRes.body.error.status).toBe(401);
   });
+
+  it('rejects unauthenticated purchase recommendation endpoints (401, error envelope)', async () => {
+    const listRes = await request(app.getHttpServer())
+      .get('/api/v1/purchasing/recommendations')
+      .expect(401);
+    expect(listRes.body.error.code).toBe('UNAUTHORIZED');
+    const getRes = await request(app.getHttpServer())
+      .get('/api/v1/purchasing/recommendations/rec-1')
+      .expect(401);
+    expect(getRes.body.error.status).toBe(401);
+    const orderRes = await request(app.getHttpServer())
+      .post('/api/v1/purchasing/recommendations/rec-1/order')
+      .expect(401);
+    expect(orderRes.body.error.code).toBe('UNAUTHORIZED');
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/purchasing/recommendations/sweep')
+      .expect(401);
+    expect(sweepRes.body.error.status).toBe(401);
+  });
 });

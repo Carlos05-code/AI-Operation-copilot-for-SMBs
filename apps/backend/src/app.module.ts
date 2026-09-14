@@ -25,6 +25,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { InvoicesModule } from './modules/invoices/invoice.module.js';
 import { NotificationsModule } from './modules/notifications/notification.module.js';
+import { PurchasingModule } from './modules/purchasing/purchasing.module.js';
 import { TasksModule } from './modules/tasks/task.module.js';
 import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
 
@@ -52,6 +53,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     InventoryModule,
     InvoicesModule,
     NotificationsModule,
+    PurchasingModule,
     TasksModule,
     HealthModule,
     OpenApiModule,

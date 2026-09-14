@@ -367,6 +367,29 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     worker (name-mismatch/not-configured skips, assignee vs. org-wide recipients, no-double-remind,
     recipient caching, per-appointment failure isolation); e2e: unauthenticated appointment
     endpoints → 401
+- Purchase recommendations (ROADMAP Phase 3, AI_ARCHITECTURE §6.1 `recommend.reorder`):
+  - `PurchaseRecommendationWorker` (`ai-jobs`, `purchase.recommend.sweep`, triggered manually via
+    `POST /api/v1/purchasing/recommendations/sweep`): collects every active, below-reorder-point
+    product across all orgs, groups by org, and for each org runs the `recommend.reorder.v1` prompt
+    over that org's on-hand/reorder-point/trailing-30-day-consumption signals to decide a quantity
+    and reasoning per product. One `PurchaseRecommendation` row per product per dip — a product
+    already carrying a `PENDING` recommendation is never duplicated. A malformed model response or
+    any other per-org failure is logged and the sweep continues with the next org (one org's LLM
+    hiccup never blocks another org's recommendations).
+  - `PurchaseRecommendationService`: `GET /api/v1/purchasing/recommendations` (pending first, §4
+    pagination, `status` filter), `GET /api/v1/purchasing/recommendations/:id` — org-scoped, foreign
+    recommendations 404. Lifecycle mirrors `AppointmentService`:
+    `POST /api/v1/purchasing/recommendations/:id/{order,dismiss}` — `PENDING → {ORDERED,DISMISSED}`
+    only, both terminal; resolving an already-resolved recommendation is `409 CONFLICT`.
+  - Notifies every OWNER/ADMIN/MANAGER of the org (in-app) for each newly created recommendation;
+    `purchase.recommended` outbox event per org sweep.
+  - Migration `20260914120000_add_purchase_recommendations` (`purchase_recommendations` table +
+    `PurchaseRecommendationStatus` enum; `(organization_id, status)` / `(product_id, status)`
+    indexes).
+  - Unit tests: worker (LLM recommendations → persist, dedupe against a still-`PENDING` row, reject
+    a `productId` outside the signal set, per-org fail-soft on malformed output,
+    not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
+    fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
 
 ### Changed
 

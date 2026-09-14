@@ -69,7 +69,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Invoice generation and recurring invoicing
 - [x] Inventory tracking with reorder alerts
 - [x] Appointment scheduling
-- [ ] Purchase recommendations
+- [x] Purchase recommendations
 - [~] Notifications (in-app ✓, email ✓, WhatsApp pending a Business API/Twilio integration)
 
 **Version: 0.3.0**
