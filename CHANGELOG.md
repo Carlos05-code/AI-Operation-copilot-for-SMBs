@@ -390,6 +390,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a `productId` outside the signal set, per-org fail-soft on malformed output,
     not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
     fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
+- Executive insights briefings (ROADMAP Phase 4, AI_ARCHITECTURE §6.1 `insight.executive`):
+  - `ExecutiveBriefingWorker` (`ai-jobs`, `insight.executive.briefing`, triggered per-org via
+    `POST /api/v1/insights/briefings/generate`): collects one KPI snapshot — revenue, receivables,
+    open/overdue tasks, below-reorder-point product count, pending purchase recommendations,
+    appointments in the next 7 days, unread alerts — and runs the `insight.executive.v1` prompt over
+    it to produce a short narrative grounded strictly in those numbers (summary, highlights, risks,
+    focus areas; at most 5 entries each). Malformed model output throws so BullMQ retries, same
+    contract as `TaskPlanningWorker`.
+  - `ExecutiveBriefingService`: `GET /api/v1/insights/briefings` (newest first, §4 pagination),
+    `GET /api/v1/insights/briefings/latest` (404 if none yet), `GET /api/v1/insights/briefings/:id`
+    — org-scoped, foreign briefings 404. Briefings are append-only — never edited, only generated
+    fresh — and persist the exact signal snapshot the model reasoned over (`signals`, plus
+    `promptVersion`) for transparency/audit.
+  - Migration `20260914150000_add_executive_briefings` (`executive_briefings` table,
+    `(organization_id, createdAt desc)` index).
+  - Unit tests: worker (signal collection, LLM briefing → persist, list truncation/validation,
+    malformed-output retry, not-configured/no-LLM skips, outbox fail-soft), service
+    (list/get/latest/404/503, generate-enqueue fail-soft); e2e: unauthenticated executive-briefing
+    endpoints → 401
 
 ### Changed
 

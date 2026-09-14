@@ -108,7 +108,8 @@ Config: `AI_RAG_TOP_K`, `AI_CONTEXT_BUDGET_TOKENS`, etc. (see `configs/`).
 ### 6.1 Prompt templates (foundation)
 
 > Status: `qa.document` (API_SPEC §11.5), `summarize.conversation` (API_SPEC §11.8), `plan.tasks`
-> (API_SPEC §11.11), and `recommend.reorder` (API_SPEC §11.16) are shipped.
+> (API_SPEC §11.11), `recommend.reorder` (API_SPEC §11.16), and `insight.executive` (API_SPEC
+> §11.17) are shipped.
 
 | Prompt                   | Purpose                          |
 | ------------------------ | -------------------------------- |
