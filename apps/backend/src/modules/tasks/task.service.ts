@@ -10,8 +10,9 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import type { Task, TaskStatus } from '@prisma/client';
 import { ApiError, HttpErrorCode } from '../../shared/errors/error-contract';
 import { PrismaService } from '../database/prisma.service';
+import { QUEUE_OPS_JOBS } from '../queue/queue.constants';
 import { QueueService } from '../queue/queue.service';
-import { JOB_TASK_PLAN } from './task.constants';
+import { JOB_TASK_AUTOCOMPLETE_SWEEP, JOB_TASK_PLAN } from './task.constants';
 
 export interface TaskListResult {
   items: Array<{
@@ -107,6 +108,16 @@ export class TaskService {
       await this.queue.enqueue('ai-jobs', JOB_TASK_PLAN, { organizationId });
     } catch (error) {
       this.logger.warn(`task plan job enqueue skipped: ${(error as Error)?.message}`);
+    }
+  }
+
+  /** Schedules the deterministic auto-completion sweep (fire-and-forget, org-wide). */
+  async requestAutocompleteSweep(): Promise<void> {
+    if (!this.queue) return;
+    try {
+      await this.queue.enqueue(QUEUE_OPS_JOBS, JOB_TASK_AUTOCOMPLETE_SWEEP, {});
+    } catch (error) {
+      this.logger.warn(`task autocomplete sweep enqueue skipped: ${(error as Error)?.message}`);
     }
   }
 

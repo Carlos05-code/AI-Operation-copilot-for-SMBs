@@ -1,15 +1,16 @@
 /**
  * PurchaseRecommendationWorker: consumes `purchase.recommend.sweep` jobs on
- * the shared `ai-jobs` queue (ROADMAP Phase 3 — purchase recommendations,
- * AI_ARCHITECTURE §6.1 `recommend.reorder`).
+ * the shared `ai-jobs` queue (ROADMAP Phase 3 — purchase recommendations;
+ * Phase 4 v2 — demand-aware, AI_ARCHITECTURE §6.1 `recommend.reorder`).
  *
  * Pipeline: collect every active, below-reorder-point product across all
- * orgs → group by org → for each org, run the `recommend.reorder.v1` prompt
+ * orgs → group by org → for each org, run the `recommend.reorder.v2` prompt
  * over that org's products (on-hand, reorder point, trailing 30-day
- * consumption) → validate the JSON recommendations → create one
- * `PurchaseRecommendation` per product (skipping any product that already
- * has a `PENDING` one) → notify every OWNER/ADMIN/MANAGER of the org →
- * emit `purchase.recommended` per org.
+ * consumption vs. the 30 days before that, and a deterministic
+ * increasing/decreasing/stable trend classification) → validate the JSON
+ * recommendations → create one `PurchaseRecommendation` per product
+ * (skipping any product that already has a `PENDING` one) → notify every
+ * OWNER/ADMIN/MANAGER of the org → emit `purchase.recommended` per org.
  *
  * Fail-soft: without a database or LLM config the job is a no-op; a
  * malformed model response or any other per-org failure is logged and the
@@ -33,6 +34,7 @@ import {
   PURCHASE_RECOMMEND_MAX_SIGNALS_PER_ORG,
   PURCHASE_RECOMMEND_MAX_TOKENS,
   PURCHASE_RECOMMEND_PROMPT_VERSION,
+  PURCHASE_RECOMMEND_TREND_THRESHOLD,
 } from './purchase-recommendation.constants';
 import {
   buildPurchaseRecommendUserPrompt,
@@ -162,9 +164,11 @@ export class PurchaseRecommendationWorker extends WorkerHost {
     const prisma = this.prisma!;
     const scoped = products.slice(0, PURCHASE_RECOMMEND_MAX_SIGNALS_PER_ORG);
     const productIds = scoped.map((product) => product.id);
-    const cutoff = new Date(Date.now() - PURCHASE_RECOMMEND_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+    const periodMs = PURCHASE_RECOMMEND_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+    const lastPeriodStart = new Date(Date.now() - periodMs);
+    const priorPeriodStart = new Date(Date.now() - 2 * periodMs);
 
-    const [stockSums, consumedSums] = await Promise.all([
+    const [stockSums, lastPeriodSums, priorPeriodSums] = await Promise.all([
       prisma.inventoryMovement.groupBy({
         by: ['productId', 'type'],
         where: { productId: { in: productIds } },
@@ -172,23 +176,41 @@ export class PurchaseRecommendationWorker extends WorkerHost {
       }),
       prisma.inventoryMovement.groupBy({
         by: ['productId'],
-        where: { productId: { in: productIds }, type: 'OUT', createdAt: { gte: cutoff } },
+        where: { productId: { in: productIds }, type: 'OUT', createdAt: { gte: lastPeriodStart } },
+        _sum: { quantity: true },
+      }),
+      prisma.inventoryMovement.groupBy({
+        by: ['productId'],
+        where: {
+          productId: { in: productIds },
+          type: 'OUT',
+          createdAt: { gte: priorPeriodStart, lt: lastPeriodStart },
+        },
         _sum: { quantity: true },
       }),
     ]);
     const onHandByProduct = computeStockMap(stockSums);
-    const consumedByProduct = new Map(
-      consumedSums.map((row) => [row.productId, row._sum.quantity ?? 0]),
+    const lastPeriodByProduct = new Map(
+      lastPeriodSums.map((row) => [row.productId, row._sum.quantity ?? 0]),
+    );
+    const priorPeriodByProduct = new Map(
+      priorPeriodSums.map((row) => [row.productId, row._sum.quantity ?? 0]),
     );
 
-    const signals: PurchaseRecommendSignal[] = scoped.map((product) => ({
-      productId: product.id,
-      name: product.name,
-      sku: product.sku,
-      onHand: onHandByProduct.get(product.id) ?? 0,
-      reorderPoint: product.reorderPoint ?? 0,
-      consumedLast30Days: consumedByProduct.get(product.id) ?? 0,
-    }));
+    const signals: PurchaseRecommendSignal[] = scoped.map((product) => {
+      const consumedLast30Days = lastPeriodByProduct.get(product.id) ?? 0;
+      const consumedPriorPeriodDays = priorPeriodByProduct.get(product.id) ?? 0;
+      return {
+        productId: product.id,
+        name: product.name,
+        sku: product.sku,
+        onHand: onHandByProduct.get(product.id) ?? 0,
+        reorderPoint: product.reorderPoint ?? 0,
+        consumedLast30Days,
+        consumedPriorPeriodDays,
+        trend: classifyTrend(consumedLast30Days, consumedPriorPeriodDays),
+      };
+    });
 
     const content = await this.llm.complete(
       PURCHASE_RECOMMEND_SYSTEM_PROMPT,
@@ -232,6 +254,8 @@ export class PurchaseRecommendationWorker extends WorkerHost {
             onHand: signal.onHand,
             reorderPoint: signal.reorderPoint,
             consumedLast30Days: signal.consumedLast30Days,
+            consumedPriorPeriodDays: signal.consumedPriorPeriodDays,
+            trend: signal.trend,
           },
         },
       });
@@ -295,6 +319,19 @@ export class PurchaseRecommendationWorker extends WorkerHost {
       );
     }
   }
+}
+
+/**
+ * Deterministic demand trend (v2): compares the trailing period against the
+ * one before it. A zero prior period with any current consumption reads as
+ * "increasing" (new/reviving demand) rather than an undefined ratio.
+ */
+function classifyTrend(current: number, prior: number): 'increasing' | 'decreasing' | 'stable' {
+  if (prior === 0) return current > 0 ? 'increasing' : 'stable';
+  const change = (current - prior) / prior;
+  if (change > PURCHASE_RECOMMEND_TREND_THRESHOLD) return 'increasing';
+  if (change < -PURCHASE_RECOMMEND_TREND_THRESHOLD) return 'decreasing';
+  return 'stable';
 }
 
 function parseRecommendPayload(content: string, validIds: Set<string>): RecommendPayload | null {

@@ -1,6 +1,6 @@
 /**
- * Unit tests — PurchaseRecommendationWorker (signals, LLM recommendations,
- * dedupe, notify, per-org fail-soft).
+ * Unit tests — PurchaseRecommendationWorker (signals, demand trend, LLM
+ * recommendations, dedupe, notify, per-org fail-soft).
  */
 import type { Job } from 'bullmq';
 import { LlmProvider } from '../chat/llm.provider';
@@ -33,10 +33,12 @@ function harness(
 const job = (overrides: Partial<Job> = {}): Job =>
   ({ name: 'purchase.recommend.sweep', ...overrides }) as unknown as Job;
 
-function oneCandidate(prisma: {
-  product: { findMany: jest.Mock };
-  inventoryMovement: { groupBy: jest.Mock };
-}): void {
+function oneCandidate(
+  prisma: { product: { findMany: jest.Mock }; inventoryMovement: { groupBy: jest.Mock } },
+  opts: { last?: number; prior?: number } = {},
+): void {
+  const last = opts.last ?? 15;
+  const prior = opts.prior ?? 10;
   prisma.product.findMany.mockResolvedValue([
     {
       id: 'prod-1',
@@ -47,14 +49,15 @@ function oneCandidate(prisma: {
     },
   ]);
   prisma.inventoryMovement.groupBy
-    .mockResolvedValueOnce([{ productId: 'prod-1', type: 'OUT', _sum: { quantity: 15 } }])
-    .mockResolvedValueOnce([{ productId: 'prod-1', _sum: { quantity: 30 } }]);
+    .mockResolvedValueOnce([{ productId: 'prod-1', type: 'OUT', _sum: { quantity: last + prior } }])
+    .mockResolvedValueOnce([{ productId: 'prod-1', _sum: { quantity: last } }])
+    .mockResolvedValueOnce([{ productId: 'prod-1', _sum: { quantity: prior } }]);
 }
 
 describe('PurchaseRecommendationWorker', () => {
   it('creates a recommendation from LLM output and notifies alert-role members', async () => {
     const { worker, prisma, llm, outbox } = harness();
-    oneCandidate(prisma);
+    oneCandidate(prisma, { last: 15, prior: 10 });
     prisma.purchaseRecommendation.findFirst.mockResolvedValue(null);
     prisma.purchaseRecommendation.create.mockResolvedValue({ id: 'rec-1' });
     llm.complete.mockResolvedValue(
@@ -66,6 +69,11 @@ describe('PurchaseRecommendationWorker', () => {
     const result = await worker.process(job());
 
     expect(result).toMatchObject({ ran: true, candidates: 1, created: 1, duplicates: 0 });
+    expect(llm.complete).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('trend: increasing'),
+      expect.any(Number),
+    );
     expect(prisma.purchaseRecommendation.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -74,8 +82,10 @@ describe('PurchaseRecommendationWorker', () => {
           recommendedQuantity: 50,
           reason: 'Cover 30 days of demand',
           agentMetadata: expect.objectContaining({
-            promptVersion: 'recommend.reorder.v1',
-            consumedLast30Days: 30,
+            promptVersion: 'recommend.reorder.v2',
+            consumedLast30Days: 15,
+            consumedPriorPeriodDays: 10,
+            trend: 'increasing',
           }),
         }),
       }),
@@ -98,6 +108,27 @@ describe('PurchaseRecommendationWorker', () => {
       }),
     );
     expect(result.notified).toBe(1);
+  });
+
+  it.each([
+    [15, 10, 'increasing'],
+    [10, 15, 'decreasing'],
+    [10, 11, 'stable'],
+    [5, 0, 'increasing'],
+    [0, 0, 'stable'],
+  ])('classifies last=%d vs prior=%d as %s', async (last, prior, trend) => {
+    const { worker, prisma, llm } = harness();
+    oneCandidate(prisma, { last, prior });
+    prisma.purchaseRecommendation.findFirst.mockResolvedValue(null);
+    prisma.purchaseRecommendation.create.mockResolvedValue({ id: 'rec-1' });
+    llm.complete.mockResolvedValue(
+      JSON.stringify({ recommendations: [{ productId: 'prod-1', quantity: 10, reason: 'x' }] }),
+    );
+
+    await worker.process(job());
+
+    const data = prisma.purchaseRecommendation.create.mock.calls[0][0].data;
+    expect(data.agentMetadata.trend).toBe(trend);
   });
 
   it('dedupes against a still-PENDING recommendation for the same product', async () => {

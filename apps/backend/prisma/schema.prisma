@@ -29,6 +29,7 @@ model Organization {
   invoices                Invoice[]
   recurringInvoices       RecurringInvoice[]
   tasks                   Task[]
+  executiveBriefings      ExecutiveBriefing[]
   documents               Document[]
   conversations           Conversation[]
   knowledgeDocuments      KnowledgeDocument[]
@@ -382,6 +383,29 @@ model WorkflowRun {
   @@unique([ruleId, entityId])
   @@index([ruleId])
   @@map("workflow_runs")
+}
+
+/**
+ * ExecutiveBriefing: one AI-generated snapshot narrative over the org's
+ * current KPIs (ROADMAP Phase 4 — executive insights briefings,
+ * AI_ARCHITECTURE §6.1 `insight.executive`). `signals` is the deterministic
+ * input snapshot the model reasoned over, kept for transparency/audit —
+ * the same "ground every answer" principle as chat citations. Append-only:
+ * briefings are never edited, only generated fresh and listed newest first.
+ */
+model ExecutiveBriefing {
+  id             String       @id @default(uuid())
+  organizationId String       @map("organization_id")
+  summary        String
+  highlights     Json
+  risks          Json
+  focusAreas     Json         @map("focus_areas")
+  signals        Json
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("executive_briefings")
 }
 
 enum AppointmentStatus {
