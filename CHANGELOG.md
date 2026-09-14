@@ -390,6 +390,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a `productId` outside the signal set, per-org fail-soft on malformed output,
     not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
     fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
+- Sales forecasting (ROADMAP Phase 4, PROJECT_SPEC §7.7):
+  - `GET /api/v1/forecasting/sales` (`lookbackDays`/`horizonDays` query params) — a deliberately
+    simple, transparent forecast: buckets `PAID` invoice totals into UTC calendar days over
+    `[today - lookbackDays, today)`, fits an ordinary-least-squares linear trend, layers an additive
+    day-of-week seasonal adjustment on the residuals, and projects `horizonDays` forward. No LLM —
+    every number in the response (`trend.dailySlope`, `seasonality` per weekday) is derivable by
+    hand from the `history` it returns.
+  - Falls back to a flat average (`method: "insufficient_data_flat_average"`,
+    `insufficientData: true`) when fewer than 3 days in the window carry any revenue at all — too
+    little signal for a trend line to mean anything; forecast values are never negative.
+  - Pure math lives in `forecast.ts` (`bucketDailyRevenue`, `fitLinearTrend`, `weekdaySeasonality`,
+    `buildSalesForecast`) — no I/O, fully unit-testable; `SalesForecastService` wraps it with the
+    org-scoped Prisma query, mirroring `DashboardService`'s revenue convention. Read-only, open to
+    any member.
+  - Unit tests: pure math (bucketing/gap-filling, OLS trend recovery, weekday-bias isolation,
+    insufficient-data fallback, negative-forecast clamping), service (query bounds/clamping, revenue
+    bucketing, 503); e2e: unauthenticated sales-forecast endpoint → 401
 - Executive insights briefings (ROADMAP Phase 4, AI_ARCHITECTURE §6.1 `insight.executive`):
   - `ExecutiveBriefingWorker` (`ai-jobs`, `insight.executive.briefing`, triggered per-org via
     `POST /api/v1/insights/briefings/generate`): collects one KPI snapshot — revenue, receivables,
