@@ -791,6 +791,45 @@ Authorization: Bearer <jwt>
   per-org failure is logged and the sweep continues with the next org; a Redis outage never fails
   the scheduling request.
 
+### 11.17 Sales forecasting
+
+`GET /api/v1/forecasting/sales` (ROADMAP Phase 4, PROJECT_SPEC §7.7) returns an org-scoped revenue
+history + forecast. Deliberately simple and transparent — no LLM: buckets `PAID` invoice totals (the
+§11.10 revenue convention) into UTC calendar days over `[today - lookbackDays, today)`, fits an
+ordinary-least-squares linear trend, layers an additive day-of-week seasonal adjustment on the
+residuals, and projects `horizonDays` forward. Readable by any member.
+
+```http
+GET /api/v1/forecasting/sales?lookbackDays=90&horizonDays=14
+Authorization: Bearer <jwt>
+```
+
+```json
+200 {
+  "data": {
+    "generatedAt": "2026-09-14T00:00:00.000Z", "lookbackDays": 90, "horizonDays": 14,
+    "history": [{ "date": "2026-06-16", "revenue": "120.00" }],
+    "forecast": [{ "date": "2026-09-14", "revenue": "145.32" }],
+    "trend": { "dailySlope": "0.85" },
+    "seasonality": { "SUN": "-12.40", "MON": "3.10", "TUE": "0.00", "WED": "0.00", "THU": "0.00", "FRI": "5.20", "SAT": "18.90" },
+    "method": "linear_trend_plus_day_of_week_seasonality",
+    "insufficientData": false
+  },
+  "meta": { "requestId": "…", "statusCode": 200 }
+}
+```
+
+- `lookbackDays` (14–180, default 90) and `horizonDays` (1–60, default 14) are query params;
+  out-of-range values are clamped rather than rejected.
+- `trend.dailySlope` and each `seasonality` entry are money strings — the additive change per day
+  and per weekday the model found; every `forecast` value is `trend + seasonality`, clamped to never
+  go negative.
+- Falls back to a flat average of the window (`method: "insufficient_data_flat_average"`,
+  `insufficientData: true`, zero trend/seasonality) when fewer than 3 days in the window carry any
+  revenue at all — too little signal for a trend line to mean anything.
+- Fail-soft: no database → `503`. Money fields are exact decimal strings (`toFixed(2)`), never
+  floats.
+
 ## 12. Related
 
 - [API index](../api/README.md)
