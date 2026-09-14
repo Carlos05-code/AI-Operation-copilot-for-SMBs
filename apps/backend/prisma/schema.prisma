@@ -15,25 +15,26 @@ datasource db {
 // ── Identity & tenancy ────────────────────────────────────────────────────
 
 model Organization {
-  id                 String              @id @default(uuid())
-  name               String
-  slug               String              @unique
-  tenant             TenantType          @default(SINGLE)
-  plan               PlanType            @default(FREE)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  members            Member[]
-  customers          Customer[]
-  products           Product[]
-  salesOrders        SalesOrder[]
-  invoices           Invoice[]
-  recurringInvoices  RecurringInvoice[]
-  tasks              Task[]
-  documents          Document[]
-  conversations      Conversation[]
-  knowledgeDocuments KnowledgeDocument[]
-  auditLogs          AuditLog[]
-  appointments       Appointment[]
+  id                      String                   @id @default(uuid())
+  name                    String
+  slug                    String                   @unique
+  tenant                  TenantType               @default(SINGLE)
+  plan                    PlanType                 @default(FREE)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  members                 Member[]
+  customers               Customer[]
+  products                Product[]
+  salesOrders             SalesOrder[]
+  invoices                Invoice[]
+  recurringInvoices       RecurringInvoice[]
+  tasks                   Task[]
+  documents               Document[]
+  conversations           Conversation[]
+  knowledgeDocuments      KnowledgeDocument[]
+  auditLogs               AuditLog[]
+  appointments            Appointment[]
+  purchaseRecommendations PurchaseRecommendation[]
 
   @@index([slug])
   @@map("organizations")
@@ -102,20 +103,21 @@ model Customer {
 }
 
 model Product {
-  id                 String              @id @default(uuid())
-  organizationId     String              @map("organization_id")
-  name               String
-  sku                String
-  price              Decimal             @db.Decimal(12, 2)
-  cost               Decimal?            @db.Decimal(12, 2)
-  reorderPoint       Int?                @default(0) @map("reorder_point")
-  belowReorderPoint  Boolean             @default(false) @map("below_reorder_point")
-  active             Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  inventoryMovements InventoryMovement[]
-  lineItems          SalesLineItem[]
+  id                      String                   @id @default(uuid())
+  organizationId          String                   @map("organization_id")
+  name                    String
+  sku                     String
+  price                   Decimal                  @db.Decimal(12, 2)
+  cost                    Decimal?                 @db.Decimal(12, 2)
+  reorderPoint            Int?                     @default(0) @map("reorder_point")
+  belowReorderPoint       Boolean                  @default(false) @map("below_reorder_point")
+  active                  Boolean                  @default(true)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  organization            Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventoryMovements      InventoryMovement[]
+  lineItems               SalesLineItem[]
+  purchaseRecommendations PurchaseRecommendation[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -140,6 +142,41 @@ enum MovementType {
   IN
   OUT
   ADJUST
+}
+
+enum PurchaseRecommendationStatus {
+  PENDING
+  ORDERED
+  DISMISSED
+}
+
+/**
+ * PurchaseRecommendation: AI-generated reorder suggestion (ROADMAP Phase 3 —
+ * purchase recommendations, AI_ARCHITECTURE §6.1 `recommend.reorder`).
+ * One row per product per below-reorder-point episode; `agentMetadata`
+ * carries the prompt version and the signal snapshot the model reasoned
+ * over. `PENDING` is the only actionable state — `ORDERED`/`DISMISSED` are
+ * terminal so a resolved recommendation is never re-surfaced (a fresh dip
+ * generates a new row once the product recovers and drops below the
+ * reorder point again).
+ */
+model PurchaseRecommendation {
+  id                  String                       @id @default(uuid())
+  organizationId      String                       @map("organization_id")
+  productId           String                       @map("product_id")
+  recommendedQuantity Int                          @map("recommended_quantity")
+  reason              String
+  status              PurchaseRecommendationStatus @default(PENDING)
+  agentMetadata       Json?                        @map("agent_metadata")
+  resolvedAt          DateTime?                    @map("resolved_at")
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product             Product                      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([productId, status])
+  @@map("purchase_recommendations")
 }
 
 enum OrderStatus {

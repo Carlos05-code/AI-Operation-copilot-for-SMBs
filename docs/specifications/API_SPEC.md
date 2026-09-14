@@ -742,6 +742,55 @@ Content-Type: application/json
 - Fail-soft: no database → jobs skipped; a per-item failure is logged and the batch continues; a
   Redis outage never fails the scheduling request.
 
+### 11.16 Purchase recommendations
+
+Implemented as `/api/v1/purchasing/recommendations` (ROADMAP Phase 3, AI_ARCHITECTURE §6.1
+`recommend.reorder`). Reads are open to any member; resolving a recommendation (`order`/`dismiss`)
+requires agent-or-above; the manual sweep trigger requires manager-or-above (mirrors
+`/invoices/sweep-overdue`); every query is org-scoped and foreign ids surface as 404.
+
+```http
+POST /api/v1/purchasing/recommendations/sweep
+Authorization: Bearer <jwt>
+```
+
+```json
+200 { "data": { "sweepStatus": "QUEUED" }, "meta": { "requestId": "…", "statusCode": 200 } }
+```
+
+```json
+200 {
+  "data": {
+    "items": [
+      {
+        "id": "rec-1", "productId": "prod-1", "recommendedQuantity": 50,
+        "reason": "50 on hand fell below the reorder point of 20; last 30 days used 60 units.",
+        "status": "PENDING"
+      }
+    ]
+  },
+  "meta": { "requestId": "…", "statusCode": 200 }
+}
+```
+
+- `POST /api/v1/purchasing/recommendations/sweep` schedules the `purchase.recommend.sweep` job on
+  `ai-jobs` → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The worker collects every active,
+  below-reorder-point product across all orgs, groups by org, and for each org runs the
+  `recommend.reorder.v1` prompt over that org's on-hand/reorder-point/trailing-30-day-consumption
+  signals to decide a quantity and reasoning per product.
+- One `PurchaseRecommendation` per product per below-reorder-point dip — a product that already
+  carries a `PENDING` recommendation is never duplicated by a later sweep.
+- `GET /api/v1/purchasing/recommendations` (pending first, §4 pagination, optional `status` filter),
+  `GET /api/v1/purchasing/recommendations/:id`.
+- **Lifecycle**: `POST /api/v1/purchasing/recommendations/:id/{order,dismiss}` —
+  `PENDING → {ORDERED, DISMISSED}` only; both are terminal, so resolving an already-resolved
+  recommendation is `409 CONFLICT`. Notifies every OWNER/ADMIN/MANAGER of the org (in-app) when a
+  recommendation is first created; emits `purchase.recommended` on the transactional outbox per org
+  sweep.
+- Fail-soft: no database or LLM config → sweep skipped; a malformed model response or any other
+  per-org failure is logged and the sweep continues with the next org; a Redis outage never fails
+  the scheduling request.
+
 ## 12. Related
 
 - [API index](../api/README.md)
