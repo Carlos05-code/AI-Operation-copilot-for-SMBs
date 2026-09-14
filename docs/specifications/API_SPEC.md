@@ -776,8 +776,14 @@ Authorization: Bearer <jwt>
 - `POST /api/v1/purchasing/recommendations/sweep` schedules the `purchase.recommend.sweep` job on
   `ai-jobs` → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. The worker collects every active,
   below-reorder-point product across all orgs, groups by org, and for each org runs the
-  `recommend.reorder.v1` prompt over that org's on-hand/reorder-point/trailing-30-day-consumption
-  signals to decide a quantity and reasoning per product.
+  `recommend.reorder.v2` prompt over that org's on-hand/reorder-point/consumption signals to decide
+  a quantity and reasoning per product.
+- **v2 — demand-aware** (ROADMAP Phase 4): the trailing 30-day consumption is compared against the
+  30 days before that and classified `increasing`/`decreasing`/`stable` (±15% swing to call it a
+  trend, not noise). Both figures and the classification are fed to the prompt, which leans toward
+  the higher end of the reorder buffer when demand is increasing and the lower end when it's
+  decreasing; every recommendation's `agentMetadata` carries the exact numbers
+  (`consumedLast30Days`, `consumedPriorPeriodDays`, `trend`, `promptVersion`) for transparency.
 - One `PurchaseRecommendation` per product per below-reorder-point dip — a product that already
   carries a `PENDING` recommendation is never duplicated by a later sweep.
 - `GET /api/v1/purchasing/recommendations` (pending first, §4 pagination, optional `status` filter),
