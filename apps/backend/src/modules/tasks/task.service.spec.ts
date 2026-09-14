@@ -79,6 +79,14 @@ describe('TaskService', () => {
     await expect(service.requestPlan('org-1')).resolves.toBeUndefined();
   });
 
+  it('schedules the org-wide autocomplete sweep on ops-jobs and swallows enqueue failures', async () => {
+    const { service, queue } = harness();
+    await service.requestAutocompleteSweep();
+    expect(queue.enqueue).toHaveBeenCalledWith('ops-jobs', 'task.autocomplete.sweep', {});
+    queue.enqueue.mockRejectedValue(new Error('redis down'));
+    await expect(service.requestAutocompleteSweep()).resolves.toBeUndefined();
+  });
+
   it('fails with a contract error when the database is not configured', async () => {
     const service = new TaskService(undefined, undefined);
     await expect(service.list('org-1')).rejects.toMatchObject({

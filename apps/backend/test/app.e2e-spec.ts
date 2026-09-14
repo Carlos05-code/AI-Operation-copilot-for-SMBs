@@ -172,6 +172,10 @@ describe('API (e2e)', () => {
     expect(patchRes.body.error.code).toBe('UNAUTHORIZED');
     const planRes = await request(app.getHttpServer()).post('/api/v1/tasks/plan').expect(401);
     expect(planRes.body.error.status).toBe(401);
+    const sweepRes = await request(app.getHttpServer())
+      .post('/api/v1/tasks/sweep-autocomplete')
+      .expect(401);
+    expect(sweepRes.body.error.code).toBe('UNAUTHORIZED');
   });
 
   it('rejects unauthenticated invoice endpoints (401, error envelope)', async () => {
