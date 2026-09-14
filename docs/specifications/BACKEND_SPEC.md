@@ -118,6 +118,12 @@ Each feature module must keep:
 
 ## 14. Health & lifecycle
 
+> Status: health checks are a custom `HealthService` (dependency presence, not `@nestjs/terminus`).
+> `setupOpenTelemetry()` ships (`apps/backend/src/shared/telemetry/telemetry.ts`) — loaded via
+> `node -r ./dist/shared/telemetry/preload.js` (the `start`/`start:dev` scripts) so auto-
+> instrumentation patches `http`/`express` before Nest requires them; it's idempotent, so `main.ts`
+> calling it again is a safe fallback, not a real "before bootstrap" guarantee on its own.
+
 - `@nestjs/terminus` health checks for DB/Redis/RabbitMQ/MinIO/Qdrant.
 - Graceful shutdown (SIGTERM): stop accepting, drain queues, flush traces.
 - `main.ts` registers `setupOpenTelemetry()` before bootstrap.
