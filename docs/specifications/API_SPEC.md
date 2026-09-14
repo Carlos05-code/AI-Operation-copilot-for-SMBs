@@ -490,9 +490,11 @@ Authorization: Bearer <jwt>
 `GET /api/v1/tasks` lists the org's tasks (priority desc, then creation order; §4 pagination,
 optional `status` filter); `GET /api/v1/tasks/:id` fetches one; `PATCH /api/v1/tasks/:id` updates
 its status (`{status: "DONE"}`) for humans closing planned work; `POST /api/v1/tasks/plan` schedules
-AI task planning (ROADMAP Phase 3, AI_ARCHITECTURE §6.1 `plan.tasks`). Writes require
-agent-or-above; reads are open to any member; every query is org-scoped and foreign tasks surface
-as 404.
+AI task planning (ROADMAP Phase 3, AI_ARCHITECTURE §6.1 `plan.tasks`);
+`POST /api/v1/tasks/sweep-autocomplete` schedules the deterministic low-risk auto-completion sweep
+(ROADMAP Phase 4). Writes require agent-or-above; the sweep trigger requires manager-or-above
+(mirrors `/invoices/sweep-overdue`); reads are open to any member; every query is org-scoped and
+foreign tasks surface as 404.
 
 ```http
 POST /api/v1/tasks/plan
@@ -525,6 +527,17 @@ Authorization: Bearer <jwt>
 - Dedupe: an open task carrying the same `signalKey` is never duplicated across runs.
 - Fail-soft: no signals / no database / no LLM config → job skipped; malformed model output retries
   via BullMQ; a Redis outage never fails the scheduling request.
+- **Low-risk auto-completion (ROADMAP Phase 4)**: `POST /api/v1/tasks/sweep-autocomplete` schedules
+  the `task.autocomplete.sweep` job on `ops-jobs` → `{ "sweepStatus": "QUEUED" | "SKIPPED" }`. No
+  LLM — an open, AI-planned task (carrying `agentMetadata.signalKey`) is completed only when the
+  system can _verify_ its underlying signal already resolved: the linked invoice moved to
+  `PAID`/`VOID`, or the linked product climbed back above its reorder point. **Human-in-the-loop**:
+  every auto-completion notifies the assignee (or every OWNER/ADMIN/MANAGER of the org when
+  unassigned) with the exact reason (e.g. `"Invoice INV-001 is now PAID"`), and
+  `PATCH /api/v1/tasks/:id` reopens it exactly like any other task — nothing about the action is
+  hidden or irreversible. A guarded claim (same pattern as the other periodic sweeps) means a
+  concurrent run never double-completes or double-notifies; a per-task failure is logged and the
+  sweep continues.
 
 ### 11.12 Invoices & recurring invoicing
 

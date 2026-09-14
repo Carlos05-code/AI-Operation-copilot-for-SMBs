@@ -93,6 +93,15 @@ export class TaskController {
     return { planStatus: 'QUEUED' };
   }
 
+  @Post('sweep-autocomplete')
+  @RequireRoles(Role.OWNER, Role.ADMIN, Role.MANAGER)
+  @ApiOperation({ summary: 'Schedule the deterministic task auto-completion sweep' })
+  async sweepAutocomplete(@CurrentUser() user: AuthContext) {
+    this.requireOrganization(user);
+    await this.tasks.requestAutocompleteSweep();
+    return { sweepStatus: 'QUEUED' };
+  }
+
   private requireOrganization(user: AuthContext | undefined): string {
     const organizationId = user?.organizationId;
     if (!organizationId) {

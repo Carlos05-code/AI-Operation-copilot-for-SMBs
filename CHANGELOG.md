@@ -390,6 +390,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     a `productId` outside the signal set, per-org fail-soft on malformed output,
     not-configured/no-signal skips), service (list/get/lifecycle/409/404/503, sweep enqueue
     fail-soft); e2e: unauthenticated purchase-recommendation endpoints → 401
+- Low-risk task auto-completion with human-in-the-loop (ROADMAP Phase 4):
+  - `TaskAutoCompletionWorker` (`ops-jobs`, `task.autocomplete.sweep`, triggered manually via
+    `POST /api/v1/tasks/sweep-autocomplete`) — deterministic, no LLM. An open, AI-planned task
+    (carrying `agentMetadata.signalKey` from `TaskPlanningWorker`) is completed only when the system
+    can _verify_ its underlying signal already resolved: the linked invoice moved to `PAID`/`VOID`,
+    or the linked product climbed back above its reorder point. "Low risk" means the real-world
+    resolution already happened elsewhere in the system — the sweep just catches the task record up
+    to it, no judgment call is made.
+  - Human-in-the-loop: every auto-completion notifies the assignee (or every OWNER/ADMIN/MANAGER of
+    the org when unassigned) with the exact reason; `PATCH /api/v1/tasks/:id` reopens it exactly
+    like any other task, so nothing is hidden or irreversible.
+  - Guarded `updateMany` claim, the same idempotent pattern as the other periodic sweeps, so a
+    concurrent run never double-completes or double-notifies; a per-task failure is logged and the
+    sweep continues; `task.autocompleted` outbox event per completion.
+  - Unit tests: signal resolution (invoice PAID/VOID, product restocked, unresolved, no-signalKey,
+    unmatched signal), assignee-vs-org-wide recipients, no-double-complete on a concurrent claim,
+    per-task failure isolation, not-configured skip, outbox fail-soft; e2e: unauthenticated
+    sweep-autocomplete endpoint → 401
 
 ### Changed
 
