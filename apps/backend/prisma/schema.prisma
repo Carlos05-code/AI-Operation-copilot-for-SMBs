@@ -36,6 +36,7 @@ model Organization {
   auditLogs               AuditLog[]
   appointments            Appointment[]
   purchaseRecommendations PurchaseRecommendation[]
+  workflowRules           WorkflowRule[]
 
   @@index([slug])
   @@map("organizations")
@@ -336,6 +337,52 @@ model Task {
 
   @@index([organizationId, assigneeId])
   @@map("tasks")
+}
+
+enum WorkflowTriggerEntity {
+  INVOICE
+  PRODUCT
+  TASK
+  APPOINTMENT
+}
+
+/**
+ * WorkflowRule: an org-defined "when <conditions on an entity type>, do
+ * <actions>" automation (ROADMAP Phase 4 — visual workflow builder /
+ * rules engine, stretch). `conditions` and `actions` are structured JSON
+ * (not free-form code) — a future visual builder targets this same shape.
+ * Fires once per entity, ever: each match is recorded as a `WorkflowRun`
+ * (`@@unique([ruleId, entityId])`), which both dedupes and gives a full
+ * audit trail of what a rule has done.
+ */
+model WorkflowRule {
+  id             String                @id @default(uuid())
+  organizationId String                @map("organization_id")
+  name           String
+  triggerEntity  WorkflowTriggerEntity @map("trigger_entity")
+  conditions     Json
+  actions        Json
+  active         Boolean               @default(true)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs           WorkflowRun[]
+
+  @@index([organizationId, active])
+  @@map("workflow_rules")
+}
+
+model WorkflowRun {
+  id         String       @id @default(uuid())
+  ruleId     String       @map("rule_id")
+  entityId   String       @map("entity_id")
+  actionsRun Json         @map("actions_run")
+  createdAt  DateTime     @default(now())
+  rule       WorkflowRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, entityId])
+  @@index([ruleId])
+  @@map("workflow_runs")
 }
 
 /**

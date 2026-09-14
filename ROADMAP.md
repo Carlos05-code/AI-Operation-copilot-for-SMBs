@@ -84,7 +84,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Sales forecasting (trend + seasonality on aggregated data)
 - [x] Purchase recommendations v2 (demand-aware)
 - [x] Low-risk task auto-completion with human-in-the-loop
-- [ ] Visual workflow builder (rules engine) — stretch
+- [x] Visual workflow builder (rules engine) — stretch (rules engine only; no visual canvas yet)
 - [x] Executive insights briefings
 
 **Version: 0.4.0**
