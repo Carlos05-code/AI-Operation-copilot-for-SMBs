@@ -30,7 +30,9 @@ context and consequences. See the [ADR template](./ADR-template.md) for the requ
 
 ## Superseded / proposed
 
-_None yet._
+| #                                      | Title                  | Status   | Date       |
+| -------------------------------------- | ---------------------- | -------- | ---------- |
+| [ADR-0014](./ADR-0014-multi-region.md) | Multi-region readiness | Proposed | 2026-09-15 |
 
 ## How to propose a new ADR
 
