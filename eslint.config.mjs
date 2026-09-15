@@ -15,6 +15,12 @@ export default tseslint.config(
       'lint-staged.config.js',
       '**/jest.config.js',
       'eslint.config.mjs',
+      // k6 scripts: run by k6's own TypeScript engine (tests/load/README.md), not
+      // tsc — they import 'k6/http' and similar module specifiers that don't exist
+      // in this repo's `node_modules` and aren't covered by any tsconfig project,
+      // which typescript-eslint's `projectService` requires every linted file to
+      // belong to. Verified by actually running them with k6, not by this linter.
+      'tests/load/**',
     ],
   },
   eslint.configs.recommended,
@@ -33,7 +39,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.e2e-spec.ts', '**/tests/**/*.ts', '**/test/**/*.ts'],
+    files: [
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      '**/*.e2e-spec.ts',
+      '**/tests/**/*.ts',
+      '**/test/**/*.ts',
+    ],
     rules: {
       // node:test's test() returns a Promise by design.
       '@typescript-eslint/no-floating-promises': 'off',
