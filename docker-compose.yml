@@ -74,7 +74,10 @@ services:
       retries: 10
 
   qdrant:
-    image: qdrant/qdrant:v1.9
+    # `v1.9` no longer exists on Docker Hub (verified: only `v1.9.0`..`v1.9.7` are published,
+    # discovered while wiring up infrastructure/kubernetes/base/infrastructure/qdrant.yaml).
+    # `-unprivileged` runs as a non-root uid by default.
+    image: qdrant/qdrant:v1.9.7-unprivileged
     container_name: smb-qdrant
     ports:
       - '6333:6333'
@@ -102,7 +105,10 @@ services:
         hard: -1
 
   minio:
-    image: minio/minio:latest
+    # `minio/minio` no longer exists on Docker Hub — MinIO moved their images to Quay
+    # (verified: the Docker Hub repo now 404s), discovered while wiring up
+    # infrastructure/kubernetes/base/infrastructure/minio.yaml.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: smb-minio
     command: server /data --console-address ':9001'
     environment:
@@ -138,7 +144,10 @@ services:
         condition: service_healthy
     volumes:
       - keycloakdata:/opt/keycloak/data
-      - ./infrastructure/keycloak:/opt/keycloak/data/import:ro
+      # Realm import lives under kubernetes/base so kustomize's configMapGenerator
+      # (infrastructure/kubernetes/base/keycloak/kustomization.yaml) can reference
+      # it without reaching outside its own directory (a hard sandbox restriction).
+      - ./infrastructure/kubernetes/base/keycloak:/opt/keycloak/data/import:ro
 
   # --- `monitoring` profile (DEVOPS_SPEC §8) -------------------------------
   # `docker compose --profile monitoring up` — traces + metrics only; Loki/

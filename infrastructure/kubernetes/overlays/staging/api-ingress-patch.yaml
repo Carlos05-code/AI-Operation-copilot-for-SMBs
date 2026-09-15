@@ -1,0 +1,27 @@
+# `rules`/`tls` are plain lists in the Ingress schema (no merge key), so a
+# strategic-merge patch replaces them wholesale — each entry here is given
+# in full rather than just the changed `host` field, or the base's
+# `http.paths` backend would silently disappear.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  namespace: smb-copilot
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+spec:
+  tls:
+    - hosts:
+        - api-staging.smb-copilot.example.com
+      secretName: api-tls
+  rules:
+    - host: api-staging.smb-copilot.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  name: http

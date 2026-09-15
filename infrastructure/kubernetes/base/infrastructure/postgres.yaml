@@ -1,0 +1,87 @@
+# Single-replica, in-cluster Postgres — matches docker-compose's `postgres`
+# service and image tag. Fine for staging; the production overlay documents
+# swapping this for a managed database (see overlays/production/README.md).
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: smb-copilot
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+  ports:
+    - name: postgres
+      port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: smb-copilot
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+    # `postgres:16-alpine` has no `USER` directive (verified against its published image
+    # config, not assumed) — it starts as root so `docker-entrypoint.sh` can `chown` a
+    # freshly provisioned data volume, then execs as `postgres` itself. Forcing
+    # `runAsNonRoot: true` here would make the kubelet refuse to start the container
+    # before that entrypoint ever runs.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: POSTGRES_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ['pg_isready', '-U', '$(POSTGRES_USER)']
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi

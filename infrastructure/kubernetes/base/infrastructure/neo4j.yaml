@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: smb-copilot
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: neo4j
+  ports:
+    - name: http
+      port: 7474
+    - name: bolt
+      port: 7687
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: smb-copilot
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neo4j
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: neo4j
+    # `neo4j:5-community` has no `USER` directive (verified against its published image
+    # config) — it starts as root, then execs as `neo4j` itself.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+    spec:
+      containers:
+        - name: neo4j
+          image: neo4j:5-community
+          ports:
+            - name: http
+              containerPort: 7474
+            - name: bolt
+              containerPort: 7687
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: NEO4J_AUTH
+            - name: NEO4J_server_memory_heap_initial__size
+              value: 512m
+            - name: NEO4J_server_memory_heap_max__size
+              value: 1g
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: '1'
+              memory: 2Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi

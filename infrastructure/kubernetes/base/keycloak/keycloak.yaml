@@ -1,0 +1,94 @@
+# `start-dev --import-realm` matches docker-compose's invocation exactly —
+# this is dev-mode Keycloak (in-memory H2-free but no HTTPS-required
+# enforcement, no configured hostname strategy). Hardening this to `start`
+# (production mode: real hostname, TLS termination at the ingress is fine,
+# but Keycloak itself needs `--hostname`/`--proxy-headers` set) is a
+# follow-up once a real domain exists to configure it against — deferred
+# rather than guessed at here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: smb-copilot
+spec:
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: smb-copilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      # `quay.io/keycloak/keycloak:24.0` runs as uid 1000 by default (verified against its
+      # published image config — the Quarkus-based Keycloak distribution, v17+, ships non-root).
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:24.0
+          args: ['start-dev', '--import-realm']
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: KEYCLOAK_ADMIN
+              value: admin
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: KEYCLOAK_ADMIN_PASSWORD
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              value: jdbc:postgresql://postgres:5432/smb_copilot
+            - name: KC_DB_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: POSTGRES_USER
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: POSTGRES_PASSWORD
+            - name: KC_HTTP_PORT
+              value: '8080'
+          volumeMounts:
+            - name: realm-import
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+      volumes:
+        - name: realm-import
+          configMap:
+            name: keycloak-realm

@@ -1,0 +1,28 @@
+# Restricts inbound traffic to the API pods: only the ingress controller
+# (assumed installed in a namespace labelled `kubernetes.io/metadata.name:
+# ingress-nginx`, the default auto-label since Kubernetes 1.21) and other
+# pods inside this namespace may reach it. Egress is left unrestricted —
+# the API talks to seven different in-cluster dependencies plus optional
+# external LLM/embeddings/SMTP endpoints (.env.example), and locking that
+# down correctly needs a real cluster's CNI/DNS specifics to verify against
+# rather than guessing here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api
+  namespace: smb-copilot
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000

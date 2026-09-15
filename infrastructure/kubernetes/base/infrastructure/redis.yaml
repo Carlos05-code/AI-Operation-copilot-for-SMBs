@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: smb-copilot
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: smb-copilot
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+    # `redis:7-alpine` has no `USER` directive (verified against its published image
+    # config) — it starts as root, then its entrypoint execs as `redis` itself.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: ['redis-server', '--appendonly', 'yes']
+          ports:
+            - name: redis
+              containerPort: 6379
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: ['redis-cli', 'ping']
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 5Gi

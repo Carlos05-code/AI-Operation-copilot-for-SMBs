@@ -1,0 +1,36 @@
+# Runs `prisma migrate deploy` once, using the same image as the API
+# Deployment. A Job (not an initContainer on api-deployment.yaml) so N
+# replicas scaling up never race the same migration concurrently — apply
+# this and wait for completion before rolling out api-deployment.yaml.
+# `kubectl apply -f migrate-job.yaml && kubectl wait --for=condition=complete
+# job/api-migrate -n smb-copilot --timeout=120s`.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: api-migrate
+  namespace: smb-copilot
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: api
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: migrate
+          image: ghcr.io/carlos05-code/ai-operation-copilot-for-smbs/backend:v0.0.0-placeholder
+          imagePullPolicy: IfNotPresent
+          command: ['node_modules/.bin/prisma', 'migrate', 'deploy']
+          workingDir: /app/apps/backend
+          envFrom:
+            - configMapRef:
+                name: api-config
+            - secretRef:
+                name: api-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']

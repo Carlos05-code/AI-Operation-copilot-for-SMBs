@@ -519,6 +519,58 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     `PinoLoggerService` (requestId/traceId/spanId binding, via a real `AsyncHooksContextManager`
     rather than a mocked `trace` API), `QueueService` (depth-gauge registration and per-queue
     fail-soft sampling).
+- Kubernetes deployment with HPA (ROADMAP Phase 5, DEVOPS_SPEC §3):
+  - `infrastructure/docker/Dockerfile.api` — first Dockerfile in the repo. Multi-stage pnpm build
+    (`deps` → `build` runs `prisma generate` + `tsc` → `prod-deps` production-only install →
+    `runtime` layers the generated `.prisma` client on top of the prod install, since a `--prod`
+    install excludes the `prisma` CLI's postinstall). Moved `prisma` from `devDependencies` to
+    `dependencies` in `apps/backend/package.json` — the migration Job below runs
+    `prisma migrate deploy` from this same runtime image, which needs the CLI, not just
+    `@prisma/client`. Non-root (`USER node`), `HEALTHCHECK` against `/api/v1/health/live`.
+  - `infrastructure/kubernetes/` rebuilt as a working Kustomize tree — `base/` (namespace, `api`
+    Deployment + Service + HPA + Ingress + NetworkPolicy + ServiceAccount, a `prisma migrate deploy`
+    Job, StatefulSets for every stateful dependency, a Keycloak Deployment with its realm import as
+    a `configMapGenerator`) plus `overlays/staging` and `overlays/production` (replica counts, HPA
+    floors, image tags, ingress host/cert-issuer patched per environment). `kustomize build`
+    (v5.8.1) verified clean on the base and both overlays — confirmed the image-tag transformer,
+    replica patches, and HPA patches actually land in the rendered output, not just that the tool
+    exits 0.
+  - `api-hpa.yaml`: `autoscaling/v2`, CPU (70%) + memory (80%) utilization targets, 2-10 replicas in
+    the base (1-3 staging, 3-15 production). Scaling on the `queue_jobs_waiting` metric this app
+    already exports is a natural next step once a Prometheus Adapter or KEDA is actually installed
+    in-cluster — not referenced here since neither is.
+  - Deliberately deferred, documented rather than faked: a separate `workers` Deployment (no second
+    bootstrap entrypoint exists yet — every BullMQ processor still registers on the same `main.ts`
+    the API serves HTTP from, so scaling `api` scales both); and treating the in-cluster
+    StatefulSets as production-grade (single replica, no failover/backup — staging convenience only,
+    `overlays/production/README.md` covers the managed-service swap-out).
+  - Moved `infrastructure/keycloak/realm.json` to `infrastructure/kubernetes/base/keycloak/` so
+    `configMapGenerator` can reference it without reaching outside its own kustomization directory
+    (a hard security restriction, not a flag) — `docker-compose.yml`'s Keycloak mount updated to the
+    new path.
+  - `.github/workflows/release.yml`: fixed a latent bug found while wiring the k8s manifests up to
+    the real image path it pushes — `ghcr.io/${{ github.repository }}` preserves this repo's actual
+    mixed case (`Carlos05-code/AI-Operation-copilot-for-SMBs`), which `docker build -t`/`push`
+    reject outright since GHCR paths must be all-lowercase; there's no `lower()` in Actions
+    expression syntax, so it's computed once via `tr` into `$GITHUB_ENV` instead. The k8s manifests
+    reference the corrected lowercase path directly. Still a gap: `release.yml` only ever pushes the
+    exact `${GITHUB_REF_NAME}` version tag on a `v*` push, never a floating `:staging`/`:production`
+    tag — the overlays' `images:` tag transformer assumes a promotion step that doesn't exist yet.
+  - Two dead image references found while verifying every StatefulSet container's actual default
+    user against its published image config (not assumed) for Semgrep's `run-as-non-root`/
+    `allow-privilege-escalation-no-securitycontext` rules — both fixed in `docker-compose.yml` and
+    the k8s manifests: `minio/minio` no longer exists on Docker Hub at all (MinIO moved to Quay);
+    `qdrant/qdrant:v1.9` was never a real tag (only `v1.9.0`..`v1.9.7` are published). Now
+    `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` and `qdrant/qdrant:v1.9.7-unprivileged` — the
+    latter chosen specifically because it's the non-root variant (verified `1000:1000` vs. the plain
+    tag's `0:0`), letting its StatefulSet carry a `runAsNonRoot: true` that's actually true.
+  - `allowPrivilegeEscalation: false` + `capabilities: drop: [ALL]` added to every container in
+    `base/infrastructure/` and `base/keycloak/`. `runAsNonRoot: true` added for real where the
+    published image config confirms a non-root default (OpenSearch uid 1000, Keycloak uid 1000,
+    Qdrant's `-unprivileged` tag); `# nosemgrep`'d with a one-line reason where it isn't (Postgres,
+    Redis, RabbitMQ, Neo4j, MinIO all start as root by design — their entrypoints `chown` a fresh
+    volume then drop privileges themselves; forcing non-root at the pod level would stop that
+    entrypoint from ever running).
 
 ### Changed
 
