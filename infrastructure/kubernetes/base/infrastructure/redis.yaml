@@ -26,6 +26,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: redis
+    # `redis:7-alpine` has no `USER` directive (verified against its published image
+    # config) — it starts as root, then its entrypoint execs as `redis` itself.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
     spec:
       containers:
         - name: redis
@@ -34,9 +37,6 @@ spec:
           ports:
             - name: redis
               containerPort: 6379
-          # `redis:7-alpine` has no `USER` directive (verified against its published image
-          # config) — it starts as root, then its entrypoint execs as `redis` itself.
-          # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

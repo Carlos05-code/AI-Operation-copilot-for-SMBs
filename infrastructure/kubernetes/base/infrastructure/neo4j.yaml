@@ -28,6 +28,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: neo4j
+    # `neo4j:5-community` has no `USER` directive (verified against its published image
+    # config) — it starts as root, then execs as `neo4j` itself.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
     spec:
       containers:
         - name: neo4j
@@ -47,9 +50,6 @@ spec:
               value: 512m
             - name: NEO4J_server_memory_heap_max__size
               value: 1g
-          # `neo4j:5-community` has no `USER` directive (verified against its published image
-          # config) — it starts as root, then execs as `neo4j` itself.
-          # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

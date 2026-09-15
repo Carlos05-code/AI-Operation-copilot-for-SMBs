@@ -29,6 +29,12 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: postgres
+    # `postgres:16-alpine` has no `USER` directive (verified against its published image
+    # config, not assumed) — it starts as root so `docker-entrypoint.sh` can `chown` a
+    # freshly provisioned data volume, then execs as `postgres` itself. Forcing
+    # `runAsNonRoot: true` here would make the kubelet refuse to start the container
+    # before that entrypoint ever runs.
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
     spec:
       containers:
         - name: postgres
@@ -52,12 +58,6 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: POSTGRES_PASSWORD
-          # `postgres:16-alpine` has no `USER` directive (verified against its published image
-          # config, not assumed) — it starts as root so `docker-entrypoint.sh` can `chown` a
-          # freshly provisioned data volume, then execs as `postgres` itself. Forcing
-          # `runAsNonRoot: true` here would make the kubelet refuse to start the container
-          # before that entrypoint ever runs.
-          # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
