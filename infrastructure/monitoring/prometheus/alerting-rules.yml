@@ -1,0 +1,36 @@
+# SLO alerts (DEVOPS_SPEC §8). Metric names match `AppMetricsService`
+# (apps/backend/src/shared/telemetry/app-metrics.service.ts) exactly —
+# verified against a real scrape, not guessed.
+groups:
+  - name: smb-copilot-api.slo
+    rules:
+      - alert: ApiHighP95Latency
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_bucket[5m])) by (le)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'API p95 latency above 800ms'
+          description: 'p95 request duration has been over 800ms for 5+ minutes.'
+
+      - alert: ApiHighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+          sum(rate(http_requests_total[5m])) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'API 5xx error rate above 1%'
+          description: 'More than 1% of requests have returned a 5xx in the last 5 minutes.'
+
+      - alert: QueueBacklogGrowing
+        expr: queue_jobs_waiting > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'BullMQ queue {{ $labels.queue }} backlog over 100'
+          description: '{{ $labels.queue }} has had more than 100 waiting jobs for 10+ minutes.'

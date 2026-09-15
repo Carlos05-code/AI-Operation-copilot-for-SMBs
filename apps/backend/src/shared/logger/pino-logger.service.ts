@@ -3,8 +3,15 @@
  *
  * Context fields (`requestId`) are attached at emission time. Log levels follow
  * NODE_ENV: development → debug, production → info (BACKEND_SPEC §11).
+ *
+ * Also binds `traceId`/`spanId` from the active OpenTelemetry span, when one
+ * exists (DEVOPS_SPEC §8: "Correlation: trace_id + req_id in all logs") — a
+ * log line inside a traced request can be pivoted straight to its trace.
+ * `trace.getSpan` returns `undefined` when no SDK is registered (tracing
+ * unconfigured, or under test), so this is inert without extra checks.
  */
 import { Injectable, LoggerService, Optional } from '@nestjs/common';
+import { trace } from '@opentelemetry/api';
 import { pino, type Logger, type LoggerOptions } from 'pino';
 import { RequestContext } from '../context/request-context.js';
 
@@ -36,10 +43,15 @@ export class PinoLoggerService implements LoggerService {
     this.logger = logger ?? createPinoLogger();
   }
 
-  /** Bind the ambient request id (if any) as `requestId`. */
+  /** Bind the ambient request id and active span's trace/span id, if any. */
   private bind(): Record<string, unknown> | undefined {
     const requestId = RequestContext.getId();
-    return requestId ? { requestId } : undefined;
+    const spanContext = trace.getActiveSpan()?.spanContext();
+    const fields = {
+      ...(requestId ? { requestId } : {}),
+      ...(spanContext ? { traceId: spanContext.traceId, spanId: spanContext.spanId } : {}),
+    };
+    return Object.keys(fields).length > 0 ? fields : undefined;
   }
 
   trace(message: string, ...args: unknown[]): void {

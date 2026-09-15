@@ -78,11 +78,17 @@ Pr release: all check workflows must be green; PR must pass `Definition of Done`
 
 ## 8. Observability
 
+> Status: traces + metrics shipped (`apps/backend/src/shared/telemetry/`), `trace_id`/`req_id` log
+> correlation shipped (`pino-logger.service.ts`). Loki log shipping is the one gap — logs are
+> already structured JSON on stdout, ready to ship, just not wired to a collector yet.
+
 - OpenTelemetry unified: traces + metrics + logs per service.
-- Exporters: Prometheus (metrics), Grafana (dashboards), Loki (logs), Tempo (traces, optional).
-- Default alerts:
+- Exporters: Prometheus (metrics, always on — a direct `GET /metrics` scrape, no collector
+  required), Grafana (dashboards), Tempo (traces, via the otel-collector, gated behind
+  `OTEL_EXPORTER_OTLP_ENDPOINT`), Loki (logs — not yet wired).
+- Default alerts (`infrastructure/monitoring/prometheus/alerting-rules.yml`):
   - SLO: API p95 latency > 800 ms, error rate > 1%, queue backlog pump alerts.
-  - DB connections >= 70%, disk auto-scaling warnings.
+  - DB connections >= 70%, disk auto-scaling warnings — not yet implemented (no DB-level exporter).
 - Correlation: `trace_id` + `req_id` in all logs.
 
 ## 9. Backup & recovery

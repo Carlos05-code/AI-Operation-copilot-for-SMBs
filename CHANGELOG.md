@@ -483,6 +483,42 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     no-match skip, fire-once guard, per-rule fail-soft, not-configured skip, outbox fail-soft),
     service (CRUD/validation delegation/404/503, sweep enqueue fail-soft); e2e: unauthenticated
     workflow-rule endpoints → 401
+- OpenTelemetry — traces + metrics, log correlation (ROADMAP Phase 5, DEVOPS_SPEC §8):
+  - `setupOpenTelemetry()` (`apps/backend/src/shared/telemetry/`): metrics are always on — a
+    `PrometheusExporter` registered unconditionally, since a pull-based scrape needs no external
+    target to reach — while traces (OTLP + `getNodeAutoInstrumentations()`) turn on only when
+    `OTEL_EXPORTER_OTLP_ENDPOINT` names a real collector. Idempotent via a `globalThis` guard;
+    loaded through `node -r ./dist/shared/telemetry/preload.js` (the `start`/`start:dev` scripts) so
+    auto-instrumentation patches `http`/`express` before Nest ever requires them.
+  - `GET /metrics` (Prometheus text format, mounted below the global prefix/versioning) — verified
+    against a real scrape, not guessed: `http_request_duration` (histogram, seconds-scale buckets —
+    `[0.005 .. 10]`, fine enough below the 800ms p95 alert threshold to actually resolve a
+    percentile there; the SDK's own default buckets are millisecond-tuned and would collapse every
+    real request into the first bucket), `http_requests_total` (counter), both labeled
+    `method`/`route`/`status_code` (route = `<Controller>#<handler>`, not the raw URL, to avoid
+    path-param cardinality blowup) via a global `TelemetryInterceptor`; `queue_jobs_waiting` (gauge,
+    labeled `queue`) sampled from BullMQ on every scrape, one queue's Redis error never blanks the
+    others (`QueueService`).
+  - `PinoLoggerService` now binds `traceId`/`spanId` from the active span alongside `requestId`
+    (DEVOPS_SPEC §8 "Correlation: `trace_id` + `req_id` in all logs") — inert without a registered
+    `ContextManager` (tracing off, or under test), so this is safe everywhere.
+  - Graceful shutdown (SIGTERM): stop accepting connections, then flush any buffered spans before
+    the process exits.
+  - `infrastructure/monitoring/`: a real, working `docker compose --profile monitoring up` stack —
+    otel-collector → Tempo (traces), Prometheus (scrapes the API's `/metrics` directly — fixed the
+    stale `worker:9464`/`redis-exporter` targets that never pointed at anything real), Grafana
+    (datasources + one dashboard sourced from the exact verified metric names: request rate, p95
+    latency, error rate, queue backlog). SLO alerting rules for all three DEVOPS_SPEC §8 thresholds.
+    Deliberately deferred: Loki log shipping — logs are already structured JSON on stdout with
+    `trace_id`/`req_id` correlation, ready to ship; only the collector pipeline is missing, and it
+    needs no application code changes to add later.
+  - Unit tests: `otelConfig` (pure env parsing), `setupOpenTelemetry` (metrics-only vs.
+    tracing-enabled, idempotency, a real scrape against a loopback server rather than guessing the
+    Prometheus exporter's response-object shape), `AppMetricsService` (HTTP recording, queue-depth
+    gauge wiring), `TelemetryInterceptor` (success/error/typed-error-status/non-HTTP passthrough),
+    `PinoLoggerService` (requestId/traceId/spanId binding, via a real `AsyncHooksContextManager`
+    rather than a mocked `trace` API), `QueueService` (depth-gauge registration and per-queue
+    fail-soft sampling).
 
 ### Changed
 

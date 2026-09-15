@@ -96,7 +96,7 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 **Goal**: production posture at scale.
 
 - [ ] Kubernetes deployment with Horizontal Pod Autoscaling (HPA)
-- [ ] OpenTelemetry ingestion (traces, metrics, logs) unified
+- [~] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓ — Loki log shipping pending)
 - [ ] Load and resilience testing (k6)
 - [ ] Backup and disaster-recovery runbooks
 - [ ] Large-document-volume benchmarks (200 k+ documents)

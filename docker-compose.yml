@@ -140,6 +140,65 @@ services:
       - keycloakdata:/opt/keycloak/data
       - ./infrastructure/keycloak:/opt/keycloak/data/import:ro
 
+  # --- `monitoring` profile (DEVOPS_SPEC §8) -------------------------------
+  # `docker compose --profile monitoring up` — traces + metrics only; Loki/
+  # Promtail log aggregation isn't wired up yet (logs are structured JSON on
+  # stdout with trace_id/req_id correlation already; see
+  # infrastructure/monitoring/README.md).
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.160.0
+    container_name: smb-otel-collector
+    profiles: [monitoring]
+    command: ['--config=/etc/otel-collector-config.yaml']
+    volumes:
+      - ./infrastructure/monitoring/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    ports:
+      - '4317:4317' # OTLP gRPC
+      - '4318:4318' # OTLP HTTP
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:3.0.3
+    container_name: smb-tempo
+    profiles: [monitoring]
+    command: ['-config.file=/etc/tempo.yaml']
+    volumes:
+      - ./infrastructure/monitoring/tempo/tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - '3200:3200' # Tempo API (Grafana datasource)
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: smb-prometheus
+    profiles: [monitoring]
+    volumes:
+      - ./infrastructure/monitoring/prometheus:/etc/prometheus:ro
+      - prometheusdata:/prometheus
+    ports:
+      - '9090:9090'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  grafana:
+    image: grafana/grafana:13.2.1
+    container_name: smb-grafana
+    profiles: [monitoring]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - '3300:3000'
+    depends_on:
+      - prometheus
+      - tempo
+
 volumes:
   pgdata:
   redisdata:
@@ -149,3 +208,6 @@ volumes:
   opensearchdata:
   miniodata:
   keycloakdata:
+  tempodata:
+  prometheusdata:
+  grafanadata:

@@ -147,6 +147,15 @@ export class AppConfig {
   @IsOptional()
   smtpFrom?: string;
 
+  /** OTLP collector endpoint (DEVOPS_SPEC §8); unset means traces stay off, metrics stay on. */
+  @IsString()
+  @IsOptional()
+  otelExporterOtlpEndpoint?: string;
+
+  @IsString()
+  @IsOptional()
+  otelServiceName?: string;
+
   @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 
