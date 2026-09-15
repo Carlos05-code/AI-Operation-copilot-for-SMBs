@@ -571,6 +571,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     Redis, RabbitMQ, Neo4j, MinIO all start as root by design — their entrypoints `chown` a fresh
     volume then drop privileges themselves; forcing non-root at the pod level would stop that
     entrypoint from ever running).
+- Load and resilience testing (ROADMAP Phase 5, TESTING_SPEC §6):
+  - `tests/load/`: three k6 scenarios (`smoke.ts` 5 VUs/1m, `soak.ts` ramp-to-200-VUs/~30m,
+    `spike.ts` ramp-to-1000-VUs/30s) sharing one weighted request mix (`lib/workload.ts`) against
+    real `API_SPEC` endpoints — dashboard summary, task list, hybrid search, invoice creation
+    (exercises the per-org invoice-numbering retry-on-collision path under real concurrency),
+    unauthenticated liveness. `POST /api/v1/chat` deliberately excluded — it 503s whenever no LLM
+    provider is configured, which would poison the error-rate threshold for reasons unrelated to the
+    API's own capacity.
+  - `lib/auth.ts`: the backend has no login endpoint of its own (auth is Keycloak-only bearer
+    verification) — real password-grant login against Keycloak's token endpoint using the seeded
+    demo users, cached per-VU and re-logged-in before the 15-minute token actually expires. Each VU
+    logs in independently rather than sharing one token from `setup()`, both to avoid a
+    refresh-token-rotation race across VUs and because a login stampede under the spike scenario is
+    itself a real thing worth measuring.
+  - `lib/thresholds.ts`: p95 < 800ms / error rate < 1% for smoke and soak — the exact DEVOPS_SPEC §8
+    SLO alert numbers, not separately invented ones. Spike uses a looser bar (p95 < 2s, error rate <
+    5%) since briefly degrading without cascading is the actual pass condition there.
+  - Verified with a real `k6 run` (v2.2.0, confirmed native TypeScript support — no transpilation
+    step) against a local mock Keycloak+API server, not just `k6 archive` syntax-checking: real
+    login, all five weighted actions, thresholds evaluated, zero failures.
+  - Fixed a real bug this surfaced: `apps/backend/prisma/seed.ts` never pinned the demo
+    organization's id, so a fresh database's auto-generated uuid could never match the `org_id`
+    claim every demo user's token carries (hardcoded in
+    `infrastructure/kubernetes/base/keycloak/realm.json`) — every authenticated request would have
+    failed `TenancyGuard`'s membership lookup. Now pinned to the same id the realm import uses.
+  - Deliberately not done: wiring `k6 soak` into CI on `v*` tags (TESTING_SPEC §9's own diagram
+    calls for it). That needs the full stack — Postgres, Redis, RabbitMQ, Keycloak, OpenSearch,
+    Qdrant, Neo4j, the built API — booted inside a runner first, and no existing workflow in
+    `.github/workflows/` boots more than one `services:` container to build that on
+    (`db-migrate-check.yml`); shipping an unverified multi-service boot sequence risked a CI job
+    that's flaky or silently wrong with no way to catch it before merging. `tests/load/README.md`
+    documents running every scenario manually against a real target instead.
 
 ### Changed
 

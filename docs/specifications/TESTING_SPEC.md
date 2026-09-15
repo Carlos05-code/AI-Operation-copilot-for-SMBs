@@ -50,12 +50,23 @@ Status: **Draft · v0** · Owner: Carlos05-code
 
 ## 6. Performance / Load Tests (k6)
 
+> Status: shipped (`tests/load/`) — smoke/soak/spike scripts sharing one weighted request mix
+> against real API_SPEC endpoints, real Keycloak password-grant auth (per-VU cached, re-logs in near
+> expiry), thresholds matching the DEVOPS_SPEC §8 SLO alert numbers exactly. Verified with a real
+> `k6 run` against a local mock server, not just `k6 archive` syntax checking — see
+> `tests/load/README.md`. Gap: not wired into CI. §9 of this doc's own CI diagram calls for
+> `k6 soak` on every `v*` tag, but that needs the full stack booted inside the runner first, and no
+> existing workflow boots more than one `services:` container to build that on — see
+> `tests/load/README.md`'s "CI status" section for the honest reasoning, not a guess dressed up as
+> automation.
+
 - `tests/load/*.ts` scenarios:
   - `smoke`: 5 users · 1 min
   - `soak`: 200 users · 30 min
   - `spike`: up to 1k users
 - Assertions: p95 < 800ms, error % < 1%.
-- k6 dashboards: three envs output `grafana` dashboard.
+- k6 dashboards: three envs output `grafana` dashboard — not built; k6's own summary output and
+  optional `--out json=` trend files (`tests/load/results/`) are what exists today.
 
 ## 7. Security Tests
 

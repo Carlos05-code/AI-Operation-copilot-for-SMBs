@@ -13,6 +13,12 @@ async function main(): Promise<void> {
     where: { slug: 'acme-demo' },
     update: {},
     create: {
+      // Pinned to match the `org_id` attribute baked into every demo user in
+      // infrastructure/kubernetes/base/keycloak/realm.json — without this, a fresh
+      // database's auto-generated id would never match the org_id claim Keycloak
+      // issues, and every authenticated request would fail TenancyGuard's membership
+      // lookup for every demo user.
+      id: '8841a049-893c-4c2b-b342-456c7074b25d',
       name: 'Acme Demo Co.',
       slug: 'acme-demo',
     },

@@ -23,6 +23,7 @@ flutter_export_environment.sh
 /coverage/
 /coverage-reports/
 .nyc_output/
+/tests/load/results/*.json
 
 # Logs
 *.log

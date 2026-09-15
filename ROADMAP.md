@@ -100,7 +100,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   runs in-process on the API bootstrap), and the in-cluster StatefulSets are staging-only, not a
   production-grade posture (see overlays/production/README.md)
 - [~] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓ — Loki log shipping pending)
-- [ ] Load and resilience testing (k6)
+- [~] Load and resilience testing (k6) — smoke/soak/spike scripts shipped (`tests/load/`), real
+  Keycloak auth, SLO-matching thresholds; not yet wired into CI (no existing workflow boots the full
+  stack to run against, see `tests/load/README.md`)
 - [ ] Backup and disaster-recovery runbooks
 - [ ] Large-document-volume benchmarks (200 k+ documents)
 - [ ] Multi-region readiness documented in an ADR
