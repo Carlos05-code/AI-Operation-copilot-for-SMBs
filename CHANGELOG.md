@@ -659,6 +659,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     guessed round numbers, a results template left blank pending a real run, and an explicit "Known
     limitations" section (small fixed vocabulary, ingest throughput ≠ embedding-completion
     throughput, Neo4j's row deliberately left unestimated rather than guessed).
+- Multi-region readiness ADR (ROADMAP Phase 5):
+  - `docs/architecture/adrs/ADR-0014-multi-region.md` (Status: Proposed): a phased,
+    backup-restore-first decision rather than committing to active-active replication speculatively.
+    Phase A (already shipped, just named correctly) is the existing nightly-backup + restore-runbook
+    disaster recovery — the platform can come back up in a new region in hours, it doesn't run in
+    multiple regions simultaneously. Phases B (async replication for the stores that support it in
+    their OSS tier — PostgreSQL, OpenSearch, MinIO, and with more operational work Redis/RabbitMQ)
+    and C (Neo4j) are named but deliberately not started without a concrete driver.
+  - The decision turns on one verified constraint: `neo4j:5-community` (ADR-0005) has no replication
+    mechanism at all in its OSS tier — Neo4j's only clustering (causal clustering) is
+    Enterprise-only — so any design assuming uniform cross-region replication across all six
+    stateful dependencies isn't buildable on what this repo actually runs. Every other store
+    (PostgreSQL streaming/logical replication, OpenSearch cross-cluster replication, MinIO site
+    replication, RabbitMQ federation/shovel, Redis replica sets) has a real native OSS path; Neo4j
+    doesn't, short of an Enterprise/Aura licensing decision this ADR explicitly defers rather than
+    makes on the repo's behalf.
 
 ### Changed
 

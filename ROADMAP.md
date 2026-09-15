@@ -112,7 +112,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   report tooling shipped (`tests/benchmarks/large-corpus/`), verified end-to-end against a mock
   server; no live cluster available to actually run the 200k benchmark and record real numbers, so
   the README's capacity table is a computed estimate and its results template is still blank
-- [ ] Multi-region readiness documented in an ADR
+- [x] Multi-region readiness documented in an ADR —
+      [ADR-0014](docs/architecture/adrs/ADR-0014-multi-region.md): a phased, backup-restore-first
+      decision (today's backup/DR work already covers cross-region disaster recovery; live
+      cross-region replication is deferred, and named as blocked on Neo4j Community's lack of any
+      clustering/replication until that's separately resolved)
 
 **Version: 1.0.0**
 
