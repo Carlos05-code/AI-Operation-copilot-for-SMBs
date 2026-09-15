@@ -702,6 +702,34 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     dependencies (Postgres, Redis, RabbitMQ, Neo4j, Qdrant, OpenSearch, MinIO, Keycloak, and the
     observability stack's own containers) have no log-shipping path at all — a Promtail/Alloy job on
     Docker's container discovery would cover those, and is real, separate, not-yet-scoped work.
+- Kubernetes worker Deployment (ROADMAP Phase 5, DEVOPS_SPEC §3) — closes the "second bootstrap file
+  with no HTTP listener" gap the Kubernetes PR left open:
+  - `apps/backend/src/main-worker.ts`: a new entrypoint bootstrapping the exact same `AppModule`
+    `main.ts` does, via `NestFactory.createApplicationContext` instead of `.create()` — no HTTP
+    adapter, so no REST routes register at all, but every `@Processor` in the module tree still gets
+    instantiated and starts consuming. A bare `node:http` server (not Nest's HTTP adapter, which
+    would also wire up every REST controller in `AppModule`) serves `/metrics` and `/healthz` —
+    reusing `telemetry.metricsHandler` unchanged, since it was already framework-agnostic
+    (`main.ts`'s own Express-adapter cast comment says as much).
+  - `infrastructure/kubernetes/base/backend/worker-{deployment,service,hpa,networkpolicy, serviceaccount}.yaml`:
+    same image as `api`, only the container `command` differs (`dist/main-worker.js`). BullMQ
+    consumers on one queue name are safe to run concurrently by design (Redis-backed per-job
+    locking) — `worker` is _additional_, independently scalable capacity, not a replacement for
+    `api`'s own in-process processing, which keeps running exactly as before. Both overlays gained
+    matching replica/HPA patches for `worker` (staging: 1 replica, HPA 1-2; production: 2 replicas,
+    HPA 2-8).
+  - Verified for real, not just typechecked: built and ran the compiled `dist/main-worker.js`
+    directly (no live Redis/Postgres/etc. — the app's existing fail-soft behavior), confirmed
+    `/healthz` and `/metrics` both respond correctly. Separately confirmed the noisy `ECONNREFUSED`
+    reconnect logging seen when Redis is unavailable is pre-existing behavior of `main.ts` too
+    (booted it the same way for comparison) — not a regression this introduced.
+  - Documented, not faked: every feature module still bundles its HTTP controller and its workers in
+    one Nest module (`task.module.ts` is typical), so `worker` boots the _entire_ module graph
+    rather than a worker-only subset — the controller classes are instantiated as inert DI
+    providers, harmless without an HTTP adapter, but not the fully clean split a real
+    HTTP-only/worker-only module restructuring would be. That's materially larger,
+    BACKEND_SPEC-level work, named explicitly in `main-worker.ts`'s own header comment rather than
+    silently presented as done.
 
 ### Changed
 

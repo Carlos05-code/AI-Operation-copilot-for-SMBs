@@ -96,8 +96,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 **Goal**: production posture at scale.
 
 - [~] Kubernetes deployment with Horizontal Pod Autoscaling (HPA) — Kustomize base +
-  staging/production overlays, HPA on CPU/memory. Gaps: no separate worker Deployment (BullMQ still
-  runs in-process on the API bootstrap), and the in-cluster StatefulSets are staging-only, not a
+  staging/production overlays, `api` **and** `worker` Deployments each with their own HPA on
+  CPU/memory (`apps/backend/src/main-worker.ts`, additional BullMQ consumer capacity alongside the
+  API's own in-process processing). Gaps: not a fully clean split — every feature module still
+  bundles its controller and workers in one module, so `worker` boots the whole module graph rather
+  than a worker-only subset — and the in-cluster StatefulSets are staging-only, not a
   production-grade posture (see overlays/production/README.md)
 - [x] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓, Loki log shipping ✓ — the
       API's own logs; the other containerized dependencies' logs aren't shipped anywhere, a

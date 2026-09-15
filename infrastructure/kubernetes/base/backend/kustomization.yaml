@@ -9,3 +9,8 @@ resources:
   - api-ingress.yaml
   - api-networkpolicy.yaml
   - migrate-job.yaml
+  - worker-serviceaccount.yaml
+  - worker-deployment.yaml
+  - worker-service.yaml
+  - worker-hpa.yaml
+  - worker-networkpolicy.yaml

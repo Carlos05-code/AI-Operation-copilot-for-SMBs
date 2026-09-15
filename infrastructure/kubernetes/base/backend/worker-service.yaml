@@ -1,0 +1,16 @@
+# No Ingress routes here (worker-deployment.yaml runs no REST API) — this exists so a future
+# in-cluster Prometheus has a concrete scrape target, and for `kubectl port-forward` debugging.
+apiVersion: v1
+kind: Service
+metadata:
+  name: worker
+  namespace: smb-copilot
+  labels:
+    app.kubernetes.io/name: worker
+spec:
+  selector:
+    app.kubernetes.io/name: worker
+  ports:
+    - name: metrics
+      port: 80
+      targetPort: metrics

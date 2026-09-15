@@ -1,0 +1,21 @@
+# Restricts inbound traffic to the worker pods to other pods inside this namespace only — no
+# ingress-controller rule, unlike api-networkpolicy.yaml, since worker-deployment.yaml runs no
+# REST API and isn't fronted by the Ingress; the only inbound traffic it ever needs is a scrape of
+# /metrics or /healthz. Egress unrestricted, same reasoning as api-networkpolicy.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: worker
+  namespace: smb-copilot
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: worker
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 3000

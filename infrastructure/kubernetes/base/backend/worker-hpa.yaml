@@ -1,0 +1,42 @@
+# CPU/memory-based autoscaling, same rationale as api-hpa.yaml — a CPU proxy is a weaker signal
+# for a queue consumer than for an HTTP server (a worker can be CPU-idle while a backlog builds if
+# it's waiting on an external call), but scaling on the real signal (`queue_jobs_waiting`) needs a
+# Prometheus Adapter or KEDA installed in-cluster first, same as api-hpa.yaml's own note.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: worker
+  namespace: smb-copilot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: worker
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60

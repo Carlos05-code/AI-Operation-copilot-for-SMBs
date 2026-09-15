@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "start": "node -r ./dist/shared/telemetry/preload.js dist/main.js",
+    "start:worker": "node -r ./dist/shared/telemetry/preload.js dist/main-worker.js",
     "start:dev": "tsc -p tsconfig.json && node -r ./dist/shared/telemetry/preload.js dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"prisma/**/*.ts\" --max-warnings 0",
