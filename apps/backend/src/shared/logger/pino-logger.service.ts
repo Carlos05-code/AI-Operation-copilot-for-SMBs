@@ -9,11 +9,27 @@
  * log line inside a traced request can be pivoted straight to its trace.
  * `trace.getSpan` returns `undefined` when no SDK is registered (tracing
  * unconfigured, or under test), so this is inert without extra checks.
+ *
+ * Logs always go to stdout as structured JSON regardless of config. Shipping
+ * them to Loki too (DEVOPS_SPEC §8) is an *additional* destination that turns
+ * on once `LOKI_URL` names a real instance (`loki.config.ts`) — same
+ * on-by-config pattern `setupOpenTelemetry()` uses for traces. `requestId`/
+ * `traceId` stay in the log line body, not Loki labels — turning a per-request
+ * unique value into a label is exactly the high-cardinality mistake Loki's own
+ * docs warn against.
  */
 import { Injectable, LoggerService, Optional } from '@nestjs/common';
 import { trace } from '@opentelemetry/api';
-import { pino, type Logger, type LoggerOptions } from 'pino';
+import {
+  pino,
+  transport,
+  type DestinationStream,
+  type Logger,
+  type LoggerOptions,
+  type TransportMultiOptions,
+} from 'pino';
 import { RequestContext } from '../context/request-context.js';
+import { lokiConfig } from './loki.config.js';
 
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal' | 'silent';
 
@@ -32,7 +48,34 @@ export function createPinoLogger(level: LogLevel = levelForEnv()): Logger {
       censor: '[REDACTED]',
     },
   };
-  return pino(options);
+
+  const loki = lokiConfig();
+  if (!loki) {
+    return pino(options);
+  }
+
+  const targets: TransportMultiOptions['targets'] = [
+    { target: 'pino/file', options: { destination: 1 }, level },
+    {
+      target: 'pino-loki',
+      options: {
+        host: loki.host,
+        labels: { app: 'smb-copilot-api' },
+        // Immediate send, not the default 5s batch — a batch still sitting in
+        // memory on an ungraceful shutdown is exactly the last few seconds of
+        // logs an incident investigation needs most.
+        batching: false,
+        // A Loki outage must never take the API down with it (the fail-soft
+        // convention every other optional dependency in this app follows).
+        silenceErrors: true,
+      },
+      level,
+    },
+  ];
+  // pino's own types declare `transport()`'s return as `any` (`ThreadStream = any` in
+  // pino.d.ts) — not a gap in this code, a gap in pino's own upstream types.
+  const destination = transport({ targets }) as DestinationStream;
+  return pino(options, destination);
 }
 
 @Injectable()

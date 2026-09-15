@@ -13,3 +13,19 @@ datasources:
     uid: tempo
     access: proxy
     url: http://tempo:3200
+
+  - name: Loki
+    type: loki
+    uid: loki
+    access: proxy
+    url: http://loki:3100
+    jsonData:
+      # Pivots a log line straight to its trace — matches the `traceId` field
+      # `pino-logger.service.ts` binds from the active span, present in the log
+      # line's JSON body (never a Loki label; a per-request-unique value has no
+      # business being one — see that file's own comment on cardinality).
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: '"traceId":"(\w+)"'
+          name: TraceID
+          url: '$${__value.raw}'

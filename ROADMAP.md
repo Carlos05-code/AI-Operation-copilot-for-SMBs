@@ -99,7 +99,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   staging/production overlays, HPA on CPU/memory. Gaps: no separate worker Deployment (BullMQ still
   runs in-process on the API bootstrap), and the in-cluster StatefulSets are staging-only, not a
   production-grade posture (see overlays/production/README.md)
-- [~] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓ — Loki log shipping pending)
+- [x] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓, Loki log shipping ✓ — the
+      API's own logs; the other containerized dependencies' logs aren't shipped anywhere, a
+      separate, smaller gap noted in `infrastructure/monitoring/README.md`)
 - [~] Load and resilience testing (k6) — smoke/soak/spike scripts shipped (`tests/load/`), real
   Keycloak auth, SLO-matching thresholds; not yet wired into CI (no existing workflow boots the full
   stack to run against, see `tests/load/README.md`)

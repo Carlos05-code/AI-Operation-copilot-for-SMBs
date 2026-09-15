@@ -150,10 +150,23 @@ services:
       - ./infrastructure/kubernetes/base/keycloak:/opt/keycloak/data/import:ro
 
   # --- `monitoring` profile (DEVOPS_SPEC §8) -------------------------------
-  # `docker compose --profile monitoring up` — traces + metrics only; Loki/
-  # Promtail log aggregation isn't wired up yet (logs are structured JSON on
-  # stdout with trace_id/req_id correlation already; see
-  # infrastructure/monitoring/README.md).
+  # `docker compose --profile monitoring up` — traces, metrics, and logs. Port
+  # 3100 is published to the host because the API itself runs on the host in
+  # local dev (not in this compose file), and ships its own logs straight to
+  # Loki over HTTP (`LOKI_URL=http://localhost:3100` in `.env`) rather than
+  # through a container-log-tailing agent, which couldn't see a host process's
+  # stdout anyway. See infrastructure/monitoring/README.md.
+
+  loki:
+    image: grafana/loki:3.6.16
+    container_name: smb-loki
+    profiles: [monitoring]
+    command: ['-config.file=/etc/loki/loki-config.yaml']
+    volumes:
+      - ./infrastructure/monitoring/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - lokidata:/loki
+    ports:
+      - '3100:3100'
 
   otel-collector:
     image: otel/opentelemetry-collector:0.160.0
@@ -207,6 +220,7 @@ services:
     depends_on:
       - prometheus
       - tempo
+      - loki
 
 volumes:
   pgdata:
@@ -220,3 +234,4 @@ volumes:
   tempodata:
   prometheusdata:
   grafanadata:
+  lokidata:

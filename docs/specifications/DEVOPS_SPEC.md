@@ -90,14 +90,20 @@ Pr release: all check workflows must be green; PR must pass `Definition of Done`
 
 ## 8. Observability
 
-> Status: traces + metrics shipped (`apps/backend/src/shared/telemetry/`), `trace_id`/`req_id` log
-> correlation shipped (`pino-logger.service.ts`). Loki log shipping is the one gap — logs are
-> already structured JSON on stdout, ready to ship, just not wired to a collector yet.
+> Status: traces + metrics + logs all shipped. `trace_id`/`req_id` log correlation
+> (`pino-logger.service.ts`), and now Loki log shipping too — a second `pino` transport
+> (`pino-loki`), gated behind `LOKI_URL` the same way tracing is gated behind
+> `OTEL_EXPORTER_OTLP_ENDPOINT`. Pushed straight from the app over HTTP rather than a
+> container-log-tailing agent, since the API runs on the host in local dev, not in a container a
+> Promtail-style agent could see. Gap: only the API's own logs ship this way — the _other_
+> containerized dependencies' logs (Postgres, Redis, etc.) aren't shipped anywhere
+> (`infrastructure/monitoring/README.md`'s "Known gap").
 
 - OpenTelemetry unified: traces + metrics + logs per service.
 - Exporters: Prometheus (metrics, always on — a direct `GET /metrics` scrape, no collector
   required), Grafana (dashboards), Tempo (traces, via the otel-collector, gated behind
-  `OTEL_EXPORTER_OTLP_ENDPOINT`), Loki (logs — not yet wired).
+  `OTEL_EXPORTER_OTLP_ENDPOINT`), Loki (logs, gated behind `LOKI_URL`, pushed directly from the app
+  — not through the otel-collector or a tailing agent).
 - Default alerts (`infrastructure/monitoring/prometheus/alerting-rules.yml`):
   - SLO: API p95 latency > 800 ms, error rate > 1%, queue backlog pump alerts.
   - DB connections >= 70%, disk auto-scaling warnings — not yet implemented (no DB-level exporter).

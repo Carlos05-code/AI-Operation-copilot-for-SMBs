@@ -156,6 +156,11 @@ export class AppConfig {
   @IsOptional()
   otelServiceName?: string;
 
+  /** Loki instance to ship logs to (DEVOPS_SPEC §8); unset means stdout-only logging. */
+  @IsString()
+  @IsOptional()
+  lokiUrl?: string;
+
   @IsString()
   nodeEnv: string = process.env.NODE_ENV ?? 'development';
 

@@ -61,3 +61,7 @@ data:
   # always on at GET /metrics regardless (DEVOPS_SPEC §8).
   OTEL_EXPORTER_OTLP_ENDPOINT: ''
   OTEL_SERVICE_NAME: 'smb-copilot-api'
+  # Logs stay stdout-only until this points at a real Loki instance — none is
+  # deployed in-cluster yet (infrastructure/monitoring/ is docker-compose-only
+  # today; see infrastructure/monitoring/README.md).
+  LOKI_URL: ''

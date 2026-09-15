@@ -94,6 +94,20 @@
           "legendFormat": "{{queue}}"
         }
       ]
+    },
+    {
+      "id": 5,
+      "title": "Recent logs (click a traceId-bearing line to jump to its trace)",
+      "type": "logs",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "showTime": true, "wrapLogMessages": true },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{app=\"smb-copilot-api\"}"
+        }
+      ]
     }
   ]
 }
