@@ -32,10 +32,18 @@ spec:
       labels:
         app.kubernetes.io/name: keycloak
     spec:
+      # `quay.io/keycloak/keycloak:24.0` runs as uid 1000 by default (verified against its
+      # published image config — the Quarkus-based Keycloak distribution, v17+, ships non-root).
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: keycloak
           image: quay.io/keycloak/keycloak:24.0
           args: ['start-dev', '--import-realm']
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
           ports:
             - name: http
               containerPort: 8080

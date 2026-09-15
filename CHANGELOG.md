@@ -556,6 +556,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     reference the corrected lowercase path directly. Still a gap: `release.yml` only ever pushes the
     exact `${GITHUB_REF_NAME}` version tag on a `v*` push, never a floating `:staging`/`:production`
     tag — the overlays' `images:` tag transformer assumes a promotion step that doesn't exist yet.
+  - Two dead image references found while verifying every StatefulSet container's actual default
+    user against its published image config (not assumed) for Semgrep's `run-as-non-root`/
+    `allow-privilege-escalation-no-securitycontext` rules — both fixed in `docker-compose.yml` and
+    the k8s manifests: `minio/minio` no longer exists on Docker Hub at all (MinIO moved to Quay);
+    `qdrant/qdrant:v1.9` was never a real tag (only `v1.9.0`..`v1.9.7` are published). Now
+    `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` and `qdrant/qdrant:v1.9.7-unprivileged` — the
+    latter chosen specifically because it's the non-root variant (verified `1000:1000` vs. the plain
+    tag's `0:0`), letting its StatefulSet carry a `runAsNonRoot: true` that's actually true.
+  - `allowPrivilegeEscalation: false` + `capabilities: drop: [ALL]` added to every container in
+    `base/infrastructure/` and `base/keycloak/`. `runAsNonRoot: true` added for real where the
+    published image config confirms a non-root default (OpenSearch uid 1000, Keycloak uid 1000,
+    Qdrant's `-unprivileged` tag); `# nosemgrep`'d with a one-line reason where it isn't (Postgres,
+    Redis, RabbitMQ, Neo4j, MinIO all start as root by design — their entrypoints `chown` a fresh
+    volume then drop privileges themselves; forcing non-root at the pod level would stop that
+    entrypoint from ever running).
 
 ### Changed
 

@@ -33,9 +33,18 @@ spec:
       labels:
         app.kubernetes.io/name: opensearch
     spec:
+      # `opensearchproject/opensearch:2.11.0` runs as uid 1000 by default (verified against its
+      # published image config — OpenSearch/Elasticsearch's own bootstrap check refuses to start
+      # as root, so the image ships non-root already).
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: opensearch
           image: opensearchproject/opensearch:2.11.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
           ports:
             - name: http
               containerPort: 9200

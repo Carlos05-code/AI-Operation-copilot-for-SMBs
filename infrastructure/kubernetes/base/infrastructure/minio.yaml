@@ -31,8 +31,16 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio:latest
+          # `minio/minio` no longer exists on Docker Hub — MinIO moved their images to Quay
+          # (verified: the Docker Hub repo now 404s). No non-root variant is published there
+          # either (verified against its published image config: no `USER`, root by default).
+          image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
           args: ['server', '/data', '--console-address', ':9001']
+          # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
           ports:
             - name: api
               containerPort: 9000

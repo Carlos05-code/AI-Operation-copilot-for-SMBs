@@ -29,9 +29,20 @@ spec:
       labels:
         app.kubernetes.io/name: qdrant
     spec:
+      # `v1.9` (the tag docker-compose.yml used) no longer exists on Docker Hub (verified:
+      # only `v1.9.0`..`v1.9.7`, each with a paired `-unprivileged` variant, are published now).
+      # The `-unprivileged` variant runs as uid 1000 by default (verified against its published
+      # image config); the plain tag runs as root (`0:0`) — picking the former makes
+      # `runAsNonRoot: true` below actually true, not just asserted.
+      securityContext:
+        runAsNonRoot: true
       containers:
         - name: qdrant
-          image: qdrant/qdrant:v1.9
+          image: qdrant/qdrant:v1.9.7-unprivileged
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
           ports:
             - name: http
               containerPort: 6333
