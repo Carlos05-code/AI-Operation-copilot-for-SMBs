@@ -17,16 +17,20 @@ backups, and recovery as core elements.
 ## 3. Kubernetes deployment
 
 > Status: shipped (`infrastructure/kubernetes/`) — Kustomize base + staging/production overlays,
-> `api` Deployment with HPA (CPU/memory), NGINX Ingress + cert-manager, a `NetworkPolicy`
-> restricting ingress, and a `prisma migrate deploy` Job. Two gaps vs. the target below: the
-> diagram's separate `workers Deployment` doesn't exist yet — every BullMQ processor still registers
-> in-process on the one `api` bootstrap (`apps/backend/src/main.ts`), so there's one Deployment, not
-> two; and the in-cluster StatefulSets for Postgres/Neo4j/ Qdrant/OpenSearch/MinIO/RabbitMQ are a
-> staging convenience, not HA-backed production infrastructure (see
+> `api` **and** `worker` Deployments each with their own HPA (CPU/memory), NGINX Ingress +
+> cert-manager, `NetworkPolicy`s restricting ingress to both, and a `prisma migrate deploy` Job.
+> `worker` (`apps/backend/src/main-worker.ts`) runs the same `AppModule` with no HTTP adapter —
+> every `@Processor` registers there too, as additional capacity alongside `api`'s own in-process
+> processing, not a replacement for it (BullMQ consumers on one queue name are safe to run
+> concurrently). Not a fully clean split: every feature module still bundles its controller and its
+> workers in one module, so `worker` boots the whole graph rather than a worker-only subset — see
+> `main-worker.ts`'s own header comment for why that's materially larger work. One remaining gap vs.
+> the target below: the in-cluster StatefulSets for Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ
+> are a staging convenience, not HA-backed production infrastructure (see
 > `infrastructure/kubernetes/overlays/production/README.md`). RBAC here is minimal (a
-> `ServiceAccount` with `automountServiceAccountToken: false`, no in-cluster API access needed)
-> rather than a fuller namespace-scoped Role/RoleBinding, since the app doesn't talk to the
-> Kubernetes API.
+> `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no in-cluster API
+> access needed) rather than a fuller namespace-scoped Role/RoleBinding, since the app doesn't talk
+> to the Kubernetes API.
 
 - Manifest dir `infrastructure/kubernetes/`.
 - App deployable as modular monolith + workers (HPA).

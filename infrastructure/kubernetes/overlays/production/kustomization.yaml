@@ -5,6 +5,8 @@ resources:
 patches:
   - path: api-replicas-patch.yaml
   - path: api-hpa-patch.yaml
+  - path: worker-replicas-patch.yaml
+  - path: worker-hpa-patch.yaml
 images:
   - name: ghcr.io/carlos05-code/ai-operation-copilot-for-smbs/backend
     newTag: production

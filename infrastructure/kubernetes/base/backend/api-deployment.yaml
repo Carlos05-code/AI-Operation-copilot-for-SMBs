@@ -1,10 +1,10 @@
-# Single Deployment serving HTTP and processing BullMQ jobs in-process —
-# there is no separate worker entrypoint yet (all `@Processor`s register on
-# the same Nest app `main.ts` boots; see apps/backend/src/main.ts). Scaling
-# this Deployment scales both. A true API/worker split (a second bootstrap
-# with no HTTP listener, its own `worker-deployment.yaml`) is deferred —
-# tracked as a documented gap, same convention as the WhatsApp and Loki
-# gaps in ROADMAP.md.
+# Serves HTTP and processes BullMQ jobs in-process — `worker-deployment.yaml` now runs the same
+# `@Processor`s too, as additional, independently scalable consumer capacity (BullMQ consumers on
+# the same queue name are safe to run concurrently), but doesn't replace this Deployment's own
+# in-process processing. A fully clean split — every feature module's controller and workers in
+# separate HTTP-only/worker-only halves, so this Deployment stops processing jobs at all — is a
+# materially larger change (BACKEND_SPEC-level module restructuring); see main-worker.ts's header
+# comment for why.
 #
 # Image: `ghcr.io/carlos05-code/ai-operation-copilot-for-smbs/backend`, the exact path
 # `.github/workflows/release.yml` pushes to on a `v*` tag (GHCR requires an all-lowercase
