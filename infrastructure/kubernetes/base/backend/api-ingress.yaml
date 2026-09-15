@@ -1,0 +1,31 @@
+# NGINX ingress controller + cert-manager for TLS (DEVOPS_SPEC §3). Both are
+# cluster-wide infrastructure installed once per cluster (ingress-nginx and
+# cert-manager Helm charts) — not part of this app's manifests. The
+# `letsencrypt-prod` ClusterIssuer referenced below is expected to already
+# exist in-cluster; `host` is a placeholder, overridden per environment by
+# the staging/production overlays.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api
+  namespace: smb-copilot
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: 50m
+spec:
+  tls:
+    - hosts:
+        - api.smb-copilot.example.com
+      secretName: api-tls
+  rules:
+    - host: api.smb-copilot.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  name: http

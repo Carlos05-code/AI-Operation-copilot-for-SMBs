@@ -1,0 +1,45 @@
+# CPU/memory-based autoscaling (autoscaling/v2 — standard on any cluster,
+# no extra components required). Scaling on the BullMQ queue-depth metric
+# this app already exports (`queue_jobs_waiting`, see
+# infrastructure/monitoring/prometheus/alerting-rules.yml) is a natural
+# next step once a Prometheus Adapter (or KEDA) is installed in-cluster to
+# expose it as a custom/external metric — deferred until that component
+# is actually present, rather than referencing a metric source that isn't.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api
+  namespace: smb-copilot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60

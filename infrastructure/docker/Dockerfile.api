@@ -1,0 +1,62 @@
+# AI Operations Copilot — backend API image.
+#
+# Multi-stage pnpm-workspace build. The backend has no dependency on any
+# other workspace package today (`packages/*` are placeholders — see their
+# READMEs), so this only needs the backend's own package.json plus the
+# workspace root files pnpm requires to resolve the lockfile.
+#
+# Both build and runtime stages use the same Alpine (musl) base so the
+# Prisma query engine generated in `build` is binary-compatible with
+# `runtime` without pinning an explicit `binaryTargets` in schema.prisma.
+
+FROM node:20.20.2-alpine AS base
+RUN apk add --no-cache openssl
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+
+# ---- deps: install with devDependencies (needed to run `prisma generate`
+# and `tsc` in the build stage) -----------------------------------------
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY packages/ui/package.json packages/ui/package.json
+RUN pnpm install --frozen-lockfile --filter @smb-copilot/backend...
+
+# ---- build: generate the Prisma client and compile TypeScript ----------
+FROM deps AS build
+COPY tsconfig.base.json ./
+COPY apps/backend apps/backend
+RUN pnpm --filter @smb-copilot/backend run db:generate
+RUN pnpm --filter @smb-copilot/backend run build
+
+# ---- prod-deps: a second, production-only install. A `--prod` install
+# omits the `prisma` CLI (a devDependency), so the client generated above
+# is copied on top of this in the runtime stage rather than regenerated. --
+FROM base AS prod-deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY apps/backend/package.json apps/backend/package.json
+COPY packages/ui/package.json packages/ui/package.json
+RUN pnpm install --frozen-lockfile --filter @smb-copilot/backend... --prod
+
+# ---- runtime -------------------------------------------------------------
+FROM node:20.20.2-alpine AS runtime
+RUN apk add --no-cache openssl
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=prod-deps /app ./
+COPY --from=build /app/apps/backend/dist ./apps/backend/dist
+COPY --from=build /app/apps/backend/node_modules/.prisma ./apps/backend/node_modules/.prisma
+# Migrations/schema are needed at runtime only by the `prisma migrate deploy`
+# job (infrastructure/kubernetes/base/backend/migrate-job.yaml), which reuses
+# this same image — not by the API process itself.
+COPY apps/backend/prisma apps/backend/prisma
+
+WORKDIR /app/apps/backend
+USER node
+
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q --spider http://localhost:3000/api/v1/health/live || exit 1
+
+ENTRYPOINT ["node", "-r", "./dist/shared/telemetry/preload.js", "dist/main.js"]

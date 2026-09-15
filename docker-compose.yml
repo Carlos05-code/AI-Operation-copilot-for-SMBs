@@ -138,7 +138,10 @@ services:
         condition: service_healthy
     volumes:
       - keycloakdata:/opt/keycloak/data
-      - ./infrastructure/keycloak:/opt/keycloak/data/import:ro
+      # Realm import lives under kubernetes/base so kustomize's configMapGenerator
+      # (infrastructure/kubernetes/base/keycloak/kustomization.yaml) can reference
+      # it without reaching outside its own directory (a hard sandbox restriction).
+      - ./infrastructure/kubernetes/base/keycloak:/opt/keycloak/data/import:ro
 
   # --- `monitoring` profile (DEVOPS_SPEC §8) -------------------------------
   # `docker compose --profile monitoring up` — traces + metrics only; Loki/

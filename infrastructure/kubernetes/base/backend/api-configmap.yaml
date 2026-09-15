@@ -1,0 +1,60 @@
+# Non-secret settings, mirroring .env.example. Anything that embeds a
+# credential (a full connection URL, an API key, a password) lives in
+# api-secret.example.yaml instead — see that file for the split rationale.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: smb-copilot
+data:
+  NODE_ENV: 'production'
+  PORT: '3000'
+  LOG_LEVEL: 'info'
+  CORS_ORIGIN: ''
+
+  POSTGRES_HOST: 'postgres'
+  POSTGRES_PORT: '5432'
+  POSTGRES_DB: 'smb_copilot'
+  POSTGRES_USER: 'admin'
+
+  REDIS_URL: 'redis://redis:6379'
+
+  NEO4J_URI: 'bolt://neo4j:7687'
+  NEO4J_USER: 'neo4j'
+  NEO4J_DATABASE: 'neo4j'
+
+  QDRANT_URL: 'http://qdrant:6333'
+
+  OPENSEARCH_URL: 'http://opensearch:9200'
+  OPENSEARCH_USERNAME: 'admin'
+
+  STORAGE_ENDPOINT: 'http://minio:9000'
+  STORAGE_BUCKET: 'smb-copilot'
+  STORAGE_REGION: 'us-east-1'
+
+  KEYCLOAK_URL: 'http://keycloak:8080'
+  KEYCLOAK_REALM: 'smb-copilot'
+  KEYCLOAK_CLIENT_ID: 'smb-copilot-ui'
+  AUTH_JWKS_URL: 'http://keycloak:8080/realms/smb-copilot/protocol/openid-connect/certs'
+  AUTH_ISSUER: 'http://keycloak:8080/realms/smb-copilot'
+  AUTH_AUDIENCE: 'smb-copilot-api'
+
+  EMBEDDINGS_API_URL: ''
+  EMBEDDINGS_MODEL: 'BAAI/bge-m3'
+  EMBEDDINGS_DIMENSION: '1024'
+
+  LLM_API_URL: ''
+  LLM_MODEL: 'gpt-4o'
+
+  SMTP_HOST: ''
+  SMTP_PORT: '587'
+  SMTP_USER: ''
+  SMTP_FROM: ''
+
+  OCR_ENGINE: 'paddle'
+  MAX_UPLOAD_SIZE_MB: '50'
+
+  # Traces stay off until this points at a real OTLP collector; metrics are
+  # always on at GET /metrics regardless (DEVOPS_SPEC §8).
+  OTEL_EXPORTER_OTLP_ENDPOINT: ''
+  OTEL_SERVICE_NAME: 'smb-copilot-api'

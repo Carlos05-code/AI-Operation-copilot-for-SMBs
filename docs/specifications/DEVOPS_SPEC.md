@@ -16,6 +16,18 @@ backups, and recovery as core elements.
 
 ## 3. Kubernetes deployment
 
+> Status: shipped (`infrastructure/kubernetes/`) — Kustomize base + staging/production overlays,
+> `api` Deployment with HPA (CPU/memory), NGINX Ingress + cert-manager, a `NetworkPolicy`
+> restricting ingress, and a `prisma migrate deploy` Job. Two gaps vs. the target below: the
+> diagram's separate `workers Deployment` doesn't exist yet — every BullMQ processor still registers
+> in-process on the one `api` bootstrap (`apps/backend/src/main.ts`), so there's one Deployment, not
+> two; and the in-cluster StatefulSets for Postgres/Neo4j/ Qdrant/OpenSearch/MinIO/RabbitMQ are a
+> staging convenience, not HA-backed production infrastructure (see
+> `infrastructure/kubernetes/overlays/production/README.md`). RBAC here is minimal (a
+> `ServiceAccount` with `automountServiceAccountToken: false`, no in-cluster API access needed)
+> rather than a fuller namespace-scoped Role/RoleBinding, since the app doesn't talk to the
+> Kubernetes API.
+
 - Manifest dir `infrastructure/kubernetes/`.
 - App deployable as modular monolith + workers (HPA).
 - Ingress: NGINX ingress controller; TLS via cert-manager.

@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+.git
+.github
+docs
+infrastructure
+tests
+apps/mobile
+packages/*/node_modules
+packages/*/dist
+*.md
+.env
+.env.*
+!.env.example

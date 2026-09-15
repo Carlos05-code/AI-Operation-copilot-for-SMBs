@@ -11,7 +11,6 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_BASE: ghcr.io/${{ github.repository }}
 
 jobs:
   release:
@@ -21,6 +20,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+
+      # GHCR image paths must be all-lowercase; `github.repository` preserves the
+      # repo's actual mixed case ("Carlos05-code/AI-Operation-copilot-for-SMBs"), which
+      # `docker build -t`/`push` reject outright. No `lower()` exists in GitHub Actions
+      # expression syntax, so this is computed once here instead.
+      - name: Compute image base (lowercase; GHCR requires it)
+        run: echo "IMAGE_BASE=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
 

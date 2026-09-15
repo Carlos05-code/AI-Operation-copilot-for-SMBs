@@ -1,0 +1,81 @@
+# Security plugin disabled to match docker-compose (this app talks to
+# OpenSearch in-cluster only, never exposed externally — see api-ingress.yaml,
+# which only fronts the API). Re-enable it before this leaves the cluster's
+# internal network in any real production posture.
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch
+  namespace: smb-copilot
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: opensearch
+  ports:
+    - name: http
+      port: 9200
+    - name: transport
+      port: 9600
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: opensearch
+  namespace: smb-copilot
+spec:
+  serviceName: opensearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opensearch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opensearch
+    spec:
+      containers:
+        - name: opensearch
+          image: opensearchproject/opensearch:2.11.0
+          ports:
+            - name: http
+              containerPort: 9200
+            - name: transport
+              containerPort: 9600
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: plugins.security.disabled
+              value: 'true'
+            - name: DISABLE_SECURITY_PLUGIN
+              value: 'true'
+            - name: bootstrap.memory_lock
+              value: 'false'
+            - name: OPENSEARCH_INITIAL_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: OPENSEARCH_PASSWORD
+          volumeMounts:
+            - name: data
+              mountPath: /usr/share/opensearch/data
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: '1'
+              memory: 2Gi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi

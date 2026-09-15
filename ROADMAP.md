@@ -95,7 +95,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 **Goal**: production posture at scale.
 
-- [ ] Kubernetes deployment with Horizontal Pod Autoscaling (HPA)
+- [~] Kubernetes deployment with Horizontal Pod Autoscaling (HPA) — Kustomize base +
+  staging/production overlays, HPA on CPU/memory. Gaps: no separate worker Deployment (BullMQ still
+  runs in-process on the API bootstrap), and the in-cluster StatefulSets are staging-only, not a
+  production-grade posture (see overlays/production/README.md)
 - [~] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓ — Loki log shipping pending)
 - [ ] Load and resilience testing (k6)
 - [ ] Backup and disaster-recovery runbooks
