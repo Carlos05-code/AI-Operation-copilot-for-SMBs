@@ -108,7 +108,10 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   (`infrastructure/devops/incident.md`). Gaps: no PostgreSQL WAL archiving/PITR, OpenSearch
   snapshots aren't off-cluster, Neo4j's export path is unverified against a live cluster, and no
   restore has been drilled end-to-end
-- [ ] Large-document-volume benchmarks (200 k+ documents)
+- [~] Large-document-volume benchmarks (200 k+ documents) — corpus generator + bulk-ingest harness +
+  report tooling shipped (`tests/benchmarks/large-corpus/`), verified end-to-end against a mock
+  server; no live cluster available to actually run the 200k benchmark and record real numbers, so
+  the README's capacity table is a computed estimate and its results template is still blank
 - [ ] Multi-region readiness documented in an ADR
 
 **Version: 1.0.0**

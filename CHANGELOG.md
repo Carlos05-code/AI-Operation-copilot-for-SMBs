@@ -640,6 +640,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - All four backup shell scripts (`backup-scripts-configmap.yaml`) syntax-checked with `sh -n`; all
     new/changed Kubernetes manifests verified with a real `kustomize build` against the base and
     both overlays, not just YAML syntax.
+- Large-document-volume benchmark tooling (ROADMAP Phase 5):
+  - `tests/benchmarks/large-corpus/`: `generate-corpus.mjs` (a deterministic, seeded synthetic
+    document generator — recombines a small bank of real-sounding business-document sentence
+    templates rather than repeating one paragraph, since a corpus that collapses to near-identical
+    vectors would say nothing about retrieval at scale), `ingest-corpus.mjs` (bulk-ingests a
+    directory through the real API pipeline — presign, PUT to MinIO, register, ingest — with bounded
+    concurrency and per-document latency logging), `report.mjs` (throughput/percentile summary from
+    an ingest run's log). Plain Node ESM (`.mjs`), not k6 — bulk-loading hundreds of thousands of
+    local files needs real filesystem streaming, which doesn't fit k6's init-context-only file
+    access; `tests/load/` remains the right tool for concurrent-user query load, this is the
+    orthogonal axis (fixed concurrency, varying corpus/index size).
+  - Verified end-to-end (real login/presign/PUT/register/ingest HTTP calls) against a local mock
+    server — no live backend+Keycloak available to actually run the 200k-document benchmark this
+    ships the tooling for.
+  - `README.md`: a capacity-estimate table computed from this app's own chunking constants
+    (`embeddings.constants.ts` — 384-token chunks, 64-token overlap, 1024-dim vectors) rather than
+    guessed round numbers, a results template left blank pending a real run, and an explicit "Known
+    limitations" section (small fixed vocabulary, ingest throughput ≠ embedding-completion
+    throughput, Neo4j's row deliberately left unestimated rather than guessed).
 
 ### Changed
 

@@ -24,6 +24,9 @@ flutter_export_environment.sh
 /coverage-reports/
 .nyc_output/
 /tests/load/results/*.json
+/tests/benchmarks/large-corpus/results/*
+!/tests/benchmarks/large-corpus/results/.gitkeep
+/tests/benchmarks/large-corpus/corpus/
 
 # Logs
 *.log
