@@ -1,0 +1,98 @@
+# Nightly `pg_dump` to object storage (DEVOPS_SPEC §9: "nightly full dumps", RPO<=5m/RTO<=30m —
+# the 5m RPO half of that budget is WAL archiving/PITR, a documented gap; see
+# infrastructure/devops/incident.md).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: smb-copilot
+spec:
+  schedule: '0 2 * * *' # 02:00 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        # `postgres:16-alpine` runs as root by default (verified against its published image
+        # config — same reason ../infrastructure/postgres.yaml's own container isn't
+        # `runAsNonRoot` either); `pg_dump` doesn't need root here, but the image was never
+        # built to run any other way.
+        # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+        spec:
+          restartPolicy: Never
+          # `mc` isn't in postgres:16-alpine — copied in from the real `mc` image rather than
+          # curled at runtime (no extra network dependency inside the backup job itself).
+          initContainers:
+            - name: fetch-mc
+              image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+              command: ['sh', '-c', 'cp /usr/bin/mc /shared/mc']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+          containers:
+            - name: backup
+              image: postgres:16-alpine
+              command: ['sh', '/scripts/postgres-backup.sh']
+              env:
+                - name: PATH
+                  value: /shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+                - name: POSTGRES_USER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: POSTGRES_USER
+                - name: POSTGRES_DB
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: POSTGRES_DB
+                - name: STORAGE_ENDPOINT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_ENDPOINT
+                - name: STORAGE_BACKUP_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_BACKUP_BUCKET
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: POSTGRES_PASSWORD
+                - name: STORAGE_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_ACCESS_KEY
+                - name: STORAGE_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_SECRET_KEY
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ['ALL']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: shared-bin
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0o555

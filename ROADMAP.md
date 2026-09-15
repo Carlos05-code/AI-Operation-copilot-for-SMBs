@@ -103,7 +103,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [~] Load and resilience testing (k6) — smoke/soak/spike scripts shipped (`tests/load/`), real
   Keycloak auth, SLO-matching thresholds; not yet wired into CI (no existing workflow boots the full
   stack to run against, see `tests/load/README.md`)
-- [ ] Backup and disaster-recovery runbooks
+- [~] Backup and disaster-recovery runbooks — nightly CronJobs for 5 of 6 stateful services
+  (`infrastructure/kubernetes/base/backup/`) + restore runbook
+  (`infrastructure/devops/incident.md`). Gaps: no PostgreSQL WAL archiving/PITR, OpenSearch
+  snapshots aren't off-cluster, Neo4j's export path is unverified against a live cluster, and no
+  restore has been drilled end-to-end
 - [ ] Large-document-volume benchmarks (200 k+ documents)
 - [ ] Multi-region readiness documented in an ADR
 

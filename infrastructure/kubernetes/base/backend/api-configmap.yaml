@@ -30,6 +30,9 @@ data:
 
   STORAGE_ENDPOINT: 'http://minio:9000'
   STORAGE_BUCKET: 'smb-copilot'
+  # Backup destination (../backup/*-cronjob.yaml) — a separate bucket from the app's own
+  # STORAGE_BUCKET so a bug in application object-storage code can never touch backups.
+  STORAGE_BACKUP_BUCKET: 'smb-copilot-backups'
   STORAGE_REGION: 'us-east-1'
 
   KEYCLOAK_URL: 'http://keycloak:8080'

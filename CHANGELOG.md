@@ -603,6 +603,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     (`db-migrate-check.yml`); shipping an unverified multi-service boot sequence risked a CI job
     that's flaky or silently wrong with no way to catch it before merging. `tests/load/README.md`
     documents running every scenario manually against a real target instead.
+- Backup and disaster-recovery runbooks (ROADMAP Phase 5, DEVOPS_SPEC §9):
+  - `infrastructure/kubernetes/base/backup/`: nightly CronJobs for PostgreSQL (`pg_dump -Fc`, 02:00
+    UTC), Neo4j (APOC streaming export via `cypher-shell`, 02:15 UTC), Qdrant (per-collection
+    snapshot via its HTTP API, enumerating collections dynamically since they're per-org, 02:30
+    UTC), and OpenSearch (snapshot via its `_snapshot` API, 02:45 UTC) — all uploading to a
+    dedicated `smb-copilot-backups` MinIO bucket (kept separate from the app's own bucket so a bug
+    in application storage code can never touch backups) via a real `mc` binary copied in from
+    `quay.io/minio/mc` (Docker Hub's `minio/mc` no longer exists either — same move to Quay as
+    `minio/minio`, found while wiring this up). A one-time `minio-versioning-job.yaml` enables
+    bucket versioning on both buckets.
+  - `infrastructure/devops/incident.md`: the DR runbook `DEVOPS_SPEC` §9 and `docs/devops/oncall.md`
+    already referenced but didn't have — restore procedures for all six stateful services, an
+    RTO/RPO table, and scenario playbooks (full cluster loss, single-service corruption, a bad
+    migration, region loss). Its "Known gaps" section is load-bearing, not boilerplate: no restore
+    procedure here has been drilled end-to-end against a live cluster.
+  - `infrastructure/kubernetes/base/infrastructure/neo4j.yaml`: `NEO4J_PLUGINS=["apoc"]` +
+    `dbms.security.procedures.unrestricted=apoc.*` — APOC ships via this official env var (no custom
+    image), needed for the backup CronJob's streaming export (Community Edition has no online
+    `neo4j-admin backup`).
+  - `infrastructure/kubernetes/base/infrastructure/redis.yaml`: added `--save` RDB snapshot
+    intervals alongside the AOF that was already there (DEVOPS_SPEC §9: "AOF + scheduled RDB").
+  - `infrastructure/kubernetes/base/infrastructure/opensearch.yaml`: a second PVC + `path.repo` for
+    an `fs`-type snapshot repository — no `repository-s3` plugin installed, so these snapshots
+    protect against index corruption/accidental delete, not against losing that PVC (documented as a
+    gap in both `DEVOPS_SPEC.md` §9 and the runbook, not silently shipped as if it were complete).
+  - Three real bugs the security scanner and the review of each image's actual default user caught,
+    same discipline as the earlier Kubernetes PR: the postgres/neo4j/qdrant/opensearch backup jobs
+    initially claimed `runAsNonRoot: true` copy-pasted from `api-deployment.yaml` without
+    re-checking that `postgres:16-alpine`/`neo4j:5-community`/`alpine:3.24.1` all run as root by
+    default (the same images this repo's own `infrastructure/` StatefulSets already document as
+    root-required) — fixed with the same `# nosemgrep` + verified-image-config comment pattern; and
+    the qdrant/opensearch jobs' `capabilities: drop: [ALL]` would have broken `apk add` (needs
+    `CAP_CHOWN`/`CAP_DAC_OVERRIDE`), so that line was dropped for those two containers only, with a
+    comment explaining why.
+  - All four backup shell scripts (`backup-scripts-configmap.yaml`) syntax-checked with `sh -n`; all
+    new/changed Kubernetes manifests verified with a real `kustomize build` against the base and
+    both overlays, not just YAML syntax.
 
 ### Changed
 

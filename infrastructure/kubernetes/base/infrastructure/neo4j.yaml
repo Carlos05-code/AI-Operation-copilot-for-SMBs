@@ -50,6 +50,18 @@ spec:
               value: 512m
             - name: NEO4J_server_memory_heap_max__size
               value: 1g
+            # APOC ships in the official image via this env var (downloaded on first boot,
+            # no custom image needed) — required for the streaming export the backup
+            # CronJob uses (../backup/neo4j-backup-cronjob.yaml): Community Edition has no
+            # online `neo4j-admin backup`, only an offline dump that needs the database
+            # stopped, so `apoc.export.cypher.all(..., {stream: true})` returning the dump
+            # over Bolt to an external job — instead of writing it server-side, which the
+            # backup job's pod could never read back out of this StatefulSet's own PVC —
+            # is the only hot-backup path Community Edition has.
+            - name: NEO4J_PLUGINS
+              value: '["apoc"]'
+            - name: NEO4J_dbms_security_procedures_unrestricted
+              value: apoc.*
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

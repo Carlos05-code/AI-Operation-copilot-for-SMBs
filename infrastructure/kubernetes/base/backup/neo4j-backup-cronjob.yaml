@@ -1,0 +1,85 @@
+# Nightly Neo4j export via APOC streaming (DEVOPS_SPEC §9: "dump backups (per graph)",
+# RPO 1h/RTO 2h) — see backup-scripts-configmap.yaml's neo4j-backup.sh header for why this,
+# not `neo4j-admin backup`, is the Community Edition path, and its verification caveat.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: neo4j-backup
+  namespace: smb-copilot
+spec:
+  schedule: '15 2 * * *' # 02:15 UTC daily -- staggered after the postgres dump
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        # `neo4j:5-community` runs as root by default (verified against its published image
+        # config — same reason ../infrastructure/neo4j.yaml's own container isn't
+        # `runAsNonRoot` either).
+        # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: fetch-mc
+              image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+              command: ['sh', '-c', 'cp /usr/bin/mc /shared/mc']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+          containers:
+            - name: backup
+              image: neo4j:5-community
+              command: ['sh', '/scripts/neo4j-backup.sh']
+              env:
+                - name: PATH
+                  value: /shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+                - name: STORAGE_ENDPOINT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_ENDPOINT
+                - name: STORAGE_BACKUP_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_BACKUP_BUCKET
+                - name: NEO4J_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: NEO4J_PASSWORD
+                - name: STORAGE_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_ACCESS_KEY
+                - name: STORAGE_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_SECRET_KEY
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ['ALL']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: shared-bin
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0o555

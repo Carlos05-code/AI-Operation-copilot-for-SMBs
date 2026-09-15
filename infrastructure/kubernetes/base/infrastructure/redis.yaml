@@ -33,7 +33,24 @@ spec:
       containers:
         - name: redis
           image: redis:7-alpine
-          args: ['redis-server', '--appendonly', 'yes']
+          # AOF (`--appendonly`) is the continuous RPO~seconds mechanism; `--save` adds
+          # RDB point-in-time snapshots on top (DEVOPS_SPEC §9: "AOF + scheduled RDB") —
+          # cheap to restore from since it's one file, unlike replaying an AOF log.
+          args:
+            [
+              'redis-server',
+              '--appendonly',
+              'yes',
+              '--save',
+              '900',
+              '1',
+              '--save',
+              '300',
+              '10',
+              '--save',
+              '60',
+              '10000',
+            ]
           ports:
             - name: redis
               containerPort: 6379
