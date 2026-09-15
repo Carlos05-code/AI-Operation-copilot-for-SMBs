@@ -54,6 +54,7 @@
     "nodemailer": "^10.0.0",
     "pdf-parse": "^1.1.1",
     "pino": "^9.5.0",
+    "pino-loki": "^3.0.0",
     "prisma": "6.19.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

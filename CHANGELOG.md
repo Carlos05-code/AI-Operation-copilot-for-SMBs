@@ -675,6 +675,33 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     replication, RabbitMQ federation/shovel, Redis replica sets) has a real native OSS path; Neo4j
     doesn't, short of an Enterprise/Aura licensing decision this ADR explicitly defers rather than
     makes on the repo's behalf.
+- Loki log shipping (ROADMAP Phase 5, DEVOPS_SPEC §8) — closes the one gap the OpenTelemetry work
+  left open:
+  - `pino-logger.service.ts`: a second `pino` transport (`pino-loki`), on once `LOKI_URL` names a
+    real instance (`loki.config.ts`, same on-by-config pattern `otel.config.ts` uses for tracing).
+    Pushed directly from the app over HTTP rather than a container-log-tailing agent (Promtail,
+    Grafana Alloy) — deliberately, since the API runs on the _host_ in local dev, not in this
+    compose file, so a log-tailing agent watching containers would never see it; a push-based
+    transport works identically whether the process is on a host or in a container.
+    `requestId`/`traceId` stay in the log line body, never a Loki label — a per-request-unique value
+    becoming an index label is exactly the high-cardinality mistake Loki's docs warn against.
+    Immediate send (`batching: false`), not the client's 5s-batch default — a batch still buffered
+    in memory on an ungraceful shutdown is exactly the last few seconds of logs an incident
+    investigation needs most. `silenceErrors: true` — a Loki outage must never take the API down
+    with it, the same fail-soft convention every other optional dependency in this app follows.
+  - `infrastructure/monitoring/loki/loki-config.yaml` + a `loki` service in `docker-compose.yml`'s
+    `monitoring` profile, port 3100 published to the host for exactly the push-from-host reason
+    above. Grafana's Loki datasource carries a `derivedFields` entry matching `"traceId":"..."` in a
+    log line and linking straight to that trace in Tempo — click a log line, land on its trace. The
+    `api-overview.json` dashboard gained a fifth panel: recent logs, filtered to the API's own.
+  - Verified with a real loopback HTTP server standing in for Loki (`create-pino-logger.spec.ts`) —
+    asserts an actual POST to `/loki/api/v1/push` arrives carrying the log message, not just that
+    constructing the logger doesn't throw. The same "verify against something real" approach
+    `telemetry.spec.ts` used for the Prometheus exporter.
+  - Documented gap, not faked: only the API's own logs ship this way. The other containerized
+    dependencies (Postgres, Redis, RabbitMQ, Neo4j, Qdrant, OpenSearch, MinIO, Keycloak, and the
+    observability stack's own containers) have no log-shipping path at all — a Promtail/Alloy job on
+    Docker's container discovery would cover those, and is real, separate, not-yet-scoped work.
 
 ### Changed
 
