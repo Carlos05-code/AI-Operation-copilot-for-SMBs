@@ -105,6 +105,18 @@ Pr release: all check workflows must be green; PR must pass `Definition of Done`
 
 ## 9. Backup & recovery
 
+> Status: shipped for 5 of 6 resources — nightly CronJobs (`infrastructure/kubernetes/base/backup/`)
+> for PostgreSQL (`pg_dump`), Neo4j (APOC streaming export — unverified against a live cluster, see
+> `infrastructure/devops/incident.md`'s "Known gaps"), Qdrant (per-collection snapshot), OpenSearch
+> (snapshot, in-cluster only — no S3 repository plugin), and MinIO (bucket versioning, a one-time
+> Job). Redis relies on AOF + scheduled RDB already configured on its StatefulSet — no separate
+> off-box backup job, since it holds no data this app treats as a system of record. The restore
+> procedures and scenario playbooks the table below promises now exist at
+> `infrastructure/devops/incident.md` — not run end-to-end against a live cluster, so read its
+> "Known gaps" section before trusting any of this in a real incident. The biggest real gap: no WAL
+> archiving/PITR, so PostgreSQL's actual RPO today is "since the last nightly dump," not the 5
+> minutes below.
+
 | Resource   | Strategy                                | RTO/RPO               |
 | ---------- | --------------------------------------- | --------------------- |
 | PostgreSQL | WAL archiving, PITR; nightly full dumps | RPO <= 5m, RTO <= 30m |

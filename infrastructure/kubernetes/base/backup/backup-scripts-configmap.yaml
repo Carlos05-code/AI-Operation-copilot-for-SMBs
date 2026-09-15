@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-scripts
+  namespace: smb-copilot
+data:
+  postgres-backup.sh: |
+    #!/bin/sh
+    set -eu
+    mc alias set backupstore "$STORAGE_ENDPOINT" "$STORAGE_ACCESS_KEY" "$STORAGE_SECRET_KEY"
+    mc mb --ignore-existing "backupstore/$STORAGE_BACKUP_BUCKET"
+
+    STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+    DUMP="/tmp/postgres-${STAMP}.dump"
+    PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -Fc -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$DUMP"
+    mc cp "$DUMP" "backupstore/$STORAGE_BACKUP_BUCKET/postgres/postgres-${STAMP}.dump"
+    rm -f "$DUMP"
+
+    # DEVOPS_SPEC §9 doesn't pin a retention window for the nightly dump; 30 days is a
+    # reasonable default given the cadence — override via the BACKUP_RETENTION env var.
+    mc rm --recursive --force --older-than "${BACKUP_RETENTION:-30d}" "backupstore/$STORAGE_BACKUP_BUCKET/postgres/" || true
+
+    echo "postgres backup complete: postgres-${STAMP}.dump"
+
+  neo4j-backup.sh: |
+    #!/bin/sh
+    set -eu
+    # Neo4j Community Edition has no online `neo4j-admin backup` (Enterprise-only) — only an
+    # offline `neo4j-admin database dump`, which needs the database stopped. `stream: true`
+    # makes apoc.export.cypher.all return the export over the Bolt connection to THIS job
+    # instead of writing it inside the neo4j pod's own filesystem/PVC, which this job (a
+    # different pod) could never read back out of.
+    #
+    # NOT verified against a live cluster (no cluster available in the environment this was
+    # written in) — verified against APOC's documented `stream`/YIELD contract, not exercised
+    # end-to-end. If this job ever produces an empty or malformed dump, first check
+    # `CALL apoc.help('export.cypher.all')` on the running Neo4j version for the exact YIELD
+    # columns and `--format plain`'s exact header/row shape before assuming the data is gone.
+    STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+    DUMP="/tmp/neo4j-${STAMP}.cypher"
+    cypher-shell -a bolt://neo4j:7687 -u neo4j -p "$NEO4J_PASSWORD" --format plain \
+      "CALL apoc.export.cypher.all(null, {stream: true, format: 'cypher-shell'}) YIELD cypherStatements RETURN cypherStatements;" \
+      | tail -n +2 >"$DUMP"
+
+    mc alias set backupstore "$STORAGE_ENDPOINT" "$STORAGE_ACCESS_KEY" "$STORAGE_SECRET_KEY"
+    mc mb --ignore-existing "backupstore/$STORAGE_BACKUP_BUCKET"
+    mc cp "$DUMP" "backupstore/$STORAGE_BACKUP_BUCKET/neo4j/neo4j-${STAMP}.cypher"
+    rm -f "$DUMP"
+
+    mc rm --recursive --force --older-than "${BACKUP_RETENTION:-30d}" "backupstore/$STORAGE_BACKUP_BUCKET/neo4j/" || true
+
+    echo "neo4j backup complete: neo4j-${STAMP}.cypher"
+
+  qdrant-backup.sh: |
+    #!/bin/sh
+    set -eu
+    mc alias set backupstore "$STORAGE_ENDPOINT" "$STORAGE_ACCESS_KEY" "$STORAGE_SECRET_KEY"
+    mc mb --ignore-existing "backupstore/$STORAGE_BACKUP_BUCKET"
+
+    # Collections are per-org (`doc_chunks_{org}`, `conversation_{org}`) and created
+    # dynamically — enumerate what actually exists rather than a fixed list.
+    COLLECTIONS=$(curl -sf http://qdrant:6333/collections | jq -r '.result.collections[].name')
+    for COLLECTION in $COLLECTIONS; do
+      echo "snapshotting collection: $COLLECTION"
+      SNAPSHOT_NAME=$(curl -sf -X POST "http://qdrant:6333/collections/${COLLECTION}/snapshots" | jq -r '.result.name')
+      curl -sf "http://qdrant:6333/collections/${COLLECTION}/snapshots/${SNAPSHOT_NAME}" -o "/tmp/${SNAPSHOT_NAME}"
+      mc cp "/tmp/${SNAPSHOT_NAME}" "backupstore/$STORAGE_BACKUP_BUCKET/qdrant/${COLLECTION}/${SNAPSHOT_NAME}"
+      rm -f "/tmp/${SNAPSHOT_NAME}"
+      # Now that it's durably in object storage, don't let it also grow qdrant's own PVC.
+      curl -sf -X DELETE "http://qdrant:6333/collections/${COLLECTION}/snapshots/${SNAPSHOT_NAME}" >/dev/null
+    done
+
+    mc rm --recursive --force --older-than "${BACKUP_RETENTION:-30d}" "backupstore/$STORAGE_BACKUP_BUCKET/qdrant/" || true
+
+    echo "qdrant backup complete"
+
+  opensearch-backup.sh: |
+    #!/bin/sh
+    set -eu
+    # `fs`-type repository (no `repository-s3` plugin installed) means this snapshot lands on
+    # `opensearch`'s own second PVC (`path.repo`, ../infrastructure/opensearch.yaml) — real
+    # protection against index corruption or an accidental delete, NOT against losing that
+    # PVC/node. Getting these off-cluster into object storage needs the S3 repository plugin
+    # (+ keystore credentials) registered instead — deferred, not implemented here.
+    STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+
+    curl -sf -X PUT http://opensearch:9200/_snapshot/fs_backup \
+      -H 'Content-Type: application/json' \
+      -d '{"type":"fs","settings":{"location":"/usr/share/opensearch/snapshots"}}' >/dev/null
+
+    curl -sf -X PUT "http://opensearch:9200/_snapshot/fs_backup/snapshot-${STAMP}?wait_for_completion=true" \
+      -H 'Content-Type: application/json' \
+      -d '{"indices":"*","include_global_state":true}'
+
+    # fs repos have no built-in TTL — keep only the newest N snapshots.
+    curl -sf http://opensearch:9200/_snapshot/fs_backup/_all \
+      | jq -r '.snapshots | sort_by(.start_time_in_millis) | .[:-'"${BACKUP_KEEP:-14}"'] | .[].snapshot' \
+      | while read -r OLD; do
+          [ -n "$OLD" ] && curl -sf -X DELETE "http://opensearch:9200/_snapshot/fs_backup/${OLD}" >/dev/null
+        done
+
+    echo "opensearch backup complete: snapshot-${STAMP}"

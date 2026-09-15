@@ -1,0 +1,86 @@
+# Nightly per-collection Qdrant snapshot to object storage (DEVOPS_SPEC §9: "snapshot per
+# collection to object store", RPO 1h/RTO 2h).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: qdrant-backup
+  namespace: smb-copilot
+spec:
+  schedule: '30 2 * * *' # 02:30 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        # `alpine:3.24.1` runs as root by default (verified against its published image
+        # config) — needed here anyway, since `apk add` (installing curl/jq below) requires
+        # root.
+        # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+        spec:
+          restartPolicy: Never
+          initContainers:
+            - name: fetch-mc
+              image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+              command: ['sh', '-c', 'cp /usr/bin/mc /shared/mc']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+          containers:
+            - name: backup
+              image: alpine:3.24.1
+              command:
+                [
+                  'sh',
+                  '-c',
+                  'apk add --no-cache curl jq >/dev/null && sh /scripts/qdrant-backup.sh',
+                ]
+              env:
+                - name: PATH
+                  value: /shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+                - name: STORAGE_ENDPOINT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_ENDPOINT
+                - name: STORAGE_BACKUP_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_BACKUP_BUCKET
+                - name: STORAGE_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_ACCESS_KEY
+                - name: STORAGE_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_SECRET_KEY
+              # No `capabilities.drop: [ALL]` here (unlike the other backup jobs) — `apk add`
+              # installing curl/jq at container start needs root's normal file-ownership
+              # capabilities (CAP_CHOWN/CAP_DAC_OVERRIDE), which dropping ALL would remove even
+              # though the container still runs as uid 0.
+              securityContext:
+                allowPrivilegeEscalation: false
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 1Gi
+          volumes:
+            - name: shared-bin
+              emptyDir: {}
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0o555

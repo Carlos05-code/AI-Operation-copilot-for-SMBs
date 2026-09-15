@@ -1,0 +1,53 @@
+# Nightly OpenSearch snapshot (DEVOPS_SPEC §9: "snapshot repository", RPO 1h/RTO 2h) — see
+# backup-scripts-configmap.yaml's opensearch-backup.sh header for the `fs`-vs-`s3`-repository
+# tradeoff this makes (in-cluster only, not off-cluster durable).
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: opensearch-backup
+  namespace: smb-copilot
+spec:
+  schedule: '45 2 * * *' # 02:45 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        # `alpine:3.24.1` runs as root by default (verified against its published image
+        # config) — needed here anyway, since `apk add` (installing curl/jq below) requires
+        # root.
+        # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: alpine:3.24.1
+              command:
+                [
+                  'sh',
+                  '-c',
+                  'apk add --no-cache curl jq >/dev/null && sh /scripts/opensearch-backup.sh',
+                ]
+              env:
+                - name: BACKUP_KEEP
+                  value: '14'
+              # No `capabilities.drop: [ALL]` — see qdrant-backup-cronjob.yaml's identical note.
+              securityContext:
+                allowPrivilegeEscalation: false
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+          volumes:
+            - name: scripts
+              configMap:
+                name: backup-scripts
+                defaultMode: 0o555

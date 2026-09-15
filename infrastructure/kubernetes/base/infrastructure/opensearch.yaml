@@ -64,9 +64,16 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: OPENSEARCH_PASSWORD
+            # `fs`-type snapshot repository target for ../backup/opensearch-backup-cronjob.yaml —
+            # no plugin needed, unlike an S3 repository (`repository-s3`, not installed here; see
+            # that CronJob's header comment for the tradeoff this makes).
+            - name: path.repo
+              value: /usr/share/opensearch/snapshots
           volumeMounts:
             - name: data
               mountPath: /usr/share/opensearch/data
+            - name: snapshots
+              mountPath: /usr/share/opensearch/snapshots
           readinessProbe:
             httpGet:
               path: /_cluster/health
@@ -83,6 +90,13 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 10Gi
+    - metadata:
+        name: snapshots
       spec:
         accessModes: ['ReadWriteOnce']
         resources:
