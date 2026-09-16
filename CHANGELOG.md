@@ -730,6 +730,45 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     HTTP-only/worker-only module restructuring would be. That's materially larger,
     BACKEND_SPEC-level work, named explicitly in `main-worker.ts`'s own header comment rather than
     silently presented as done.
+- OpenSearch S3 snapshot repository (ROADMAP Phase 5, DEVOPS_SPEC §9) — closes the "snapshots aren't
+  off-cluster" gap: OpenSearch's nightly snapshot previously landed on its own in-cluster PVC (an
+  `fs`-type repository), which protects against index corruption but not against losing that PVC or
+  node:
+  - `infrastructure/kubernetes/base/infrastructure/opensearch.yaml`: a new `fetch-s3-plugin`
+    initContainer runs `opensearch-plugin install --batch repository-s3` against the exact same
+    `opensearchproject/opensearch:2.11.0` image the main container uses (plugin binaries are
+    version-pinned to the distribution) and copies the installed plugin directory into a shared
+    `emptyDir`. A second `build-opensearch-keystore` initContainer creates an OpenSearch keystore
+    and seeds it with `s3.client.default.access_key`/`secret_key` — the S3 plugin reads credentials
+    from OpenSearch's own encrypted keystore file, not plain env vars or `opensearch.yml`, per
+    OpenSearch's own docs — and copies just that one file into a second shared `emptyDir`, mounted
+    into the main container via `subPath` rather than replacing its whole `config/` directory. The
+    main container gained the matching `s3.client.default.*` settings (`endpoint: minio:9000`,
+    `protocol: http`, `path_style_access: true`, `region`) and `AWS_EC2_METADATA_DISABLED=true`
+    (recommended for any non-AWS S3 endpoint). The old `path.repo` setting and the now-unnecessary
+    `snapshots` PVC (`volumeClaimTemplates`) were removed.
+  - `infrastructure/kubernetes/base/backup/opensearch-backup-cronjob.yaml` +
+    `backup-scripts-configmap.yaml`'s `opensearch-backup.sh`: the CronJob gained the same
+    `fetch-mc`-initContainer pattern `postgres-backup-cronjob.yaml` already uses, and the script now
+    registers an `s3_backup` repository (bucket = `STORAGE_BACKUP_BUCKET`, same
+    `smb-copilot-backups` bucket every other backup job writes to) instead of the old `fs_backup`
+    one, with `mc mb --ignore-existing` as a self-healing guard against the bucket not existing yet
+    (the S3 plugin won't create it).
+  - `infrastructure/devops/incident.md`: OpenSearch's RTO/RPO footnote and restore procedure now
+    reference the `s3_backup` repository instead of `fs_backup`.
+  - Verified for real, not faked: downloaded the actual `repository-s3-2.11.0.zip` from
+    `artifacts.opensearch.org` and confirmed its sha512 matches the published checksum before wiring
+    this up; `kustomize build` against base + both overlays all succeed; every
+    `s3.client.default.*`/keystore setting and command matches OpenSearch's own snapshot-restore
+    docs, fetched directly rather than assumed; both new initContainer shell scripts and the
+    rewritten `opensearch-backup.sh` (including its JSON repository-registration body) were
+    syntax-checked, and the JSON body's shell substitution was tested to confirm it produces valid
+    JSON.
+  - Documented, not faked: no Docker or live Kubernetes cluster was available while building this,
+    so installing the plugin, loading the keystore, registering the repository, taking a snapshot,
+    and restoring it has never run end-to-end. `incident.md`'s "Known gaps" section says so
+    explicitly and names the concrete next step: do exactly that once, against a disposable cluster,
+    before relying on it in a real incident.
 
 ### Changed
 
