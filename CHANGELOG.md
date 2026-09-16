@@ -759,6 +759,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and request-id propagation (including the `"unknown"` fallback for a request that fails to parse
   before the request-id middleware ever runs — confirmed live to be the _only_ case that falls back,
   not a second bug). Re-verified live against a real running instance.
+- `openapi-document.ts`: the OpenAPI document's top-level `servers` and `tags` arrays were both
+  empty — `DocumentBuilder` never called `.addServer(...)` or `.addTag(...)`, despite API_SPEC §10
+  documenting the convention as "server URL, global BearerAuth, tags matching module names."
+  `BearerAuth` was there; the other two weren't. Every controller already carries a real
+  `@ApiTags(...)` matching its module name, so operation-level tags were never missing — Swagger UI
+  would still group correctly, just without top-level descriptions. Found while continuing the
+  live-testing pass: curled `/api/v1/openapi.json` and noticed both arrays were empty. Added a
+  server URL (from `APP_URL`, matching every other env-driven optional-config convention in this
+  app) and a description for each of the 20 real tags in use, sourced from each controller's own doc
+  comment rather than newly invented copy. The existing e2e test only asserted
+  `res.body.openapi === '3.1.0'`; extended it to assert `servers` is non-empty and that every tag an
+  operation actually uses has a matching top-level declaration — the exact assertion that would have
+  caught this the first time.
 
 ## [0.1.0] - 2026-08-02
 
