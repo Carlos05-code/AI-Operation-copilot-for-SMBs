@@ -15,12 +15,29 @@ describe('HealthService', () => {
     }
   });
 
-  it('reports ok with all dependencies configured when no DATABASE_URL is set', async () => {
+  it('reports ok with unset dependencies as not_configured (not a degradation)', async () => {
     delete process.env.DATABASE_URL;
     const service = new HealthService(undefined);
     const report = await service.report();
     expect(report.status).toBe('ok');
-    expect(report.dependencies).toContainEqual({ name: 'postgres', status: 'configured' });
+    expect(report.dependencies).toContainEqual({ name: 'postgres', status: 'not_configured' });
+    expect(report.dependencies).toContainEqual({ name: 'redis', status: 'not_configured' });
+  });
+
+  it('reports configured (not not_configured) once a dependency env var is set', async () => {
+    const originalRedisUrl = process.env.REDIS_URL;
+    process.env.REDIS_URL = 'redis://localhost:6379';
+    try {
+      const service = new HealthService(undefined);
+      const report = await service.report();
+      expect(report.dependencies).toContainEqual({ name: 'redis', status: 'configured' });
+    } finally {
+      if (originalRedisUrl === undefined) {
+        delete process.env.REDIS_URL;
+      } else {
+        process.env.REDIS_URL = originalRedisUrl;
+      }
+    }
   });
 
   it('probes postgres when DATABASE_URL is set and reachable', async () => {

@@ -736,6 +736,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Design system promoted from Draft to Ratified (`docs/specifications/DESIGN_SYSTEM.md`)
 - Design tokens are now AA-verified and enforced by a CI contrast gate
 
+### Fixed
+
+- `health.service.ts`: `GET /api/v1/health` reported every dependency but Postgres as `configured`
+  unconditionally — each ternary checked `hasUrl(...)` but returned the same literal string
+  (`'configured'`) on both branches, so the check never actually influenced the result. Found by
+  booting the compiled API with zero env vars set and noticing all 8 read `configured` regardless.
+  Added a real `not_configured` status (a normal, expected state for an optional dependency — not a
+  degradation) and fixed every ternary, including Postgres's own default (previously hardcoded to
+  `'configured'` before its real probe result could override it). The existing test only asserted on
+  Postgres, which is why this went uncaught; added coverage for the `configured`/`not_configured`
+  distinction on another dependency (`redis`), and re-verified live against a real running instance
+  both with and without `REDIS_URL` set.
+
 ## [0.1.0] - 2026-08-02
 
 ### Added
