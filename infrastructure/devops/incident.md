@@ -11,26 +11,30 @@ operation on whatever it overwrites.
 
 ## RTO/RPO targets (DEVOPS_SPEC §9)
 
-| Resource   | Backup mechanism                                                 | RPO                 | RTO       |
-| ---------- | ---------------------------------------------------------------- | ------------------- | --------- |
-| PostgreSQL | Nightly `pg_dump` (02:00 UTC)                                    | <= 24h¹             | <= 30 min |
-| Neo4j      | Nightly APOC streaming export (02:15 UTC)                        | <= 24h              | <= 2h     |
-| Qdrant     | Nightly per-collection snapshot (02:30 UTC)                      | <= 24h              | <= 2h     |
-| OpenSearch | Nightly `fs`-repository snapshot (02:45 UTC)                     | <= 24h²             | <= 2h     |
-| MinIO      | Continuous (bucket versioning)                                   | ~0 (object history) | minutes   |
-| Redis      | Continuous (AOF) + RDB snapshots every 60s-15m depending on load | <= 60s              | minutes   |
+| Resource   | Backup mechanism                                                                       | RPO                 | RTO       |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------- | --------- |
+| PostgreSQL | Continuous WAL archiving (`wal-g`) + daily base backup + nightly `pg_dump` (02:00 UTC) | <= 5m¹              | <= 30 min |
+| Neo4j      | Nightly APOC streaming export (02:15 UTC)                                              | <= 24h              | <= 2h     |
+| Qdrant     | Nightly per-collection snapshot (02:30 UTC)                                            | <= 24h              | <= 2h     |
+| OpenSearch | Nightly `fs`-repository snapshot (02:45 UTC)                                           | <= 24h²             | <= 2h     |
+| MinIO      | Continuous (bucket versioning)                                                         | ~0 (object history) | minutes   |
+| Redis      | Continuous (AOF) + RDB snapshots every 60s-15m depending on load                       | <= 60s              | minutes   |
 
-¹ DEVOPS_SPEC §9 targets RPO<=5m via WAL archiving/PITR — **not implemented**; see "Known gaps"
-below. Today's real RPO is however old the last nightly dump is. ² Snapshots land on OpenSearch's
-own second PVC (`fs` repository, no S3 plugin installed) — this protects against index corruption or
-an accidental delete, not against losing that PVC/node. See "Known gaps".
+¹ Every completed WAL segment ships continuously via `archive_command` — DEVOPS_SPEC §9's RPO<=5m
+target is what that mechanism should deliver, **not yet exercised against a live cluster**; see
+"Known gaps" below before trusting it in a real incident. ² Snapshots land on OpenSearch's own
+second PVC (`fs` repository, no S3 plugin installed) — this protects against index corruption or an
+accidental delete, not against losing that PVC/node. See "Known gaps".
 
 ## Known gaps — read before relying on this in a real incident
 
-- **No WAL archiving/PITR for PostgreSQL.** The nightly dump is the only recovery point; anything
-  written after the last 02:00 UTC dump is lost in a full-loss scenario. Closing this needs a WAL
-  archiving sidecar (e.g. `wal-g`/`pgbackrest`) added to the StatefulSet — real, scoped work, not
-  done here.
+- **PostgreSQL WAL archiving/PITR is unverified against a live cluster.** `wal-g wal-push`/
+  `backup-push` via `archive_command` and a daily base-backup sidecar
+  (`infrastructure/kubernetes/base/infrastructure/postgres.yaml`) are wired up and match wal-g's
+  documented env vars/commands, and the pinned binary was downloaded and checksummed for real while
+  building this — but no live cluster was available to actually archive a WAL segment, take a base
+  backup, and restore from it end-to-end. **Before depending on this for a real incident, do exactly
+  that once against a disposable cluster.**
 - **OpenSearch snapshots aren't off-cluster.** They live on a PVC in the same cluster as the live
   data. Closing this needs the `repository-s3` plugin installed (an `initContainer` in the
   StatefulSet, mirroring how OpenSearch/Elasticsearch normally add plugins) plus S3 credentials
@@ -75,6 +79,41 @@ kubectl exec -n smb-copilot postgres-0 -- psql -U "$POSTGRES_USER" -d "$POSTGRES
 `--clean --if-exists` drops existing objects before recreating them — this is a **destructive**
 restore onto whatever is currently in the database. Only run it when the SEV declaration has
 confirmed that's the intended outcome (not, for example, a routine drill against prod).
+
+**Point-in-time recovery** (a narrower window than "restore last night's dump" — e.g. "restore to 5
+minutes before the bad migration ran"), using the WAL archive instead of the logical dump:
+
+```sh
+# 1. See what base backups and WAL segments actually exist before picking a target time.
+kubectl exec -n smb-copilot postgres-0 -c postgres -- /walg-bin/wal-g backup-list
+kubectl exec -n smb-copilot postgres-0 -c postgres -- /walg-bin/wal-g wal-show
+
+# 2. Stop postgres, wipe PGDATA (a fresh restore replaces it entirely), fetch the base backup.
+kubectl exec -n smb-copilot postgres-0 -c postgres -- pg_ctl -D "$PGDATA" stop -m fast
+kubectl exec -n smb-copilot postgres-0 -c postgres -- sh -c 'rm -rf "$PGDATA"/*'
+kubectl exec -n smb-copilot postgres-0 -c postgres -- \
+  /walg-bin/wal-g backup-fetch "$PGDATA" LATEST   # or a specific backup name from step 1
+
+# 3. Tell postgres to replay WAL up to the target time, then start it.
+kubectl exec -n smb-copilot postgres-0 -c postgres -- sh -c '
+  touch "$PGDATA/recovery.signal"
+  cat >> "$PGDATA/postgresql.auto.conf" <<EOF
+restore_command = '"'"'/walg-bin/wal-g wal-fetch %f %p'"'"'
+recovery_target_time = '"'"'<YYYY-MM-DD HH:MM:SS UTC>'"'"'
+recovery_target_action = '"'"'promote'"'"'
+EOF
+'
+kubectl exec -n smb-copilot postgres-0 -c postgres -- pg_ctl -D "$PGDATA" start
+
+# 4. Watch it recover and promote, then validate exactly like the logical-restore path above.
+kubectl logs -n smb-copilot postgres-0 -c postgres -f
+```
+
+This is the standard PostgreSQL recovery mechanism (`recovery.signal` + `restore_command` +
+`recovery_target_time`, all real PostgreSQL config, not wal-g-specific) — `wal-g wal-fetch` is just
+what `restore_command` calls to pull each WAL segment back from the same `smb-copilot-backups`
+bucket the archiving side pushes to. Same destructive caveat as above: this replaces PGDATA
+entirely.
 
 ### Neo4j
 
