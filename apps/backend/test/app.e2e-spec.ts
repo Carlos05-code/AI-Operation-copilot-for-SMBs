@@ -74,6 +74,29 @@ describe('API (e2e)', () => {
     expect(res.body.paths['/api/v1/health']).toBeDefined();
   });
 
+  it('declares a server URL and describes every tag (API_SPEC §10)', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/openapi.json').expect(200);
+    expect(res.body.servers).toEqual(
+      expect.arrayContaining([expect.objectContaining({ url: expect.any(String) })]),
+    );
+    expect(res.body.servers.length).toBeGreaterThan(0);
+    expect(res.body.tags).toEqual(
+      expect.arrayContaining([{ name: 'health', description: expect.any(String) }]),
+    );
+    // Every operation's tag must have a matching top-level declaration, or Swagger UI
+    // silently drops its description — this is exactly the gap that shipped unnoticed.
+    const declaredTags = new Set(res.body.tags.map((t: { name: string }) => t.name));
+    const usedTags = new Set<string>();
+    for (const methods of Object.values<Record<string, { tags?: string[] }>>(res.body.paths)) {
+      for (const operation of Object.values(methods)) {
+        for (const tag of operation.tags ?? []) usedTags.add(tag);
+      }
+    }
+    for (const tag of usedTags) {
+      expect(declaredTags.has(tag)).toBe(true);
+    }
+  });
+
   it('rejects unauthenticated hybrid search (401, error envelope)', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/v1/search')
