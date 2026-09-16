@@ -748,6 +748,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Postgres, which is why this went uncaught; added coverage for the `configured`/`not_configured`
   distinction on another dependency (`redis`), and re-verified live against a real running instance
   both with and without `REDIS_URL` set.
+- `all-exceptions.filter.ts`: every Nest-native `HttpException` (guards' `UnauthorizedException`,
+  unmatched-route `NotFoundException`, `ValidationPipe`'s `BadRequestException`, ...) had its
+  response body double-wrapped as `error.details.details` instead of `error.details`, deviating from
+  the documented envelope (API_SPEC §9: `"details": {}`, no nested `details` key). Found by curling
+  a live 401/404/400 against the compiled API. `ApiError`-thrown errors were unaffected — every
+  existing call site leaves `details` unset (defaults to `{}`), so the bug was invisible to the only
+  path anyone had tested. No spec file existed for this filter at all; added one
+  (`all-exceptions.filter.spec.ts`) covering both exception paths, `ApiError`, a generic `Error`,
+  and request-id propagation (including the `"unknown"` fallback for a request that fails to parse
+  before the request-id middleware ever runs — confirmed live to be the _only_ case that falls back,
+  not a second bug). Re-verified live against a real running instance.
 
 ## [0.1.0] - 2026-08-02
 

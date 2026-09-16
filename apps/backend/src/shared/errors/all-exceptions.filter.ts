@@ -58,7 +58,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         if (typeof record.message === 'string') {
           message = record.message;
         }
-        details = { details: record };
+        details = record;
       }
     } else if (exception instanceof Error) {
       message = exception.message;
