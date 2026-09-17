@@ -195,6 +195,15 @@ jobs:
             exit 1
           fi
 
+      - name: Debug - decode a real demo-user token
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8080/realms/smb-copilot/protocol/openid-connect/token \
+            -d 'grant_type=password&client_id=smb-copilot-ui&username=owner@acme-demo.local&password=changeme')
+          echo "Token response: $RESPONSE"
+          ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+          echo "Decoded payload:"
+          node -e "console.log(JSON.parse(Buffer.from(process.argv[1].split('.')[1], 'base64url').toString()))" "$ACCESS_TOKEN"
+
       - name: Build API
         working-directory: apps/backend
         run: pnpm build
