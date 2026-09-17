@@ -172,7 +172,9 @@ jobs:
       - name: Import Keycloak realm
         run: |
           for i in $(seq 1 30); do
-            curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null && break
+            if curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null; then
+              break
+            fi
             sleep 2
           done
           TOKEN=$(curl -sf -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
@@ -193,7 +195,9 @@ jobs:
         run: |
           nohup pnpm start > /tmp/api.log 2>&1 &
           for i in $(seq 1 30); do
-            curl -sf http://localhost:3000/api/v1/health/live >/dev/null && exit 0
+            if curl -sf http://localhost:3000/api/v1/health/live >/dev/null; then
+              exit 0
+            fi
             sleep 2
           done
           echo "API never became healthy:"; cat /tmp/api.log; exit 1
