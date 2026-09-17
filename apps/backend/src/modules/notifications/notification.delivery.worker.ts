@@ -6,16 +6,20 @@
  * Every `Notification` row is created `PENDING` regardless of caller (the
  * invoice-overdue and inventory-reorder-alert workers already create rows
  * this way, unmodified — delivery is decoupled and fully additive). This
- * sweep emails each `PENDING`/`FAILED` row to its recipient's `User.email`
- * and claims the outcome with a guarded `updateMany` (the same pattern as
- * the invoice-overdue and reorder-alert sweeps).
+ * sweep delivers each `PENDING`/`FAILED` row by `kind`: `WHATSAPP` sends via
+ * `WhatsAppProvider` to the recipient's `User.whatsapp`; everything else
+ * (`IN_APP`, `EMAIL`) sends via `EmailProvider` to `User.email`, exactly the
+ * behavior before `WhatsAppProvider` existed — every current caller creates
+ * `IN_APP` rows, so this is additive, not a change to existing delivery.
+ * Outcomes are claimed with a guarded `updateMany` (the same pattern as the
+ * invoice-overdue and reorder-alert sweeps).
  *
- * Failures — no email provider configured, no email on file, or a thrown
- * send error — leave the row `FAILED` rather than a terminal `SKIPPED`: the
- * next sweep re-queries `PENDING`/`FAILED` and retries, so a transient SMTP
- * outage or a later-added `SMTP_HOST` self-heals without operator
- * intervention (the same "leave state as-is, let the next sweep re-attempt"
- * contract as the invoice-overdue worker). Only `SENT` is terminal.
+ * Failures — no provider configured, no contact on file, or a thrown send
+ * error — leave the row `FAILED` rather than a terminal `SKIPPED`: the next
+ * sweep re-queries `PENDING`/`FAILED` and retries, so a transient outage or
+ * a later-added provider config self-heals without operator intervention
+ * (the same "leave state as-is, let the next sweep re-attempt" contract as
+ * the invoice-overdue worker). Only `SENT` is terminal.
  *
  * Fail-soft: without a database the job is a no-op; a per-notification
  * error is logged and the loop continues. Non-matching job names are
@@ -23,7 +27,7 @@
  */
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger, Optional } from '@nestjs/common';
-import { NotificationDeliveryStatus } from '@prisma/client';
+import { NotificationDeliveryStatus, NotificationKind } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { PrismaService } from '../database/prisma.service';
 import { QUEUE_NOTIFICATIONS } from '../queue/queue.constants';
@@ -33,6 +37,7 @@ import {
   NOTIFICATION_DELIVERY_BATCH_SIZE,
 } from './notification.constants';
 import { EmailProvider } from './email.provider';
+import { WhatsAppProvider } from './whatsapp.provider';
 
 export interface NotificationDeliveryJobData {
   limit?: number;
@@ -57,6 +62,7 @@ export class NotificationDeliveryWorker extends WorkerHost {
 
   constructor(
     private readonly email: EmailProvider,
+    private readonly whatsapp: WhatsAppProvider,
     @Optional() private readonly prisma?: PrismaService,
   ) {
     super();
@@ -77,7 +83,7 @@ export class NotificationDeliveryWorker extends WorkerHost {
       where: { deliveryStatus: { in: RETRYABLE_STATUSES } },
       orderBy: { createdAt: 'asc' },
       take: limit,
-      select: { id: true, userId: true, title: true, body: true, deliveryStatus: true },
+      select: { id: true, userId: true, kind: true, title: true, body: true, deliveryStatus: true },
     });
     if (pending.length === 0) {
       return { ran: true, candidates: 0, sent: 0, failed: 0 };
@@ -86,23 +92,32 @@ export class NotificationDeliveryWorker extends WorkerHost {
     const userIds = [...new Set(pending.map((n) => n.userId))];
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, email: true },
+      select: { id: true, email: true, whatsapp: true },
     });
-    const emailByUserId = new Map(users.map((u) => [u.id, u.email]));
+    const contactByUserId = new Map(users.map((u) => [u.id, u]));
 
     let sent = 0;
     let failed = 0;
     for (const notification of pending) {
       try {
-        const email = emailByUserId.get(notification.userId);
-        if (!email) throw new Error('no email on file for this user');
-        if (!this.email.isConfigured) throw new Error('email provider not configured');
+        const contact = contactByUserId.get(notification.userId);
 
-        await this.email.send({
-          to: email,
-          subject: notification.title,
-          text: notification.body ?? notification.title,
-        });
+        if (notification.kind === NotificationKind.WHATSAPP) {
+          if (!contact?.whatsapp) throw new Error('no whatsapp number on file for this user');
+          if (!this.whatsapp.isConfigured) throw new Error('whatsapp provider not configured');
+          await this.whatsapp.send({
+            to: contact.whatsapp,
+            body: notification.body ?? notification.title,
+          });
+        } else {
+          if (!contact?.email) throw new Error('no email on file for this user');
+          if (!this.email.isConfigured) throw new Error('email provider not configured');
+          await this.email.send({
+            to: contact.email,
+            subject: notification.title,
+            text: notification.body ?? notification.title,
+          });
+        }
 
         const claimed = await this.claim(notification.id, notification.deliveryStatus, {
           deliveryStatus: NotificationDeliveryStatus.SENT,

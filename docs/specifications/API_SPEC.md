@@ -689,17 +689,31 @@ Authorization: Bearer <jwt>
 
 - Every `Notification` row (created by, e.g., the invoice-overdue sweep — §11.12, or the
   inventory-reorder-alert sweep — §11.13) starts `deliveryStatus: PENDING`. The
-  `notification.delivery.sweep` job on the `notifications` queue emails each `PENDING`/`FAILED` row
-  to its recipient's `User.email` via SMTP (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/
-  `SMTP_FROM`), and claims the outcome with a guarded `updateMany` — the same pattern as those
-  sweeps, so a concurrent run can't double-send.
-- Only `SENT` is terminal. A missing email, an unconfigured SMTP provider, or a thrown send error
-  leaves the row `FAILED` (with `deliveryError` set) rather than a permanent `SKIPPED` — the next
-  sweep re-queries `PENDING`/`FAILED` and retries, so a transient outage or a later-added
-  `SMTP_HOST` self-heals without operator intervention.
-- **WhatsApp delivery is not implemented.** `NotificationKind.WHATSAPP` is reserved for a future
-  WhatsApp Business API/Twilio integration (approved sender + templates) — building one without real
-  provider access would be an unexercisable stub, which the project principles rule out.
+  `notification.delivery.sweep` job on the `notifications` queue delivers each `PENDING`/`FAILED`
+  row by `kind`, and claims the outcome with a guarded `updateMany` — the same pattern as those
+  sweeps, so a concurrent run can't double-send:
+  - `WHATSAPP`: sends via Twilio to the recipient's `User.whatsapp` (`TWILIO_ACCOUNT_SID`/
+    `TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_FROM`). Twilio's free WhatsApp Sandbox works here
+    unmodified — its shared sandbox number is a real `TWILIO_WHATSAPP_FROM` value, no approved
+    production sender/templates required to exercise this for real.
+  - `IN_APP` / `EMAIL`: emails via SMTP to the recipient's `User.email`
+    (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`) — unchanged from before
+    `WhatsAppProvider` existed. Every current alert-creating worker (invoice-overdue,
+    inventory-reorder, appointment-reminder, purchase-recommendation, task-auto-completion,
+    workflow-engine) still creates `IN_APP` rows, so this is additive: no existing caller's delivery
+    behavior changed. `WhatsApp`-kind delivery is wired and real but dormant until a caller opts a
+    specific alert into `NotificationKind.WHATSAPP` — the same state `EMAIL`-kind rows have always
+    been in (nothing creates them either).
+- Only `SENT` is terminal. A missing contact (email or WhatsApp number), an unconfigured provider,
+  or a thrown send error leaves the row `FAILED` (with `deliveryError` set) rather than a permanent
+  `SKIPPED` — the next sweep re-queries `PENDING`/`FAILED` and retries, so a transient outage or a
+  later-added provider config self-heals without operator intervention.
+- No self-service way exists yet to set a user's `whatsapp` number (no user-profile endpoint at all
+  exists) — it's seed/DB-set only for now (`prisma/seed.ts`'s `DEMO_OWNER_WHATSAPP`).
+- No delivery-status webhook exists yet — Twilio's own delivery/read receipts (`sent`/
+  `delivered`/`read`/`failed` callbacks) aren't consumed, so `deliveredAt` only reflects "the send
+  API call succeeded," not confirmed device delivery. A signed callback endpoint (Twilio signs with
+  `X-Twilio-Signature`) is a documented follow-up, not built here.
 - Fail-soft: no database → the job is a no-op; a per-notification failure is logged and the batch
   continues; a Redis outage never fails the scheduling request.
 

@@ -147,6 +147,18 @@ export class AppConfig {
   @IsOptional()
   smtpFrom?: string;
 
+  @IsString()
+  @IsOptional()
+  twilioAccountSid?: string;
+
+  @IsString()
+  @IsOptional()
+  twilioAuthToken?: string;
+
+  @IsString()
+  @IsOptional()
+  twilioWhatsappFrom?: string;
+
   /** OTLP collector endpoint (DEVOPS_SPEC §8); unset means traces stay off, metrics stay on. */
   @IsString()
   @IsOptional()

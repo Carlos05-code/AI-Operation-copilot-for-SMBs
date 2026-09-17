@@ -1,15 +1,17 @@
 /**
- * Unit tests — NotificationDeliveryWorker (email delivery sweep).
+ * Unit tests — NotificationDeliveryWorker (email + WhatsApp delivery sweep).
  */
 import type { Job } from 'bullmq';
 import type { PrismaService } from '../database/prisma.service';
 import { NotificationDeliveryWorker } from './notification.delivery.worker';
 import type { EmailProvider } from './email.provider';
+import type { WhatsAppProvider } from './whatsapp.provider';
 
 function pendingRow(over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'n1',
     userId: 'u1',
+    kind: 'IN_APP',
     title: 'Invoice INV-001 is overdue',
     body: '120.00 was due and is now overdue.',
     deliveryStatus: 'PENDING',
@@ -23,14 +25,22 @@ function harness() {
       findMany: jest.fn().mockResolvedValue([]),
       updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
-    user: { findMany: jest.fn().mockResolvedValue([{ id: 'u1', email: 'owner@acme-demo.local' }]) },
+    user: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue([
+          { id: 'u1', email: 'owner@acme-demo.local', whatsapp: '+15551234567' },
+        ]),
+    },
   };
   const email = { isConfigured: true, send: jest.fn().mockResolvedValue(undefined) };
+  const whatsapp = { isConfigured: true, send: jest.fn().mockResolvedValue(undefined) };
   const worker = new NotificationDeliveryWorker(
     email as unknown as EmailProvider,
+    whatsapp as unknown as WhatsAppProvider,
     prisma as unknown as PrismaService,
   );
-  return { worker, prisma, email };
+  return { worker, prisma, email, whatsapp };
 }
 
 const job = (over: Partial<Job> = {}): Job =>
@@ -45,7 +55,11 @@ describe('NotificationDeliveryWorker', () => {
   });
 
   it('skips when the database is not configured', async () => {
-    const worker = new NotificationDeliveryWorker({} as unknown as EmailProvider, undefined);
+    const worker = new NotificationDeliveryWorker(
+      {} as unknown as EmailProvider,
+      {} as unknown as WhatsAppProvider,
+      undefined,
+    );
     await expect(worker.process(job())).resolves.toMatchObject({ skipped: 'not configured' });
   });
 
@@ -153,5 +167,73 @@ describe('NotificationDeliveryWorker', () => {
     ]);
     await worker.process(job());
     expect(prisma.user.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends WHATSAPP-kind rows via WhatsAppProvider, not email', async () => {
+    const { worker, prisma, email, whatsapp } = harness();
+    prisma.notification.findMany.mockResolvedValue([pendingRow({ kind: 'WHATSAPP' })]);
+
+    const result = await worker.process(job());
+
+    expect(whatsapp.send).toHaveBeenCalledWith({
+      to: '+15551234567',
+      body: '120.00 was due and is now overdue.',
+    });
+    expect(email.send).not.toHaveBeenCalled();
+    expect(prisma.notification.updateMany).toHaveBeenCalledWith({
+      where: { id: 'n1', deliveryStatus: 'PENDING' },
+      data: expect.objectContaining({ deliveryStatus: 'SENT', deliveryError: null }),
+    });
+    expect(result).toMatchObject({ candidates: 1, sent: 1, failed: 0 });
+  });
+
+  it('claims FAILED (retryable) when a WHATSAPP-kind row has no whatsapp number on file', async () => {
+    const { worker, prisma, whatsapp } = harness();
+    prisma.notification.findMany.mockResolvedValue([pendingRow({ kind: 'WHATSAPP' })]);
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'u1', email: 'owner@acme-demo.local', whatsapp: null },
+    ]);
+
+    const result = await worker.process(job());
+
+    expect(whatsapp.send).not.toHaveBeenCalled();
+    expect(prisma.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          deliveryError: 'no whatsapp number on file for this user',
+        }),
+      }),
+    );
+    expect(result).toMatchObject({ sent: 0, failed: 1 });
+  });
+
+  it('claims FAILED for a WHATSAPP-kind row when the whatsapp provider is not configured', async () => {
+    const { worker, prisma, whatsapp } = harness();
+    prisma.notification.findMany.mockResolvedValue([pendingRow({ kind: 'WHATSAPP' })]);
+    (whatsapp as { isConfigured: boolean }).isConfigured = false;
+
+    const result = await worker.process(job());
+
+    expect(result).toMatchObject({ sent: 0, failed: 1 });
+    expect(prisma.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ deliveryError: 'whatsapp provider not configured' }),
+      }),
+    );
+  });
+
+  it('claims FAILED for a WHATSAPP-kind row when sending throws', async () => {
+    const { worker, prisma, whatsapp } = harness();
+    prisma.notification.findMany.mockResolvedValue([pendingRow({ kind: 'WHATSAPP' })]);
+    whatsapp.send.mockRejectedValue(new Error('Twilio 21211: invalid to number'));
+
+    const result = await worker.process(job());
+
+    expect(prisma.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ deliveryError: 'Twilio 21211: invalid to number' }),
+      }),
+    );
+    expect(result).toMatchObject({ sent: 0, failed: 1 });
   });
 });

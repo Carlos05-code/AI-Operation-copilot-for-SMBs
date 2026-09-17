@@ -70,7 +70,9 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] Inventory tracking with reorder alerts
 - [x] Appointment scheduling
 - [x] Purchase recommendations
-- [~] Notifications (in-app ✓, email ✓, WhatsApp pending a Business API/Twilio integration)
+- [~] Notifications (in-app ✓, email ✓, WhatsApp ✓ via Twilio — real, Sandbox-tested, but wired and
+  dormant until a caller opts a specific alert into `NotificationKind.WHATSAPP`; no delivery-status
+  webhook yet)
 
 **Version: 0.3.0**
 
