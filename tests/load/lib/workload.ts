@@ -63,6 +63,9 @@ function createInvoice(config: ReturnType<typeof loadConfig>): void {
     }),
     { headers: authHeaders(), tags: { name: 'CreateInvoice' } },
   );
+  if (res.status < 200 || res.status >= 300) {
+    console.error(`DEBUG CreateInvoice failed: status=${res.status} body=${res.body}`);
+  }
   checkOk(res, 'CreateInvoice');
 }
 
