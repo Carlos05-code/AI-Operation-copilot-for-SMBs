@@ -24,11 +24,11 @@
   "defaultOptionalClientScopes": [],
   "roles": {
     "realm": [
-      { "name": "viewer" },
-      { "name": "agent" },
-      { "name": "manager" },
-      { "name": "admin" },
-      { "name": "owner" }
+      { "name": "VIEWER" },
+      { "name": "AGENT" },
+      { "name": "MANAGER" },
+      { "name": "ADMIN" },
+      { "name": "OWNER" }
     ],
     "client": {}
   },
@@ -163,7 +163,7 @@
       "lastName": "Owner",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["owner"],
+      "realmRoles": ["OWNER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },
@@ -177,7 +177,7 @@
       "lastName": "Manager",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["manager"],
+      "realmRoles": ["MANAGER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },
@@ -191,7 +191,7 @@
       "lastName": "Viewer",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["viewer"],
+      "realmRoles": ["VIEWER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },
