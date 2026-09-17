@@ -202,6 +202,9 @@ jobs:
       - name: Start API
         working-directory: apps/backend
         run: |
+          echo "Shell env AUTH_JWKS_URL: [$AUTH_JWKS_URL]"
+          node -e "console.log('node process.env.AUTH_JWKS_URL:', process.env.AUTH_JWKS_URL)"
+          ls -la .env 2>&1 || echo "no .env file in apps/backend"
           nohup pnpm start > /tmp/api.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3000/api/v1/health/live >/dev/null; then
