@@ -211,6 +211,21 @@ jobs:
           done
           echo "API never became healthy:"; cat /tmp/api.log; exit 1
 
+      - name: Debug - repeated CreateInvoice calls
+        run: |
+          RESPONSE=$(curl -s -X POST http://localhost:8080/realms/smb-copilot/protocol/openid-connect/token \
+            -d 'grant_type=password&client_id=smb-copilot-ui&username=owner@acme-demo.local&password=changeme')
+          ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
+          for i in $(seq 1 10); do
+            HTTP_CODE=$(curl -s -o /tmp/invoice-response.json -w '%{http_code}' -X POST http://localhost:3000/api/v1/invoices \
+              -H "Authorization: Bearer $ACCESS_TOKEN" \
+              -H 'Content-Type: application/json' \
+              -d '{"customerId":"00000000-0000-0000-0000-00000000c001","items":[{"description":"debug","quantity":1,"unitPrice":9.99,"taxRate":0}],"dueDate":"2026-12-01","note":"debug","issue":false}')
+            echo "attempt $i: HTTP $HTTP_CODE"
+            cat /tmp/invoice-response.json
+            echo ""
+          done
+
       - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
         with:
           k6-version: '2.2.0'
