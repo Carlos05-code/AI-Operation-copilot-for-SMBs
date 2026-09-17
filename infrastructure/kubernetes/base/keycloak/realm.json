@@ -55,6 +55,34 @@
             "id.token.claim": "false",
             "access.token.claim": "true"
           }
+        },
+        {
+          "name": "org_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "org_id",
+            "claim.name": "org_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "aggregate.attrs": "false"
+          }
+        },
+        {
+          "name": "org.role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "org.role",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "realm.roles.verify": "true"
+          }
         }
       ]
     },
@@ -125,36 +153,6 @@
       ]
     },
     { "name": "offline_access", "protocol": "openid-connect" }
-  ],
-  "protocolMappers": [
-    {
-      "name": "org_id",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-attribute-mapper",
-      "config": {
-        "user.attribute": "org_id",
-        "claim.name": "org_id",
-        "jsonType.label": "String",
-        "id.token.claim": "true",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "aggregate.attrs": "false"
-      }
-    },
-    {
-      "name": "org.role",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-realm-role-mapper",
-      "config": {
-        "claim.name": "org.role",
-        "jsonType.label": "String",
-        "id.token.claim": "true",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "multivalued": "false",
-        "realm.roles.verify": "true"
-      }
-    }
   ],
   "users": [
     {
