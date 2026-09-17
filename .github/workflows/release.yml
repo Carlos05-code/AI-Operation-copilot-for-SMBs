@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - 'v*'
+  # Lets `load-test` be exercised on demand (`gh workflow run`) against any branch, without
+  # cutting a real tag — `release` below stays gated to an actual tag push regardless of how
+  # the workflow was triggered.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,9 +17,203 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # TESTING_SPEC §9's CI diagram: `tag.v --> LOAD[k6 soak]` gating the release. Every service
+  # below mirrors docker-compose.yml's own defaults (same images, users, passwords) so
+  # `tests/load/*.ts` — which default to those exact values (`lib/config.ts`) — need zero `-e`
+  # overrides here, the same invocation `tests/load/README.md` documents for local dev.
+  load-test:
+    name: k6 load test (soak)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: smb_copilot
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: changeme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: ops
+          RABBITMQ_DEFAULT_PASS: changeme
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+      neo4j:
+        image: neo4j:5-community
+        env:
+          NEO4J_AUTH: neo4j/changeme
+        ports:
+          - 7474:7474
+          - 7687:7687
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:7474 || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+      qdrant:
+        image: qdrant/qdrant:v1.9.7-unprivileged
+        ports:
+          - 6333:6333
+      opensearch:
+        image: opensearchproject/opensearch:2.11.0
+        env:
+          discovery.type: single-node
+          plugins.security.disabled: 'true'
+          DISABLE_SECURITY_PLUGIN: 'true'
+          bootstrap.memory_lock: 'false'
+          OPENSEARCH_INITIAL_ADMIN_PASSWORD: Changeme123!
+        ports:
+          - 9200:9200
+      minio:
+        image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+        env:
+          MINIO_ROOT_USER: ops
+          MINIO_ROOT_PASSWORD: changeme
+        command: 'server /data --console-address :9001'
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 5
+      # No built-in healthcheck (Keycloak's own /health endpoint needs a separate management
+      # port enabled explicitly) — a later step polls its OIDC discovery document instead.
+      keycloak:
+        image: quay.io/keycloak/keycloak:24.0
+        env:
+          KEYCLOAK_ADMIN: admin
+          KEYCLOAK_ADMIN_PASSWORD: changeme
+          KC_DB: postgres
+          KC_DB_URL: jdbc:postgresql://postgres:5432/smb_copilot
+          KC_DB_USERNAME: admin
+          KC_DB_PASSWORD: changeme
+          KC_HTTP_PORT: 8080
+        command: 'start-dev'
+        ports:
+          - 8080:8080
+    env:
+      DATABASE_URL: postgresql://admin:changeme@localhost:5432/smb_copilot
+      REDIS_URL: redis://localhost:6379
+      RABBITMQ_URL: amqp://ops:changeme@localhost:5672
+      NEO4J_URI: bolt://localhost:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: changeme
+      QDRANT_URL: http://localhost:6333
+      OPENSEARCH_URL: http://localhost:9200
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_ACCESS_KEY: ops
+      STORAGE_SECRET_KEY: changeme
+      STORAGE_BUCKET: smb-copilot
+      STORAGE_REGION: us-east-1
+      KEYCLOAK_URL: http://localhost:8080
+      AUTH_JWKS_URL: http://localhost:8080/realms/smb-copilot/protocol/openid-connect/certs
+      AUTH_ISSUER: http://localhost:8080/realms/smb-copilot
+      AUTH_AUDIENCE: smb-copilot-api
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: apps/backend
+        run: pnpm prisma generate
+
+      - name: Deploy migrations
+        working-directory: apps/backend
+        run: pnpm prisma migrate deploy
+
+      - name: Seed demo data
+        working-directory: apps/backend
+        run: pnpm db:seed
+
+      # Keycloak's own `--import-realm` (docker-compose.yml's approach) reads files from
+      # /opt/keycloak/data/import at container boot — but service containers start before
+      # `actions/checkout` runs, so the repo's realm.json can't be bind-mounted there in time.
+      # This does the equivalent import via the Admin REST API instead, once Keycloak is up:
+      # `POST /admin/realms` with a full realm export is exactly what `--import-realm` does
+      # internally (confirmed against Keycloak's own server source,
+      # `RealmsAdminResource.importRealm`).
+      - name: Import Keycloak realm
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/realms/master/.well-known/openid-configuration >/dev/null && break
+            sleep 2
+          done
+          TOKEN=$(curl -sf -X POST http://localhost:8080/realms/master/protocol/openid-connect/token \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            -d 'grant_type=password&client_id=admin-cli&username=admin&password=changeme' \
+            | jq -r '.access_token')
+          curl -sf -X POST http://localhost:8080/admin/realms \
+            -H "Authorization: Bearer $TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data-binary @infrastructure/kubernetes/base/keycloak/realm.json
+
+      - name: Build API
+        working-directory: apps/backend
+        run: pnpm build
+
+      - name: Start API
+        working-directory: apps/backend
+        run: |
+          nohup pnpm start > /tmp/api.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/v1/health/live >/dev/null && exit 0
+            sleep 2
+          done
+          echo "API never became healthy:"; cat /tmp/api.log; exit 1
+
+      - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
+        with:
+          k6-version: '2.2.0'
+
+      - name: Run k6 soak test
+        run: k6 run --out json=tests/load/results/ci-soak.json tests/load/soak.ts
+
+      - name: API log (on failure)
+        if: failure()
+        run: cat /tmp/api.log || true
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: k6-soak-results
+          path: tests/load/results/ci-soak.json
+          if-no-files-found: ignore
+
   release:
     name: Build, migrate & publish
     runs-on: ubuntu-latest
+    needs: load-test
+    if: startsWith(github.ref, 'refs/tags/')
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
