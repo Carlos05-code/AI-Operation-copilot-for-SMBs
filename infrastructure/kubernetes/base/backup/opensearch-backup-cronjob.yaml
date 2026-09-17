@@ -1,6 +1,8 @@
-# Nightly OpenSearch snapshot (DEVOPS_SPEC §9: "snapshot repository", RPO 1h/RTO 2h) — see
-# backup-scripts-configmap.yaml's opensearch-backup.sh header for the `fs`-vs-`s3`-repository
-# tradeoff this makes (in-cluster only, not off-cluster durable).
+# Nightly OpenSearch snapshot (DEVOPS_SPEC §9: "snapshot repository", RPO 1h/RTO 2h) into an
+# S3-type repository backed by the `smb-copilot-backups` MinIO bucket — see
+# backup-scripts-configmap.yaml's opensearch-backup.sh and
+# ../infrastructure/opensearch.yaml's header comment for the plugin/keystore setup this depends
+# on.
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -21,6 +23,15 @@ spec:
         # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
         spec:
           restartPolicy: Never
+          # `mc` isn't in alpine:3.24.1 — copied in from the real `mc` image, same pattern as
+          # ../backup/postgres-backup-cronjob.yaml's `fetch-mc` initContainer.
+          initContainers:
+            - name: fetch-mc
+              image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+              command: ['sh', '-c', 'cp /usr/bin/mc /shared/mc']
+              volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
           containers:
             - name: backup
               image: alpine:3.24.1
@@ -31,12 +42,36 @@ spec:
                   'apk add --no-cache curl jq >/dev/null && sh /scripts/opensearch-backup.sh',
                 ]
               env:
+                - name: PATH
+                  value: /shared:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
                 - name: BACKUP_KEEP
                   value: '14'
+                - name: STORAGE_ENDPOINT
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_ENDPOINT
+                - name: STORAGE_BACKUP_BUCKET
+                  valueFrom:
+                    configMapKeyRef:
+                      name: api-config
+                      key: STORAGE_BACKUP_BUCKET
+                - name: STORAGE_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_ACCESS_KEY
+                - name: STORAGE_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: api-secret
+                      key: STORAGE_SECRET_KEY
               # No `capabilities.drop: [ALL]` — see qdrant-backup-cronjob.yaml's identical note.
               securityContext:
                 allowPrivilegeEscalation: false
               volumeMounts:
+                - name: shared-bin
+                  mountPath: /shared
                 - name: scripts
                   mountPath: /scripts
               resources:
@@ -47,6 +82,8 @@ spec:
                   cpu: 500m
                   memory: 512Mi
           volumes:
+            - name: shared-bin
+              emptyDir: {}
             - name: scripts
               configMap:
                 name: backup-scripts

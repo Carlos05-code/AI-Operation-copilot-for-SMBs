@@ -112,10 +112,14 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       previously-unexercised bugs — Keycloak realm schema mismatches, a missing DI export, an
       invoice-numbering concurrency race — see `CHANGELOG.md`
 - [~] Backup and disaster-recovery runbooks — nightly CronJobs for 5 of 6 stateful services
-  (`infrastructure/kubernetes/base/backup/`) + restore runbook
-  (`infrastructure/devops/incident.md`). Gaps: no PostgreSQL WAL archiving/PITR, OpenSearch
-  snapshots aren't off-cluster, Neo4j's export path is unverified against a live cluster, and no
-  restore has been drilled end-to-end
+  (`infrastructure/kubernetes/base/backup/`), including OpenSearch's `repository-s3`-plugin snapshot
+  into the off-cluster MinIO bucket
+  (`infrastructure/kubernetes/base/infrastructure/opensearch.yaml`), PostgreSQL WAL archiving/PITR
+  via `wal-g` (`infrastructure/kubernetes/base/infrastructure/postgres.yaml`), and a restore
+  runbook, including a PITR procedure (`infrastructure/devops/incident.md`). Gaps: Neo4j's export
+  path is unverified against a live cluster, both the OpenSearch S3 snapshot path and PostgreSQL WAL
+  archiving/PITR are wired up but likewise unverified against a live cluster, and no restore
+  (including the new PITR path) has been drilled end-to-end
 - [~] Large-document-volume benchmarks (200 k+ documents) — corpus generator + bulk-ingest harness +
   report tooling shipped (`tests/benchmarks/large-corpus/`), verified end-to-end against a mock
   server; no live cluster available to actually run the 200k benchmark and record real numbers, so
