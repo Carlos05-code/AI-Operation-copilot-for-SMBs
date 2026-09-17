@@ -19,10 +19,9 @@
   "actionTokenGeneratedByAdminLifespan": 43200,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
-  "refreshTokenReuseMinutes": 0,
   "defaultSignatureAlgorithm": "RS256",
-  "defaultClientScopes": ["openid", "profile", "email", "offline_access"],
-  "optionalClientScopes": [],
+  "defaultDefaultClientScopes": ["openid", "profile", "email", "offline_access"],
+  "defaultOptionalClientScopes": [],
   "roles": {
     "realm": [
       { "name": "viewer" },
