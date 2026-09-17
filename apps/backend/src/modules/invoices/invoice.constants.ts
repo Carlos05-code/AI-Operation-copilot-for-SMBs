@@ -5,8 +5,6 @@
 /** `INV-<year>-<seq>`; the sequence is zero-padded to this width. */
 export const INVOICE_NUMBER_PREFIX = 'INV';
 export const INVOICE_NUMBER_SEQ_WIDTH = 4;
-/** Retries when a concurrent create claims the same generated number. */
-export const INVOICE_NUMBER_MAX_ATTEMPTS = 5;
 
 /** Guardrails on inbound invoice payloads. */
 export const INVOICE_MAX_LINE_ITEMS = 200;

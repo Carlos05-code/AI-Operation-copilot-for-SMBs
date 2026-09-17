@@ -3,10 +3,11 @@
  * API_SPEC §11.1).
  *
  * `POST /invoices` prices the submitted line items (integer-cent math),
- * allocates a per-org, per-year invoice number (`INV-<year>-<seq>`, retried
- * on a concurrent collision), and writes the invoice + items in one
- * transaction. Lifecycle transitions (`issue`, `pay`, `void`) are an explicit
- * state machine — an illegal transition is a 409, never a silent no-op.
+ * allocates a per-org, per-year invoice number (`INV-<year>-<seq>`, via an
+ * atomic counter — see `InvoiceNumberCounter` — so concurrent creates can
+ * never collide), and writes the invoice + items in one transaction.
+ * Lifecycle transitions (`issue`, `pay`, `void`) are an explicit state
+ * machine — an illegal transition is a 409, never a silent no-op.
  *
  * Every mutation appends a domain event to the transactional outbox
  * (best-effort: a bus/outbox failure is logged, never fatal — the row is the
@@ -24,8 +25,6 @@ import {
   EVENT_INVOICE_PAID,
   EVENT_INVOICE_VOIDED,
   INVOICE_NOTE_MAX_LENGTH,
-  INVOICE_NUMBER_MAX_ATTEMPTS,
-  INVOICE_NUMBER_PREFIX,
 } from './invoice.constants';
 import {
   addDaysUtc,
@@ -266,58 +265,55 @@ export class InvoiceService {
   }): Promise<Invoice> {
     const prisma = this.requirePrisma();
     const year = params.when.getUTCFullYear();
-    const prefix = `${INVOICE_NUMBER_PREFIX}-${year}-`;
 
-    for (let attempt = 1; attempt <= INVOICE_NUMBER_MAX_ATTEMPTS; attempt += 1) {
-      const priorThisYear = await prisma.invoice.count({
-        where: { organizationId: params.organizationId, invoiceNumber: { startsWith: prefix } },
+    return prisma.$transaction(async (tx) => {
+      // Atomic per-org, per-year counter via a single raw `INSERT ... ON CONFLICT DO UPDATE
+      // ... RETURNING` statement — deliberately NOT `tx.invoiceNumberCounter.upsert(...)`.
+      // Prisma's `upsert()` is not guaranteed to compile to one atomic SQL statement for every
+      // provider/version (it can read-then-write in two steps), which is exactly what caused a
+      // real, observed collision under 200-VU concurrent load: two transactions both computed
+      // the same "next" value before either committed. A raw `INSERT ... ON CONFLICT DO UPDATE
+      // SET value = value + 1` is atomic at the Postgres engine level regardless of what any
+      // ORM does above it — the increment happens in the same statement that takes the row
+      // lock, so no concurrent transaction can observe or reuse a stale value. Counting existing
+      // rows first (the original approach, before this) raced the same way, just with a wider
+      // window.
+      const [{ value }] = await tx.$queryRaw<[{ value: number }]>`
+        INSERT INTO invoice_number_counters (organization_id, year, value)
+        VALUES (${params.organizationId}, ${year}, 1)
+        ON CONFLICT (organization_id, year)
+        DO UPDATE SET value = invoice_number_counters.value + 1
+        RETURNING value
+      `;
+      const invoiceNumber = formatInvoiceNumber(year, value);
+
+      const invoice = await tx.invoice.create({
+        data: {
+          organizationId: params.organizationId,
+          customerId: params.customerId,
+          recurringInvoiceId: params.recurringInvoiceId,
+          invoiceNumber,
+          dueDate: params.dueDate,
+          note: params.note,
+          status: params.status,
+          issuedAt: params.issuedAt,
+          subtotal: params.totals.subtotal,
+          taxTotal: params.totals.taxTotal,
+          total: params.totals.total,
+          items: {
+            create: params.totals.items.map((item) => ({
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              taxRate: item.taxRate,
+              lineTotal: item.lineTotal,
+            })),
+          },
+        },
       });
-      const invoiceNumber = formatInvoiceNumber(year, priorThisYear + 1);
-      try {
-        return await prisma.$transaction(async (tx) => {
-          const invoice = await tx.invoice.create({
-            data: {
-              organizationId: params.organizationId,
-              customerId: params.customerId,
-              recurringInvoiceId: params.recurringInvoiceId,
-              invoiceNumber,
-              dueDate: params.dueDate,
-              note: params.note,
-              status: params.status,
-              issuedAt: params.issuedAt,
-              subtotal: params.totals.subtotal,
-              taxTotal: params.totals.taxTotal,
-              total: params.totals.total,
-              items: {
-                create: params.totals.items.map((item) => ({
-                  productId: item.productId,
-                  description: item.description,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  taxRate: item.taxRate,
-                  lineTotal: item.lineTotal,
-                })),
-              },
-            },
-          });
-          if (params.afterInTx) await params.afterInTx(tx);
-          return invoice;
-        });
-      } catch (error) {
-        if (error instanceof ScheduleRaceError) throw error;
-        if (isUniqueViolation(error) && attempt < INVOICE_NUMBER_MAX_ATTEMPTS) {
-          this.logger.warn(
-            `invoice number ${invoiceNumber} collided; retrying (attempt ${attempt})`,
-          );
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new ApiError({
-      code: HttpErrorCode.CONFLICT,
-      status: 409,
-      message: 'Could not allocate a unique invoice number; retry the request',
+      if (params.afterInTx) await params.afterInTx(tx);
+      return invoice;
     });
   }
 
@@ -411,12 +407,6 @@ export class ScheduleRaceError extends Error {
     super(`recurring invoice ${scheduleId} was already advanced by a concurrent run`);
     this.name = 'ScheduleRaceError';
   }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002'
-  );
 }
 
 function normalizeNote(note: string | null | undefined): string | null {

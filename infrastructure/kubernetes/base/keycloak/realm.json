@@ -19,17 +19,16 @@
   "actionTokenGeneratedByAdminLifespan": 43200,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
-  "refreshTokenReuseMinutes": 0,
   "defaultSignatureAlgorithm": "RS256",
-  "defaultClientScopes": ["openid", "profile", "email", "offline_access"],
-  "optionalClientScopes": [],
+  "defaultDefaultClientScopes": ["openid", "profile", "email", "offline_access"],
+  "defaultOptionalClientScopes": [],
   "roles": {
     "realm": [
-      { "name": "viewer" },
-      { "name": "agent" },
-      { "name": "manager" },
-      { "name": "admin" },
-      { "name": "owner" }
+      { "name": "VIEWER" },
+      { "name": "AGENT" },
+      { "name": "MANAGER" },
+      { "name": "ADMIN" },
+      { "name": "OWNER" }
     ],
     "client": {}
   },
@@ -44,7 +43,48 @@
       "protocol": "openid-connect",
       "redirectUris": ["http://localhost/*"],
       "webOrigins": ["http://localhost:*"],
-      "defaultClientScopes": ["openid", "profile", "email", "offline_access"]
+      "defaultClientScopes": ["openid", "profile", "email"],
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "audience-smb-copilot-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "smb-copilot-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "org_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "org_id",
+            "claim.name": "org_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "aggregate.attrs": "false"
+          }
+        },
+        {
+          "name": "org.role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "org\\.role",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "multivalued": "false",
+            "realm.roles.verify": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "smb-copilot-api",
@@ -114,71 +154,44 @@
     },
     { "name": "offline_access", "protocol": "openid-connect" }
   ],
-  "protocolMappers": [
-    {
-      "name": "org_id",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-attribute-mapper",
-      "config": {
-        "user.attribute": "org_id",
-        "claim.name": "org_id",
-        "jsonType.label": "String",
-        "id.token.claim": "true",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "aggregate.attrs": "false"
-      }
-    },
-    {
-      "name": "org.role",
-      "protocol": "openid-connect",
-      "protocolMapper": "oidc-usermodel-realm-role-mapper",
-      "config": {
-        "claim.name": "org.role",
-        "jsonType.label": "String",
-        "id.token.claim": "true",
-        "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "multivalued": "false",
-        "realm.roles.verify": "true"
-      }
-    }
-  ],
   "users": [
     {
+      "id": "00000000-0000-0000-0000-000000000001",
       "username": "owner@acme-demo.local",
       "email": "owner@acme-demo.local",
       "firstName": "Demo",
       "lastName": "Owner",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["owner"],
+      "realmRoles": ["OWNER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },
       "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
     },
     {
+      "id": "00000000-0000-0000-0000-000000000002",
       "username": "manager@acme-demo.local",
       "email": "manager@acme-demo.local",
       "firstName": "Demo",
       "lastName": "Manager",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["manager"],
+      "realmRoles": ["MANAGER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },
       "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
     },
     {
+      "id": "00000000-0000-0000-0000-000000000003",
       "username": "viewer@acme-demo.local",
       "email": "viewer@acme-demo.local",
       "firstName": "Demo",
       "lastName": "Viewer",
       "enabled": true,
       "emailVerified": true,
-      "realmRoles": ["viewer"],
+      "realmRoles": ["VIEWER"],
       "attributes": {
         "org_id": ["8841a049-893c-4c2b-b342-456c7074b25d"]
       },

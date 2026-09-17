@@ -730,6 +730,77 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     HTTP-only/worker-only module restructuring would be. That's materially larger,
     BACKEND_SPEC-level work, named explicitly in `main-worker.ts`'s own header comment rather than
     silently presented as done.
+- k6 load tests wired into CI (ROADMAP Phase 5, TESTING_SPEC §9: `tag.v --> LOAD[k6 soak]`) — the
+  first thing in this whole session actually verified against a real, live, fully-booted stack
+  instead of a mock server or a syntax check, which is exactly why it surfaced this many real,
+  previously-unexercised bugs:
+  - `.github/workflows/release.yml`: a new `load-test` job boots Postgres, Redis, RabbitMQ, Neo4j,
+    Qdrant, OpenSearch, MinIO, and Keycloak as GitHub Actions `services:` (same images/users/
+    passwords as `docker-compose.yml`, so `tests/load/*.ts` need zero `-e` overrides), runs
+    `prisma migrate deploy` + `db:seed`, imports the Keycloak realm via its own Admin REST API
+    (`POST /admin/realms` — service containers start before `actions/checkout`, so
+    `--import-realm`'s file-based approach can't be used here), builds and starts the real API, then
+    runs `k6 run tests/load/soak.ts`. The `release` job now `needs: load-test` and is gated to
+    `if: startsWith(github.ref, 'refs/tags/')`; the workflow also gained `workflow_dispatch` so
+    `load-test` can be exercised on demand against any branch without cutting a real tag.
+  - Along the way, root-caused and fixed real bugs nothing had ever exercised end-to-end before:
+    - `infrastructure/kubernetes/base/keycloak/realm.json` had three separate schema mismatches
+      against Keycloak 24's actual `RealmRepresentation`: a `refreshTokenReuseMinutes` field that
+      doesn't exist, `defaultClientScopes`/`optionalClientScopes` used at the realm level (those
+      names are only valid on a client — the realm-level equivalents are
+      `defaultDefaultClientScopes`/`defaultOptionalClientScopes`), and realm roles defined in
+      lowercase (`owner`, `manager`, `viewer`) while `authorization.service.ts`'s `ROLE_RANK` map is
+      keyed by the Prisma `Role` enum's actual uppercase casing — the mismatch silently made every
+      role check fail closed. Also added an `oidc-audience-mapper` (tokens never carried
+      `aud: smb-copilot-api`, so `JwtAuthGuard`'s audience check rejected every token) and escaped
+      the dot in `org.role`'s `claim.name` (unescaped, Keycloak treats a `.` as a nested-JSON-path
+      separator, so the claim arrived as `{"org":{"role":...}}` instead of the flat `"org.role"` key
+      `jwt-auth.guard.ts` actually reads) — confirmed by decoding a real issued token, not assumed.
+    - `apps/backend/src/modules/auth/auth.module.ts`: `AUTH_JWKS` was declared in `providers` and
+      its factory ran correctly (confirmed with a temporary debug log), but was never added to
+      `exports` — `@Global()` only makes a module's _exported_ providers available elsewhere;
+      `JwtAuthGuard`'s `@Optional() @Inject(AUTH_JWKS)` resolved to `undefined` for any guard
+      instantiated through a different module's own container, i.e. every real controller outside
+      `AuthModule` itself. Every authenticated endpoint 401'd with "Authentication is not
+      configured" regardless of `AUTH_JWKS_URL` being set correctly.
+    - `apps/backend/src/modules/invoices/invoice.service.ts`: `insertInvoice` numbered invoices by
+      counting existing rows for the org/year, then retried up to 5 times on a unique-constraint
+      collision. Under the soak test's 200 concurrent VUs, many requests read the same count before
+      any of them committed, generating the same number repeatedly — 5 retries wasn't enough to
+      absorb real contention (~33% of `CreateInvoice` calls failed). Replaced counting with a new
+      `InvoiceNumberCounter` model (`prisma/schema.prisma`,
+      `prisma/migrations/20260917080000_add_invoice_number_counters/`) and — after a `tx.upsert()`
+      with `increment` turned out to _not_ be atomic either (the same collision recurred) — a raw
+      `INSERT ... ON CONFLICT (organization_id, year) DO UPDATE SET value = value + 1 RETURNING value`
+      via `tx.$queryRaw`, matching `prisma.service.ts`'s own existing raw-query convention. Atomic
+      at the Postgres engine level regardless of what any ORM layer does above it. The
+      now-provably-unreachable collision-retry loop (and `INVOICE_NUMBER_MAX_ATTEMPTS`,
+      `isUniqueViolation`) was removed rather than kept as dead code.
+    - `apps/backend/prisma/seed.ts`: seeded a hardcoded `"INV-2026-0001"` invoice directly,
+      bypassing the new counter entirely. Every fresh run started the counter at 0, so the very
+      first real `CreateInvoice` collided with that seeded row — and because the counter increment
+      lives in the same transaction as the invoice insert, the failed create rolled back its own
+      increment too, so every subsequent request hit the exact same collision, forever. Seeded
+      `InvoiceNumberCounter` for `(org, 2026)` to `value: 1` alongside the invoice, and seeded
+      `manager@`/`viewer@` as real users + org members (previously only `owner@` was seeded, even
+      though the k6 scripts log in as all three by design). Both of the above were caught only
+      because a full 30-minute soak run was actually executed against a real, freshly-migrated
+      database — nothing short of that would have found either.
+    - `tests/load/lib/{config,auth,workload}.ts`: after every backend fix above, `CreateInvoice`
+      _still_ failed for roughly a third of requests — this one wasn't a bug at all. k6 picks one of
+      the three demo users at random per VU and caches that choice for the whole token lifetime
+      (long enough to cover an entire test run); any VU that logged in as `viewer@` then correctly
+      got 403 "Insufficient role for this operation" on every `CreateInvoice` attempt for the rest
+      of the run (`POST /invoices` requires OWNER/ADMIN/MANAGER/AGENT, per `invoice.controller.ts`'s
+      `@RequireRoles`) — a real viewer's UI would never even show that action. Added a `role` field
+      to each demo user (`config.ts`), exposed `getCurrentRole()` from `auth.ts`, and made
+      `createInvoice()` fall back to `getDashboardSummary()` for a VIEWER session, the same pattern
+      `search()` already uses for a different kind of expected degradation.
+  - Verified for real: a full 30-minute, 200-VU `k6 run tests/load/soak.ts` against the CI job above
+    passes at 100% — `checks_succeeded: 168167 out of 168167`, `http_req_failed: 0.00%`, p95 request
+    duration 7.69ms (well under the 800ms threshold). Every fix was independently re-verified this
+    same way, not just reasoned about — several early "fixes" in this list turned out to be real but
+    insufficient on their own, and only re-running the actual test caught that.
 - PostgreSQL WAL archiving + PITR (ROADMAP Phase 5, DEVOPS_SPEC §9) — closes the biggest remaining
   backup/DR gap: real RPO was "since the last nightly `pg_dump`," not the 5-minute target
   DEVOPS_SPEC §9 already documented:

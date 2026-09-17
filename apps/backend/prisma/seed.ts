@@ -28,6 +28,9 @@ async function main(): Promise<void> {
     where: { email: 'owner@acme-demo.local' },
     update: {},
     create: {
+      // Pinned to match this same user's `id` in realm.json — TenancyGuard keys membership
+      // off the JWT `sub` claim, which is this exact id once Keycloak imports the user with it.
+      id: '00000000-0000-0000-0000-000000000001',
       email: 'owner@acme-demo.local',
       firstName: 'Ada',
       lastName: 'Owner',
@@ -39,6 +42,38 @@ async function main(): Promise<void> {
     update: { role: 'OWNER' },
     create: { organizationId: org.id, userId: owner.id, role: 'OWNER' },
   });
+
+  // manager@/viewer@ aren't referenced elsewhere below (only `owner` is), but both need a
+  // matching Postgres user + membership too — tests/load/lib/config.ts's k6 scripts log in as
+  // all three demo users, rotating across roles by design.
+  const otherDemoUsers = [
+    {
+      id: '00000000-0000-0000-0000-000000000002',
+      email: 'manager@acme-demo.local',
+      firstName: 'Beatrice',
+      lastName: 'Manager',
+      role: 'MANAGER' as const,
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000003',
+      email: 'viewer@acme-demo.local',
+      firstName: 'Chidi',
+      lastName: 'Viewer',
+      role: 'VIEWER' as const,
+    },
+  ];
+  for (const { id, email, firstName, lastName, role } of otherDemoUsers) {
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: { id, email, firstName, lastName },
+    });
+    await prisma.member.upsert({
+      where: { organizationId_userId: { organizationId: org.id, userId: user.id } },
+      update: { role },
+      create: { organizationId: org.id, userId: user.id, role },
+    });
+  }
 
   const products = [
     { name: 'Espresso Beans 1kg', sku: 'COF-001', price: 18.5, cost: 9.2, reorderPoint: 20 },
@@ -118,6 +153,16 @@ async function main(): Promise<void> {
         ],
       },
     },
+  });
+
+  // The counter backing real invoice creation (invoice.service.ts) starts wherever this seeded
+  // invoice number leaves off — without this, the very first real invoice would collide with
+  // "INV-2026-0001" below and, since a failed create rolls back its own counter increment too,
+  // every subsequent attempt would hit that exact same collision forever.
+  await prisma.invoiceNumberCounter.upsert({
+    where: { organizationId_year: { organizationId: org.id, year: 2026 } },
+    update: {},
+    create: { organizationId: org.id, year: 2026, value: 1 },
   });
 
   await prisma.invoice.upsert({
