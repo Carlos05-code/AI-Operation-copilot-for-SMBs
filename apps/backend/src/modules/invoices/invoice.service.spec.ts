@@ -45,12 +45,12 @@ function invoiceRow(over: Record<string, unknown> = {}): Record<string, unknown>
 function harness() {
   const prisma = {
     invoice: {
-      count: jest.fn().mockResolvedValue(0),
       findMany: jest.fn(),
       findFirst: jest.fn(),
       create: jest.fn().mockResolvedValue(invoiceRow()),
       update: jest.fn(),
     },
+    invoiceNumberCounter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
     customer: { findFirst: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
     product: { count: jest.fn().mockResolvedValue(0) },
     recurringInvoice: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
@@ -144,12 +144,11 @@ describe('InvoiceService.create', () => {
     ).rejects.toMatchObject({ code: HttpErrorCode.NOT_FOUND, status: 404 });
   });
 
-  it('retries on a concurrent invoice-number collision (P2002)', async () => {
+  it('numbers the invoice from the atomic per-org, per-year counter', async () => {
     const { service, prisma } = harness();
-    prisma.invoice.findFirst.mockResolvedValue(invoiceRow());
-    prisma.$transaction
-      .mockRejectedValueOnce(Object.assign(new Error('unique'), { code: 'P2002' }))
-      .mockImplementationOnce((cb: (tx: typeof prisma) => unknown) => cb(prisma));
+    const year = new Date().getUTCFullYear();
+    prisma.invoice.findFirst.mockResolvedValue(invoiceRow({ invoiceNumber: `INV-${year}-0043` }));
+    prisma.invoiceNumberCounter.upsert.mockResolvedValue({ value: 43 });
 
     await service.create({
       organizationId: 'org-1',
@@ -158,8 +157,18 @@ describe('InvoiceService.create', () => {
       dueDate: new Date('2026-04-01T00:00:00Z'),
     });
 
-    expect(prisma.invoice.count).toHaveBeenCalledTimes(2);
-    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(prisma.invoiceNumberCounter.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { organizationId_year: { organizationId: 'org-1', year } },
+        create: { organizationId: 'org-1', year, value: 1 },
+        update: { value: { increment: 1 } },
+      }),
+    );
+    expect(prisma.invoice.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ invoiceNumber: `INV-${year}-0043` }),
+      }),
+    );
   });
 
   it('returns the 503 contract error with no database', async () => {

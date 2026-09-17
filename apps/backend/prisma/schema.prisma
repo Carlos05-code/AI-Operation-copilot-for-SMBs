@@ -37,6 +37,7 @@ model Organization {
   appointments            Appointment[]
   purchaseRecommendations PurchaseRecommendation[]
   workflowRules           WorkflowRule[]
+  invoiceNumberCounters   InvoiceNumberCounter[]
 
   @@index([slug])
   @@map("organizations")
@@ -253,6 +254,21 @@ model Invoice {
   @@index([status, dueDate])
   @@index([recurringInvoiceId])
   @@map("invoices")
+}
+
+/// Per-org, per-year atomic sequence backing `Invoice.invoiceNumber`
+/// (INVOICE_SPEC-adjacent, API_SPEC §11.1) — an `upsert` with an atomic
+/// `increment` (a single `INSERT ... ON CONFLICT DO UPDATE` on Postgres) so
+/// concurrent invoice creation can never race on the same value, unlike
+/// counting existing rows first.
+model InvoiceNumberCounter {
+  organizationId String       @map("organization_id")
+  year           Int
+  value          Int          @default(0)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, year])
+  @@map("invoice_number_counters")
 }
 
 enum RecurrenceCadence {

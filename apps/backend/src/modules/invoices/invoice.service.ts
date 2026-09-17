@@ -3,10 +3,11 @@
  * API_SPEC §11.1).
  *
  * `POST /invoices` prices the submitted line items (integer-cent math),
- * allocates a per-org, per-year invoice number (`INV-<year>-<seq>`, retried
- * on a concurrent collision), and writes the invoice + items in one
- * transaction. Lifecycle transitions (`issue`, `pay`, `void`) are an explicit
- * state machine — an illegal transition is a 409, never a silent no-op.
+ * allocates a per-org, per-year invoice number (`INV-<year>-<seq>`, via an
+ * atomic counter — see `InvoiceNumberCounter` — so concurrent creates can
+ * never collide), and writes the invoice + items in one transaction.
+ * Lifecycle transitions (`issue`, `pay`, `void`) are an explicit state
+ * machine — an illegal transition is a 409, never a silent no-op.
  *
  * Every mutation appends a domain event to the transactional outbox
  * (best-effort: a bus/outbox failure is logged, never fatal — the row is the
@@ -24,8 +25,6 @@ import {
   EVENT_INVOICE_PAID,
   EVENT_INVOICE_VOIDED,
   INVOICE_NOTE_MAX_LENGTH,
-  INVOICE_NUMBER_MAX_ATTEMPTS,
-  INVOICE_NUMBER_PREFIX,
 } from './invoice.constants';
 import {
   addDaysUtc,
@@ -266,58 +265,47 @@ export class InvoiceService {
   }): Promise<Invoice> {
     const prisma = this.requirePrisma();
     const year = params.when.getUTCFullYear();
-    const prefix = `${INVOICE_NUMBER_PREFIX}-${year}-`;
 
-    for (let attempt = 1; attempt <= INVOICE_NUMBER_MAX_ATTEMPTS; attempt += 1) {
-      const priorThisYear = await prisma.invoice.count({
-        where: { organizationId: params.organizationId, invoiceNumber: { startsWith: prefix } },
+    return prisma.$transaction(async (tx) => {
+      // Atomic per-org, per-year counter (a single `INSERT ... ON CONFLICT DO UPDATE` on
+      // Postgres) — concurrent creates for the same org/year each get a distinct, strictly
+      // increasing value, so invoiceNumber can never collide. Counting existing rows first
+      // (the previous approach) raced under concurrency: many requests could read the same
+      // count before any of them committed, all generating the same number.
+      const counter = await tx.invoiceNumberCounter.upsert({
+        where: { organizationId_year: { organizationId: params.organizationId, year } },
+        create: { organizationId: params.organizationId, year, value: 1 },
+        update: { value: { increment: 1 } },
       });
-      const invoiceNumber = formatInvoiceNumber(year, priorThisYear + 1);
-      try {
-        return await prisma.$transaction(async (tx) => {
-          const invoice = await tx.invoice.create({
-            data: {
-              organizationId: params.organizationId,
-              customerId: params.customerId,
-              recurringInvoiceId: params.recurringInvoiceId,
-              invoiceNumber,
-              dueDate: params.dueDate,
-              note: params.note,
-              status: params.status,
-              issuedAt: params.issuedAt,
-              subtotal: params.totals.subtotal,
-              taxTotal: params.totals.taxTotal,
-              total: params.totals.total,
-              items: {
-                create: params.totals.items.map((item) => ({
-                  productId: item.productId,
-                  description: item.description,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  taxRate: item.taxRate,
-                  lineTotal: item.lineTotal,
-                })),
-              },
-            },
-          });
-          if (params.afterInTx) await params.afterInTx(tx);
-          return invoice;
-        });
-      } catch (error) {
-        if (error instanceof ScheduleRaceError) throw error;
-        if (isUniqueViolation(error) && attempt < INVOICE_NUMBER_MAX_ATTEMPTS) {
-          this.logger.warn(
-            `invoice number ${invoiceNumber} collided; retrying (attempt ${attempt})`,
-          );
-          continue;
-        }
-        throw error;
-      }
-    }
-    throw new ApiError({
-      code: HttpErrorCode.CONFLICT,
-      status: 409,
-      message: 'Could not allocate a unique invoice number; retry the request',
+      const invoiceNumber = formatInvoiceNumber(year, counter.value);
+
+      const invoice = await tx.invoice.create({
+        data: {
+          organizationId: params.organizationId,
+          customerId: params.customerId,
+          recurringInvoiceId: params.recurringInvoiceId,
+          invoiceNumber,
+          dueDate: params.dueDate,
+          note: params.note,
+          status: params.status,
+          issuedAt: params.issuedAt,
+          subtotal: params.totals.subtotal,
+          taxTotal: params.totals.taxTotal,
+          total: params.totals.total,
+          items: {
+            create: params.totals.items.map((item) => ({
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              taxRate: item.taxRate,
+              lineTotal: item.lineTotal,
+            })),
+          },
+        },
+      });
+      if (params.afterInTx) await params.afterInTx(tx);
+      return invoice;
     });
   }
 
@@ -411,12 +399,6 @@ export class ScheduleRaceError extends Error {
     super(`recurring invoice ${scheduleId} was already advanced by a concurrent run`);
     this.name = 'ScheduleRaceError';
   }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && (error as { code?: string }).code === 'P2002'
-  );
 }
 
 function normalizeNote(note: string | null | undefined): string | null {
