@@ -34,7 +34,6 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    console.error('DEBUG JwtAuthGuard.canActivate: typeof this.jwks =', typeof this.jwks);
     if (!this.jwks) {
       throw new UnauthorizedException('Authentication is not configured (AUTH_JWKS_URL)');
     }

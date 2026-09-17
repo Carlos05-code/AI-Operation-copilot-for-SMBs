@@ -27,12 +27,16 @@ import { TenancyGuard } from './tenancy.guard';
       provide: AUTH_JWKS,
       useFactory: () => {
         const url = process.env.AUTH_JWKS_URL;
-        console.error('DEBUG AUTH_JWKS factory: url =', JSON.stringify(url));
         if (!url) return undefined;
         return createRemoteJWKSet(new URL(url));
       },
     },
   ],
-  exports: [AuthorizationService, JwtAuthGuard, RolesGuard, TenancyGuard],
+  // `@Global()` only makes *exported* providers visible outside this module — AUTH_JWKS was
+  // missing here, so every consuming module's own container resolved JwtAuthGuard's
+  // `@Optional() @Inject(AUTH_JWKS)` constructor param to undefined (the factory itself ran
+  // fine, once, inside AuthModule's own graph; that value just never reached any guard actually
+  // used via @UseGuards() on a controller in a different module).
+  exports: [AuthorizationService, JwtAuthGuard, RolesGuard, TenancyGuard, AUTH_JWKS],
 })
 export class AuthModule {}
