@@ -155,6 +155,16 @@ async function main(): Promise<void> {
     },
   });
 
+  // The counter backing real invoice creation (invoice.service.ts) starts wherever this seeded
+  // invoice number leaves off — without this, the very first real invoice would collide with
+  // "INV-2026-0001" below and, since a failed create rolls back its own counter increment too,
+  // every subsequent attempt would hit that exact same collision forever.
+  await prisma.invoiceNumberCounter.upsert({
+    where: { organizationId_year: { organizationId: org.id, year: 2026 } },
+    update: {},
+    create: { organizationId: org.id, year: 2026, value: 1 },
+  });
+
   await prisma.invoice.upsert({
     where: {
       organizationId_invoiceNumber: { organizationId: org.id, invoiceNumber: 'INV-2026-0001' },
