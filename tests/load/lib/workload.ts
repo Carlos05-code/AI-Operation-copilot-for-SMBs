@@ -3,8 +3,9 @@
  * `options` (VUs/duration/stages) differ per scenario file. Weighted toward reads,
  * since that's the real traffic shape (API_SPEC §11.10/§11.11), with one write path
  * (`POST /invoices`) deliberately included: creating drafts concurrently exercises
- * the per-org invoice-numbering retry-on-collision path (API_SPEC §11.12) under
- * exactly the kind of contention a resilience test exists to find.
+ * the per-org atomic invoice-numbering counter (API_SPEC §11.12) under exactly the
+ * kind of contention a resilience test exists to find — this is exactly how a real
+ * concurrency bug in that counter was found and fixed.
  *
  * Excluded on purpose: `POST /api/v1/chat` — it 503s as `LLM_UNAVAILABLE` whenever
  * no LLM provider is configured (API_SPEC §11.5), which most load-test targets
@@ -14,7 +15,7 @@
 import http, { RefinedResponse, ResponseType } from 'k6/http';
 import { check, sleep } from 'k6';
 import { loadConfig } from './config.ts';
-import { authHeaders } from './auth.ts';
+import { authHeaders, getCurrentRole } from './auth.ts';
 
 type Res = RefinedResponse<ResponseType | undefined>;
 
@@ -51,6 +52,15 @@ function search(config: ReturnType<typeof loadConfig>): void {
 }
 
 function createInvoice(config: ReturnType<typeof loadConfig>): void {
+  // A VIEWER genuinely can't create invoices (API_SPEC §6's RBAC matrix — POST /invoices
+  // requires OWNER/ADMIN/MANAGER/AGENT) — a real viewer's UI would never even show this
+  // action, so simulate that instead of counting Keycloak's random per-VU role assignment
+  // as a capacity failure. getCurrentRole() reflects whichever demo user this VU is
+  // currently logged in as (auth.ts caches one per VU for the token's lifetime).
+  if (getCurrentRole() === 'VIEWER') {
+    getDashboardSummary(config);
+    return;
+  }
   const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const res = http.post(
     `${config.baseUrl}/api/v1/invoices`,
@@ -63,9 +73,6 @@ function createInvoice(config: ReturnType<typeof loadConfig>): void {
     }),
     { headers: authHeaders(), tags: { name: 'CreateInvoice' } },
   );
-  if (res.status < 200 || res.status >= 300) {
-    console.error(`DEBUG CreateInvoice failed: status=${res.status} body=${res.body}`);
-  }
   checkOk(res, 'CreateInvoice');
 }
 

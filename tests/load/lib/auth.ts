@@ -17,7 +17,7 @@
  */
 import http from 'k6/http';
 import { check } from 'k6';
-import { loadConfig } from './config.ts';
+import { loadConfig, type LoadTestUser } from './config.ts';
 
 interface TokenResponse {
   access_token: string;
@@ -25,6 +25,7 @@ interface TokenResponse {
 }
 
 let cachedToken: string | null = null;
+let cachedUser: LoadTestUser | null = null;
 let expiresAtMs = 0;
 // Re-login this long before the token's real expiry, so a slow request never
 // gets caught starting out with an already-expired bearer token mid-flight.
@@ -58,8 +59,20 @@ export function getToken(): string {
 
   const body = res.json() as unknown as TokenResponse;
   cachedToken = body.access_token;
+  cachedUser = user;
   expiresAtMs = now + body.expires_in * 1000 - EXPIRY_SAFETY_MARGIN_MS;
   return cachedToken;
+}
+
+/**
+ * The role backing the currently cached token — same VU, same role, until the
+ * next re-login (see the module comment above). Callers use this to skip
+ * write actions a VIEWER genuinely can't do (API_SPEC §6), not to predict
+ * every guard's exact decision.
+ */
+export function getCurrentRole(): LoadTestUser['role'] {
+  getToken(); // ensures cachedUser is populated (logs in on first call/after expiry)
+  return (cachedUser as LoadTestUser).role;
 }
 
 export function authHeaders(): Record<string, string> {

@@ -3,13 +3,20 @@
  * `.env.example` so `k6 run tests/load/smoke.ts` works against an unmodified local
  * stack with zero flags — override via `-e` for staging/production (TESTING_SPEC §6).
  */
+export interface LoadTestUser {
+  username: string;
+  password: string;
+  /** API_SPEC §6 RBAC — which write endpoints this demo user's role can reach. */
+  role: 'OWNER' | 'MANAGER' | 'VIEWER';
+}
+
 export interface LoadTestConfig {
   baseUrl: string;
   keycloakUrl: string;
   realm: string;
   clientId: string;
   orgId: string;
-  users: { username: string; password: string }[];
+  users: LoadTestUser[];
   customerId: string;
 }
 
@@ -31,9 +38,21 @@ export function loadConfig(): LoadTestConfig {
     // All three demo users share one password (`realm.json`); mixing them spreads
     // load across distinct JWTs/roles instead of every VU looking identical.
     users: [
-      { username: 'owner@acme-demo.local', password: env('DEMO_PASSWORD', 'changeme') },
-      { username: 'manager@acme-demo.local', password: env('DEMO_PASSWORD', 'changeme') },
-      { username: 'viewer@acme-demo.local', password: env('DEMO_PASSWORD', 'changeme') },
+      {
+        username: 'owner@acme-demo.local',
+        password: env('DEMO_PASSWORD', 'changeme'),
+        role: 'OWNER',
+      },
+      {
+        username: 'manager@acme-demo.local',
+        password: env('DEMO_PASSWORD', 'changeme'),
+        role: 'MANAGER',
+      },
+      {
+        username: 'viewer@acme-demo.local',
+        password: env('DEMO_PASSWORD', 'changeme'),
+        role: 'VIEWER',
+      },
     ],
     customerId: env('CUSTOMER_ID', '00000000-0000-0000-0000-00000000c001'),
   };
