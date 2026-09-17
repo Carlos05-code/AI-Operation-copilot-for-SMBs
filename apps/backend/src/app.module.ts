@@ -12,6 +12,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { EventsModule } from './modules/events/events.module.js';
 import { QueueModule } from './modules/queue/queue.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { StorageHttpModule } from './modules/storage/storage-http.module.js';
 import { IngestionModule } from './modules/ingestion/ingestion.module.js';
 import { EmbeddingsModule } from './modules/embeddings/embeddings.module.js';
 import { SearchModule } from './modules/search/search.module.js';
@@ -43,6 +44,7 @@ import { RequestIdMiddleware } from './shared/context/request-id.middleware.js';
     EventsModule,
     QueueModule,
     StorageModule,
+    StorageHttpModule,
     IngestionModule,
     EmbeddingsModule,
     SearchModule,

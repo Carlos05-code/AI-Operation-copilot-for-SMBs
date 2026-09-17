@@ -1,38 +1,15 @@
 /**
- * NotificationsModule: outbound email delivery for `Notification` rows
- * (ROADMAP Phase 3, BACKEND_SPEC §12).
- *
- * The module is inert without `SMTP_HOST` + `SMTP_FROM` (fail-soft):
- * `NotificationDeliveryWorker` leaves rows `PENDING`/`FAILED` for a later
- * sweep once SMTP is configured, so local runs without an SMTP server still
- * boot. WhatsApp delivery is deferred — see `notification.constants.ts`.
+ * NotificationsModule: `POST /notifications/sweep-delivery` — just schedules
+ * the delivery-sweep job on the shared `ops-jobs` queue via the global
+ * `QueueService`. `EmailProvider` and the worker that actually sends mail
+ * live in `notification-worker.module.ts`, split out so
+ * `worker-app.module.ts` never instantiates `NotificationController`
+ * (DEVOPS_SPEC §3).
  */
 import { Module } from '@nestjs/common';
-import { createTransport } from 'nodemailer';
-import { emailProviderConfig } from './email.config';
-import { EmailProvider } from './email.provider';
 import { NotificationController } from './notification.controller';
-import { NotificationDeliveryWorker } from './notification.delivery.worker';
 
 @Module({
   controllers: [NotificationController],
-  providers: [
-    {
-      provide: EmailProvider,
-      useFactory: () => {
-        const config = emailProviderConfig();
-        if (!config) return new EmailProvider(undefined, undefined);
-        const transport = createTransport({
-          host: config.host,
-          port: config.port,
-          secure: config.secure,
-          auth: config.user ? { user: config.user, pass: config.password } : undefined,
-        });
-        return new EmailProvider(transport, config.from);
-      },
-    },
-    NotificationDeliveryWorker,
-  ],
-  exports: [EmailProvider],
 })
 export class NotificationsModule {}

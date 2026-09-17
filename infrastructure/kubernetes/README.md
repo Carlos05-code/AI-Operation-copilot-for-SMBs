@@ -30,16 +30,20 @@ There are **two** Deployments now: `api` (HTTP + in-process BullMQ processing) a
 `/metrics`+`/healthz` listener for Prometheus/kubelet). BullMQ consumers on the same queue name are
 safe to run concurrently by design (Redis-backed per-job locking), so `worker` is _additional_
 capacity, scalable independently of `api` — it doesn't replace `api`'s own processing. Both
-Deployments run the exact same image and `AppModule`; only the container `command` differs.
+Deployments run the exact same image; only the container `command` (and which root module it
+bootstraps) differs.
 
-**Still not a fully clean split**: every feature module bundles its HTTP controller and its workers
-together (`task.module.ts` is typical — one module, one controller, two workers), so `worker`
-bootstraps the whole module graph via `NestFactory.createApplicationContext` rather than a
-worker-only subset — no REST routes get registered (no HTTP adapter is created at all), but the
-controller classes still get instantiated as inert DI providers. Splitting every such module into
-HTTP-only and worker-only halves is a materially larger change (BACKEND_SPEC-level module
-restructuring) than this deployment split — not done here; see `main-worker.ts`'s own header
-comment.
+**Now a fully clean split**: every feature module that used to bundle an HTTP controller with its
+BullMQ workers (`task.module.ts` was the typical example) is split into an HTTP half
+(`<feature>.module.ts`, imported by `app.module.ts`) and a worker half
+(`<feature>-worker.module.ts`, imported by `worker-app.module.ts`). `worker` bootstraps
+`WorkerAppModule`, not `AppModule` — no `@Controller` class is reachable from that module tree at
+all, so `main-worker.ts`'s `NestFactory.createApplicationContext` never instantiates one. Verified
+for real: the compiled worker was run directly and its own boot log lists every module that actually
+initialized — only `*WorkerModule`s, `LlmModule`, and shared infra (`Database`, `Events`, `Queue`,
+`Storage`, `Embeddings`, `Graph`, `Core`); no `AuthModule`, `HealthModule`, `OpenApiModule`, or any
+HTTP-only feature module appears. See `main-worker.ts` and `worker-app.module.ts`'s own header
+comments.
 
 ## Layout
 

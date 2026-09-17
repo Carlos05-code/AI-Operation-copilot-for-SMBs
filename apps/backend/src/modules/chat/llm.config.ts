@@ -7,6 +7,7 @@
  * without a model, unlike retrieval which degrades store by store.
  */
 import { DEFAULT_LLM_MODEL } from './chat.constants';
+import { LlmProvider } from './llm.provider';
 
 export interface LlmConfig {
   apiUrl: string;
@@ -23,4 +24,10 @@ export function llmConfig(env: NodeJS.ProcessEnv = process.env): LlmConfig | nul
     apiKey: env.LLM_API_KEY || undefined,
     model: env.LLM_MODEL ?? DEFAULT_LLM_MODEL,
   };
+}
+
+/** Builds `LlmProvider` from env — the sole provider `llm.module.ts` registers. */
+export function createLlmProvider(): LlmProvider {
+  const config = llmConfig();
+  return config ? new LlmProvider(config) : new LlmProvider(undefined);
 }

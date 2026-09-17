@@ -871,6 +871,46 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     and restoring it has never run end-to-end. `incident.md`'s "Known gaps" section says so
     explicitly and names the concrete next step: do exactly that once, against a disposable cluster,
     before relying on it in a real incident.
+- Clean HTTP/worker module split (ROADMAP Phase 5, DEVOPS_SPEC §3) — closes the gap
+  `main-worker.ts`'s own header comment named since the Kubernetes worker Deployment PR: every
+  feature module that bundled an HTTP controller with its BullMQ workers in one module
+  (`task.module.ts` was the typical example) made `worker` instantiate every controller in the app
+  as an inert DI provider, just because `createApplicationContext` has no HTTP adapter to route them
+  to:
+  - Split ten feature modules — `appointments`, `conversations`, `insights`, `inventory`,
+    `invoices`, `notifications`, `purchasing`, `search`, `tasks`, `workflows` — into an HTTP half
+    (`<feature>.module.ts`, unchanged name/exports, so nothing importing it for its `Service` broke)
+    and a new worker half (`<feature>-worker.module.ts`, providing just the `@Processor` class(es)
+    plus whatever each one's constructor actually needs — traced individually per worker, not
+    assumed from the old module's `imports`).
+  - Also split two shared modules whose own controller would otherwise have leaked into the worker
+    transitively: `chat.module.ts`'s `LlmProvider` moved into a new standalone `llm.module.ts` (four
+    other modules' workers imported `ChatModule` purely for `LlmProvider`, which also pulled in
+    `ChatController` and the whole of `SearchModule`); `storage.module.ts`'s `StorageController`
+    moved into a new `storage-http.module.ts` (`search.worker.ts` needs the global `StorageService`,
+    which used to mean instantiating `StorageController` too). `search.module.ts` itself split the
+    same way as the ten feature modules, into an HTTP half and `search-worker.module.ts`; the
+    OpenSearch-client construction that both now need was factored into one shared
+    `createSearchService()` (`search.config.ts`) so the two independent module graphs can't drift on
+    how it's built.
+  - New `apps/backend/src/worker-app.module.ts`: the root module `main-worker.ts` now bootstraps
+    instead of `AppModule` — imports only the ten worker halves, `LlmModule`, and shared infra
+    (`Database`, `Events`, `Queue`, `Storage`, `Embeddings`, `Graph`, `Core`). `AuthModule` is
+    deliberately absent: nothing under any worker half depends on it (RBAC is an
+    `ExecutionContext.switchToHttp()`-scoped concern), so the worker process no longer fetches
+    Keycloak's JWKS at all. `HealthModule`/`OpenApiModule` and every pure-HTTP feature module
+    (`chat`, `connectors`, `dashboard`, `forecasting`, `health`, `ingestion`, `knowledge`,
+    `openapi`) are equally absent — traced their exports against every worker file first to confirm
+    none are actually depended on. `DatabaseModule` (whose only _other_ importer is `HealthModule`,
+    now absent) is imported directly here instead, since `PrismaService` is needed everywhere and
+    nothing else in this tree would otherwise load it.
+  - Verified for real, twice over: the existing `test/app.e2e-spec.ts` (boots the real `AppModule`
+    through Nest's `TestingModule`) passes unchanged — every REST route, every 401 check — proving
+    the HTTP-side split broke nothing. Separately, built and ran the compiled `dist/main-worker.js`
+    directly and read its own boot log: only `*WorkerModule`s, `LlmModule`, and the shared infra
+    above ever say "dependencies initialized" — no `AuthModule`, `HealthModule`, `OpenApiModule`,
+    `ChatModule`, or any other HTTP-only module appears, and `/healthz`/`/metrics` both respond
+    correctly. Full backend test suite (555 tests), typecheck, and lint all pass unchanged.
 
 ### Changed
 

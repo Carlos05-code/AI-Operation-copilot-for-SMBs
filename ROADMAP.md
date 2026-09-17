@@ -98,10 +98,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [~] Kubernetes deployment with Horizontal Pod Autoscaling (HPA) — Kustomize base +
   staging/production overlays, `api` **and** `worker` Deployments each with their own HPA on
   CPU/memory (`apps/backend/src/main-worker.ts`, additional BullMQ consumer capacity alongside the
-  API's own in-process processing). Gaps: not a fully clean split — every feature module still
-  bundles its controller and workers in one module, so `worker` boots the whole module graph rather
-  than a worker-only subset — and the in-cluster StatefulSets are staging-only, not a
-  production-grade posture (see overlays/production/README.md)
+  API's own in-process processing). `worker` bootstraps `WorkerAppModule`, a fully clean split from
+  `AppModule` — every feature module that used to bundle a controller with its workers is now an
+  HTTP half + a worker half, so no `@Controller` is reachable from the worker's module tree at all
+  (verified by running the compiled worker and checking its own boot log). Remaining gap: the
+  in-cluster StatefulSets are staging-only, not a production-grade posture (see
+  overlays/production/README.md)
 - [x] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓, Loki log shipping ✓ — the
       API's own logs; the other containerized dependencies' logs aren't shipped anywhere, a
       separate, smaller gap noted in `infrastructure/monitoring/README.md`)
