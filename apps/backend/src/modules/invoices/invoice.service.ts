@@ -267,17 +267,25 @@ export class InvoiceService {
     const year = params.when.getUTCFullYear();
 
     return prisma.$transaction(async (tx) => {
-      // Atomic per-org, per-year counter (a single `INSERT ... ON CONFLICT DO UPDATE` on
-      // Postgres) — concurrent creates for the same org/year each get a distinct, strictly
-      // increasing value, so invoiceNumber can never collide. Counting existing rows first
-      // (the previous approach) raced under concurrency: many requests could read the same
-      // count before any of them committed, all generating the same number.
-      const counter = await tx.invoiceNumberCounter.upsert({
-        where: { organizationId_year: { organizationId: params.organizationId, year } },
-        create: { organizationId: params.organizationId, year, value: 1 },
-        update: { value: { increment: 1 } },
-      });
-      const invoiceNumber = formatInvoiceNumber(year, counter.value);
+      // Atomic per-org, per-year counter via a single raw `INSERT ... ON CONFLICT DO UPDATE
+      // ... RETURNING` statement — deliberately NOT `tx.invoiceNumberCounter.upsert(...)`.
+      // Prisma's `upsert()` is not guaranteed to compile to one atomic SQL statement for every
+      // provider/version (it can read-then-write in two steps), which is exactly what caused a
+      // real, observed collision under 200-VU concurrent load: two transactions both computed
+      // the same "next" value before either committed. A raw `INSERT ... ON CONFLICT DO UPDATE
+      // SET value = value + 1` is atomic at the Postgres engine level regardless of what any
+      // ORM does above it — the increment happens in the same statement that takes the row
+      // lock, so no concurrent transaction can observe or reuse a stale value. Counting existing
+      // rows first (the original approach, before this) raced the same way, just with a wider
+      // window.
+      const [{ value }] = await tx.$queryRaw<[{ value: number }]>`
+        INSERT INTO invoice_number_counters (organization_id, year, value)
+        VALUES (${params.organizationId}, ${year}, 1)
+        ON CONFLICT (organization_id, year)
+        DO UPDATE SET value = invoice_number_counters.value + 1
+        RETURNING value
+      `;
+      const invoiceNumber = formatInvoiceNumber(year, value);
 
       const invoice = await tx.invoice.create({
         data: {

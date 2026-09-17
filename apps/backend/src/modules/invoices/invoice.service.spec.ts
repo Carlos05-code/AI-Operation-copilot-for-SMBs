@@ -50,10 +50,10 @@ function harness() {
       create: jest.fn().mockResolvedValue(invoiceRow()),
       update: jest.fn(),
     },
-    invoiceNumberCounter: { upsert: jest.fn().mockResolvedValue({ value: 1 }) },
     customer: { findFirst: jest.fn().mockResolvedValue({ id: 'cust-1' }) },
     product: { count: jest.fn().mockResolvedValue(0) },
     recurringInvoice: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+    $queryRaw: jest.fn().mockResolvedValue([{ value: 1 }]),
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
@@ -148,7 +148,7 @@ describe('InvoiceService.create', () => {
     const { service, prisma } = harness();
     const year = new Date().getUTCFullYear();
     prisma.invoice.findFirst.mockResolvedValue(invoiceRow({ invoiceNumber: `INV-${year}-0043` }));
-    prisma.invoiceNumberCounter.upsert.mockResolvedValue({ value: 43 });
+    prisma.$queryRaw.mockResolvedValue([{ value: 43 }]);
 
     await service.create({
       organizationId: 'org-1',
@@ -157,13 +157,9 @@ describe('InvoiceService.create', () => {
       dueDate: new Date('2026-04-01T00:00:00Z'),
     });
 
-    expect(prisma.invoiceNumberCounter.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { organizationId_year: { organizationId: 'org-1', year } },
-        create: { organizationId: 'org-1', year, value: 1 },
-        update: { value: { increment: 1 } },
-      }),
-    );
+    // Confirms the service passes the right params (the tagged-template's own SQL text isn't
+    // asserted here — no live Postgres in this unit test to actually exercise it against).
+    expect(prisma.$queryRaw).toHaveBeenCalledWith(expect.anything(), 'org-1', year);
     expect(prisma.invoice.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ invoiceNumber: `INV-${year}-0043` }),
