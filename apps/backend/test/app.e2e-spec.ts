@@ -9,6 +9,19 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module.js';
 import { OpenApiService } from '../src/shared/openapi/openapi.service.js';
 import { buildOpenApiDocument } from '../src/shared/openapi/openapi-document.js';
+import { AppointmentReminderWorker } from '../src/modules/appointments/appointment.reminder.worker.js';
+import { ConversationSummaryWorker } from '../src/modules/conversations/conversation.summary.worker.js';
+import { ConversationWorker } from '../src/modules/conversations/conversation.worker.js';
+import { ExecutiveBriefingWorker } from '../src/modules/insights/executive-briefing.worker.js';
+import { InventoryReorderWorker } from '../src/modules/inventory/inventory.reorder.worker.js';
+import { InvoiceOverdueWorker } from '../src/modules/invoices/invoice.overdue.worker.js';
+import { InvoiceRecurrenceWorker } from '../src/modules/invoices/invoice.recurrence.worker.js';
+import { NotificationDeliveryWorker } from '../src/modules/notifications/notification.delivery.worker.js';
+import { PurchaseRecommendationWorker } from '../src/modules/purchasing/purchase-recommendation.worker.js';
+import { SearchWorker } from '../src/modules/search/search.worker.js';
+import { TaskAutoCompletionWorker } from '../src/modules/tasks/task.autocomplete.worker.js';
+import { TaskPlanningWorker } from '../src/modules/tasks/task.planning.worker.js';
+import { WorkflowEngineWorker } from '../src/modules/workflows/workflow-engine.worker.js';
 
 describe('API (e2e)', () => {
   let app: INestApplication;
@@ -318,5 +331,25 @@ describe('API (e2e)', () => {
       .post('/api/v1/workflows/rules/sweep')
       .expect(401);
     expect(sweepRes.body.error.code).toBe('UNAUTHORIZED');
+  });
+
+  // Regression guard (DEVOPS_SPEC §3): `AppModule` must keep importing every
+  // `*-worker.module.ts` alongside its HTTP-half sibling, so `api` still does
+  // in-process BullMQ processing and doesn't silently drop to zero job
+  // processing outside a cluster that also always runs `worker`.
+  it('resolves every BullMQ worker in-process, not just the HTTP controllers', () => {
+    expect(app.get(AppointmentReminderWorker)).toBeInstanceOf(AppointmentReminderWorker);
+    expect(app.get(ConversationWorker)).toBeInstanceOf(ConversationWorker);
+    expect(app.get(ConversationSummaryWorker)).toBeInstanceOf(ConversationSummaryWorker);
+    expect(app.get(ExecutiveBriefingWorker)).toBeInstanceOf(ExecutiveBriefingWorker);
+    expect(app.get(InventoryReorderWorker)).toBeInstanceOf(InventoryReorderWorker);
+    expect(app.get(InvoiceRecurrenceWorker)).toBeInstanceOf(InvoiceRecurrenceWorker);
+    expect(app.get(InvoiceOverdueWorker)).toBeInstanceOf(InvoiceOverdueWorker);
+    expect(app.get(NotificationDeliveryWorker)).toBeInstanceOf(NotificationDeliveryWorker);
+    expect(app.get(PurchaseRecommendationWorker)).toBeInstanceOf(PurchaseRecommendationWorker);
+    expect(app.get(SearchWorker)).toBeInstanceOf(SearchWorker);
+    expect(app.get(TaskPlanningWorker)).toBeInstanceOf(TaskPlanningWorker);
+    expect(app.get(TaskAutoCompletionWorker)).toBeInstanceOf(TaskAutoCompletionWorker);
+    expect(app.get(WorkflowEngineWorker)).toBeInstanceOf(WorkflowEngineWorker);
   });
 });

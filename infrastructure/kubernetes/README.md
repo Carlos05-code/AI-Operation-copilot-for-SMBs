@@ -33,17 +33,25 @@ capacity, scalable independently of `api` — it doesn't replace `api`'s own pro
 Deployments run the exact same image; only the container `command` (and which root module it
 bootstraps) differs.
 
-**Now a fully clean split**: every feature module that used to bundle an HTTP controller with its
-BullMQ workers (`task.module.ts` was the typical example) is split into an HTTP half
-(`<feature>.module.ts`, imported by `app.module.ts`) and a worker half
-(`<feature>-worker.module.ts`, imported by `worker-app.module.ts`). `worker` bootstraps
-`WorkerAppModule`, not `AppModule` — no `@Controller` class is reachable from that module tree at
-all, so `main-worker.ts`'s `NestFactory.createApplicationContext` never instantiates one. Verified
-for real: the compiled worker was run directly and its own boot log lists every module that actually
-initialized — only `*WorkerModule`s, `LlmModule`, and shared infra (`Database`, `Events`, `Queue`,
-`Storage`, `Embeddings`, `Graph`, `Core`); no `AuthModule`, `HealthModule`, `OpenApiModule`, or any
-HTTP-only feature module appears. See `main-worker.ts` and `worker-app.module.ts`'s own header
-comments.
+**A clean split, in one direction only**: every feature module that used to bundle an HTTP
+controller with its BullMQ workers (`task.module.ts` was the typical example) is split into an HTTP
+half (`<feature>.module.ts`) and a worker half (`<feature>-worker.module.ts`). `app.module.ts`
+(`api`) imports **both** halves of every split module, so `api` keeps doing in-process BullMQ
+processing exactly as before — that's what "worker is additional capacity, it doesn't replace api's
+own processing" above depends on. `worker-app.module.ts` (`worker`) imports **only** the worker
+halves: `worker` bootstraps `WorkerAppModule`, not `AppModule`, so no `@Controller` class is
+reachable from that module tree at all, and `main-worker.ts`'s
+`NestFactory.createApplicationContext` never instantiates one. An earlier version of this split had
+`app.module.ts` import only the HTTP halves too, which silently dropped `api`'s in-process
+processing to zero for all ten split queues whenever `worker` wasn't also running (true of local
+dev, which only ever runs `main.ts`) — fixed, and guarded by an e2e assertion
+(`test/app.e2e-spec.ts`) that resolves every worker provider out of `AppModule` directly. Verified
+for real: the compiled `api` (`dist/main.js`) was run directly and its own boot log shows all ten
+`*WorkerModule`s initializing alongside the HTTP modules; the compiled `worker`
+(`dist/main-worker.js`) was run directly too and its boot log lists only `*WorkerModule`s,
+`LlmModule`, and shared infra (`Database`, `Events`, `Queue`, `Storage`, `Embeddings`, `Graph`,
+`Core`) — no `AuthModule`, `HealthModule`, `OpenApiModule`, or any HTTP-only feature module appears.
+See `main-worker.ts` and `worker-app.module.ts`'s own header comments.
 
 ## Layout
 
