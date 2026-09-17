@@ -75,7 +75,7 @@
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "config": {
-            "claim.name": "org.role",
+            "claim.name": "org\\.role",
             "jsonType.label": "String",
             "id.token.claim": "true",
             "access.token.claim": "true",
