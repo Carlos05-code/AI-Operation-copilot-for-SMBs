@@ -156,6 +156,7 @@
   ],
   "users": [
     {
+      "id": "00000000-0000-0000-0000-000000000001",
       "username": "owner@acme-demo.local",
       "email": "owner@acme-demo.local",
       "firstName": "Demo",
@@ -169,6 +170,7 @@
       "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
     },
     {
+      "id": "00000000-0000-0000-0000-000000000002",
       "username": "manager@acme-demo.local",
       "email": "manager@acme-demo.local",
       "firstName": "Demo",
@@ -182,6 +184,7 @@
       "credentials": [{ "type": "password", "value": "changeme", "temporary": false }]
     },
     {
+      "id": "00000000-0000-0000-0000-000000000003",
       "username": "viewer@acme-demo.local",
       "email": "viewer@acme-demo.local",
       "firstName": "Demo",
