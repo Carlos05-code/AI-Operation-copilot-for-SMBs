@@ -56,14 +56,14 @@ flowchart TB
 
 Workflows in `.github/workflows/`:
 
-| Workflow            | Trigger            | Purpose                                       |
-| ------------------- | ------------------ | --------------------------------------------- |
-| `lint.yml`          | PR                 | ESLint, Prettier, Flutter analyze             |
-| `build.yml`         | PR + merge         | API build, mobile build (matrix)              |
-| `docs.yml`          | PR                 | Markdown lint + link check + Mermaid validate |
-| `security-scan.yml` | PR + schedule      | Semgrep, gitleaks, dep audit, Trivy           |
-| `db-migrate-check`  | PR touching prisma | validate migrations                           |
-| `release.yml`       | tag v*             | build images, migrate, deploy, changelog      |
+| Workflow            | Trigger            | Purpose                                                          |
+| ------------------- | ------------------ | ---------------------------------------------------------------- |
+| `lint.yml`          | PR                 | ESLint, Prettier, Flutter analyze                                |
+| `build.yml`         | PR + merge         | API build, mobile build (matrix)                                 |
+| `docs.yml`          | PR                 | Markdown lint + link check + Mermaid validate                    |
+| `security-scan.yml` | PR + schedule      | Semgrep, gitleaks, dep audit, Trivy                              |
+| `db-migrate-check`  | PR touching prisma | validate migrations                                              |
+| `release.yml`       | tag v* (+ manual)  | k6 soak load-test gate, build images, migrate, deploy, changelog |
 
 Pr release: all check workflows must be green; PR must pass `Definition of Done`.
 

@@ -52,13 +52,15 @@ Status: **Draft · v0** · Owner: Carlos05-code
 
 > Status: shipped (`tests/load/`) — smoke/soak/spike scripts sharing one weighted request mix
 > against real API_SPEC endpoints, real Keycloak password-grant auth (per-VU cached, re-logs in near
-> expiry), thresholds matching the DEVOPS_SPEC §8 SLO alert numbers exactly. Verified with a real
-> `k6 run` against a local mock server, not just `k6 archive` syntax checking — see
-> `tests/load/README.md`. Gap: not wired into CI. §9 of this doc's own CI diagram calls for
-> `k6 soak` on every `v*` tag, but that needs the full stack booted inside the runner first, and no
-> existing workflow boots more than one `services:` container to build that on — see
-> `tests/load/README.md`'s "CI status" section for the honest reasoning, not a guess dressed up as
-> automation.
+> expiry, RBAC-aware — a VIEWER-assigned VU redirects `CreateInvoice` to a read action instead of
+> hitting a real, correctly-enforced 403), thresholds matching the DEVOPS_SPEC §8 SLO alert numbers
+> exactly. Wired into CI (`.github/workflows/release.yml`'s `load-test` job, gating `release` on
+> every `v*` tag, matching §9's `tag.v --> LOAD[k6 soak]`) — boots the full stack as GitHub Actions
+> `services:`, migrates, seeds, imports the Keycloak realm via its Admin REST API, builds and starts
+> the API, then runs the real `k6 soak` scenario. Verified end-to-end, not just `k6 archive` syntax
+> checking: a real 30-minute, 200-VU run passes at 100% (see `tests/load/README.md`'s "CI status").
+> Building this surfaced several real, previously-unexercised bugs (Keycloak realm schema
+> mismatches, a missing DI export, an invoice-numbering race) — see `CHANGELOG.md`.
 
 - `tests/load/*.ts` scenarios:
   - `smoke`: 5 users · 1 min

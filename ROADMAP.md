@@ -105,9 +105,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [x] OpenTelemetry ingestion (traces ✓, metrics ✓, logs correlated ✓, Loki log shipping ✓ — the
       API's own logs; the other containerized dependencies' logs aren't shipped anywhere, a
       separate, smaller gap noted in `infrastructure/monitoring/README.md`)
-- [~] Load and resilience testing (k6) — smoke/soak/spike scripts shipped (`tests/load/`), real
-  Keycloak auth, SLO-matching thresholds; not yet wired into CI (no existing workflow boots the full
-  stack to run against, see `tests/load/README.md`)
+- [x] Load and resilience testing (k6) — smoke/soak/spike scripts (`tests/load/`), real Keycloak
+      auth, SLO-matching thresholds, wired into CI (`.github/workflows/release.yml`'s `load-test`
+      job gates every `v*` release tag) and verified end-to-end: a real 30-minute, 200-VU soak run
+      passes at 100% (see `tests/load/README.md`). Building this surfaced and fixed several real,
+      previously-unexercised bugs — Keycloak realm schema mismatches, a missing DI export, an
+      invoice-numbering concurrency race — see `CHANGELOG.md`
 - [~] Backup and disaster-recovery runbooks — nightly CronJobs for 5 of 6 stateful services
   (`infrastructure/kubernetes/base/backup/`) + restore runbook
   (`infrastructure/devops/incident.md`). Gaps: no PostgreSQL WAL archiving/PITR, OpenSearch

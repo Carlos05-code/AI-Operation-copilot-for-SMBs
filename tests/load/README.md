@@ -48,10 +48,21 @@ k6 prints a summary to stdout; pass `--out json=tests/load/results/<run>.json` t
 
 ## CI status
 
-Not yet wired into a workflow. `TESTING_SPEC.md`'s CI diagram calls for `k6 soak` to run on every
-`v*` release tag, but that needs the full stack (Postgres, Redis, RabbitMQ, Keycloak, OpenSearch,
-Qdrant, Neo4j, the built API) booted inside the runner first — no existing workflow in
-`.github/workflows/` boots more than a single `services:` container (see `db-migrate-check.yml`), so
-there's no established pattern to build this on top of, and shipping an unverified multi-service
-boot sequence risks a CI job that's flaky or silently wrong in a way this session has no way to
-catch before merging. Run these manually against staging until that's built.
+Wired into `.github/workflows/release.yml`'s `load-test` job, gating `release` (`needs: load-test`)
+on every `v*` tag push, matching `TESTING_SPEC.md`'s CI diagram (`tag.v --> LOAD[k6 soak]`). The job
+boots the full stack (Postgres, Redis, RabbitMQ, Keycloak, OpenSearch, Qdrant, Neo4j, the built API)
+as GitHub Actions `services:` containers with the same defaults docker-compose.yml uses, migrates +
+seeds the database, imports the Keycloak realm via the Admin REST API (service containers start
+before `actions/checkout`, so `--import-realm`'s file-based approach can't be used in CI), then runs
+`k6 run tests/load/soak.ts` for real — verified end-to-end: a real 30-minute, 200-VU run passes at
+100% (`checks_succeeded: 168167 out of 168167`, `http_req_failed: 0.00%`, p95 7.69ms). Also runnable
+on demand via `workflow_dispatch` against any branch, without cutting a tag — `release` itself stays
+gated to an actual tag push regardless of how the workflow was triggered.
+
+Building this surfaced (and fixed) several real, previously-latent bugs nothing had ever exercised
+end-to-end: three separate `realm.json` schema mismatches against Keycloak 24's actual
+`RealmRepresentation`/role-claim conventions, a missing `AUTH_JWKS` export from `AuthModule`
+(silently made every guarded request 401 outside `AuthModule`'s own container), a real concurrency
+bug in invoice-number allocation (fixed with an atomic raw-SQL counter,
+`apps/backend/prisma/schema.prisma`'s `InvoiceNumberCounter`), and a seed-data/counter mismatch. See
+`CHANGELOG.md` for the full list.
