@@ -1,23 +1,19 @@
 /**
- * WorkflowsModule: org-defined automation rules (ROADMAP Phase 4 — visual
- * workflow builder / rules engine, stretch).
- *
- * `POST /workflows/rules` defines a rule (trigger entity + conditions +
- * actions); `POST /workflows/rules/sweep` schedules a `workflow.rules.sweep`
- * job on the shared `ops-jobs` queue. `WorkflowEngineWorker` evaluates every
- * active rule against its org's current entities and runs matching
- * actions — deterministic, no LLM. PrismaService, OutboxService, and
- * QueueService come from their global modules; every component is
- * fail-soft when infra is absent.
+ * WorkflowsModule: org-defined automation rule CRUD (ROADMAP Phase 4 —
+ * visual workflow builder / rules engine, stretch). HTTP-only —
+ * `WorkflowEngineWorker` lives in `workflow-worker.module.ts`, split out so
+ * `worker-app.module.ts` never instantiates `WorkflowRuleController`
+ * (DEVOPS_SPEC §3). PrismaService, OutboxService, and QueueService come
+ * from their global modules; every component is fail-soft when infra is
+ * absent.
  */
 import { Module } from '@nestjs/common';
-import { WorkflowEngineWorker } from './workflow-engine.worker';
 import { WorkflowRuleController } from './workflow-rule.controller';
 import { WorkflowRuleService } from './workflow-rule.service';
 
 @Module({
   controllers: [WorkflowRuleController],
-  providers: [WorkflowRuleService, WorkflowEngineWorker],
+  providers: [WorkflowRuleService],
   exports: [WorkflowRuleService],
 })
 export class WorkflowsModule {}

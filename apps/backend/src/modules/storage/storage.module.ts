@@ -1,5 +1,9 @@
 /**
- * StorageModule: MinIO presigned upload/download URLs (SECURITY_SPEC §10).
+ * StorageModule: the MinIO client + `StorageService` (SECURITY_SPEC §10).
+ * Global and service-only — the presigned-URL HTTP surface lives in
+ * `storage-http.module.ts` so the worker process (which still needs
+ * `StorageService`, e.g. for `search.worker.ts`) never instantiates
+ * `StorageController` (DEVOPS_SPEC §3).
  *
  * The MinIO client is created from `STORAGE_*` env vars and is `undefined`
  * when unset — the module stays inert (fail-soft) so local runs without
@@ -9,11 +13,9 @@ import { Global, Module } from '@nestjs/common';
 import { DEFAULT_STORAGE_BUCKET, STORAGE_CLIENT } from './storage.constants';
 import { createStorageClient, storageClientConfig } from './storage.config';
 import { StorageService } from './storage.service';
-import { StorageController } from './storage.controller';
 
 @Global()
 @Module({
-  controllers: [StorageController],
   providers: [
     {
       provide: STORAGE_CLIENT,

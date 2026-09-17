@@ -19,18 +19,20 @@ backups, and recovery as core elements.
 > Status: shipped (`infrastructure/kubernetes/`) — Kustomize base + staging/production overlays,
 > `api` **and** `worker` Deployments each with their own HPA (CPU/memory), NGINX Ingress +
 > cert-manager, `NetworkPolicy`s restricting ingress to both, and a `prisma migrate deploy` Job.
-> `worker` (`apps/backend/src/main-worker.ts`) runs the same `AppModule` with no HTTP adapter —
-> every `@Processor` registers there too, as additional capacity alongside `api`'s own in-process
-> processing, not a replacement for it (BullMQ consumers on one queue name are safe to run
-> concurrently). Not a fully clean split: every feature module still bundles its controller and its
-> workers in one module, so `worker` boots the whole graph rather than a worker-only subset — see
-> `main-worker.ts`'s own header comment for why that's materially larger work. One remaining gap vs.
-> the target below: the in-cluster StatefulSets for Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ
-> are a staging convenience, not HA-backed production infrastructure (see
-> `infrastructure/kubernetes/overlays/production/README.md`). RBAC here is minimal (a
-> `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no in-cluster API
-> access needed) rather than a fuller namespace-scoped Role/RoleBinding, since the app doesn't talk
-> to the Kubernetes API.
+> `worker` (`apps/backend/src/main-worker.ts`) runs `WorkerAppModule`, not `AppModule`, with no HTTP
+> adapter — every `@Processor` registers there too, as additional capacity alongside `api`'s own
+> in-process processing, not a replacement for it (BullMQ consumers on one queue name are safe to
+> run concurrently). A fully clean split: every feature module that used to bundle a controller and
+> its workers together is now an HTTP half (imported by `app.module.ts`) and a worker half (imported
+> by `worker-app.module.ts`), so no `@Controller` class is reachable from the worker process's
+> module tree at all — verified by running the compiled worker directly and checking its own boot
+> log names only worker modules and shared infra, never `AuthModule`/`HealthModule`/any HTTP-only
+> feature module. One remaining gap vs. the target below: the in-cluster StatefulSets for
+> Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ are a staging convenience, not HA-backed
+> production infrastructure (see `infrastructure/kubernetes/overlays/production/README.md`). RBAC
+> here is minimal (a `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no
+> in-cluster API access needed) rather than a fuller namespace-scoped Role/RoleBinding, since the
+> app doesn't talk to the Kubernetes API.
 
 - Manifest dir `infrastructure/kubernetes/`.
 - App deployable as modular monolith + workers (HPA).
