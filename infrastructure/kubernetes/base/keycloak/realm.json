@@ -43,7 +43,8 @@
       "protocol": "openid-connect",
       "redirectUris": ["http://localhost/*"],
       "webOrigins": ["http://localhost:*"],
-      "defaultClientScopes": ["openid", "profile", "email", "offline_access"]
+      "defaultClientScopes": ["openid", "profile", "email"],
+      "optionalClientScopes": ["offline_access"]
     },
     {
       "clientId": "smb-copilot-api",
