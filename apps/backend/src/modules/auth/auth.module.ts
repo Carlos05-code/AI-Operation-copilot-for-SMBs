@@ -27,6 +27,7 @@ import { TenancyGuard } from './tenancy.guard';
       provide: AUTH_JWKS,
       useFactory: () => {
         const url = process.env.AUTH_JWKS_URL;
+        console.error('DEBUG AUTH_JWKS factory: url =', JSON.stringify(url));
         if (!url) return undefined;
         return createRemoteJWKSet(new URL(url));
       },
