@@ -216,7 +216,7 @@ jobs:
           k6-version: '2.2.0'
 
       - name: Run k6 soak test
-        run: k6 run --out json=tests/load/results/ci-soak.json tests/load/smoke.ts
+        run: k6 run --out json=tests/load/results/ci-soak.json tests/load/soak.ts
 
       - name: API log (on failure)
         if: failure()
