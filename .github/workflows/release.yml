@@ -202,9 +202,6 @@ jobs:
       - name: Start API
         working-directory: apps/backend
         run: |
-          echo "Shell env AUTH_JWKS_URL: [$AUTH_JWKS_URL]"
-          node -e "console.log('node process.env.AUTH_JWKS_URL:', process.env.AUTH_JWKS_URL)"
-          ls -la .env 2>&1 || echo "no .env file in apps/backend"
           nohup pnpm start > /tmp/api.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3000/api/v1/health/live >/dev/null; then
@@ -214,21 +211,12 @@ jobs:
           done
           echo "API never became healthy:"; cat /tmp/api.log; exit 1
 
-      - name: Debug - call a real authenticated endpoint
-        run: |
-          RESPONSE=$(curl -s -X POST http://localhost:8080/realms/smb-copilot/protocol/openid-connect/token \
-            -d 'grant_type=password&client_id=smb-copilot-ui&username=owner@acme-demo.local&password=changeme')
-          ACCESS_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token')
-          echo "--- GET /api/v1/dashboard/summary ---"
-          curl -s -w '\nHTTP_STATUS: %{http_code}\n' http://localhost:3000/api/v1/dashboard/summary \
-            -H "Authorization: Bearer $ACCESS_TOKEN"
-
       - uses: grafana/setup-k6-action@db07bd9765aac508ef18982e52ab937fe633a065 # v1.2.1
         with:
           k6-version: '2.2.0'
 
       - name: Run k6 soak test
-        run: k6 run --out json=tests/load/results/ci-soak.json tests/load/smoke.ts
+        run: k6 run --out json=tests/load/results/ci-soak.json tests/load/soak.ts
 
       - name: API log (on failure)
         if: failure()
