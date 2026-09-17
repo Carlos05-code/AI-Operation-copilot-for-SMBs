@@ -2,12 +2,14 @@
  * Notification delivery constants (ROADMAP Phase 3 — notifications
  * in-app, WhatsApp, email).
  *
- * WhatsApp outbound delivery is deferred: it needs a WhatsApp Business API
- * (or Twilio) integration with an approved sender and message templates,
- * none of which exist in this environment. Building a provider that can
- * never be exercised against a real API would be a stub, which the project
- * principles rule out — so only email delivery ships here; `NotificationKind`
- * keeps the `WHATSAPP` value reserved for that future provider.
+ * `NotificationKind.WHATSAPP` rows deliver via `WhatsAppProvider` (Twilio);
+ * everything else (`IN_APP`, `EMAIL`) delivers via `EmailProvider` exactly
+ * as before — additive, not a behavior change for existing callers, all of
+ * which create `IN_APP` rows today. `WhatsAppProvider` is real and Twilio
+ * Sandbox-testable without an approved production sender/templates (see
+ * `whatsapp.config.ts`); nothing creates `WHATSAPP`-kind rows yet, so the
+ * provider is wired but dormant until a caller opts a specific alert into it
+ * — the same state `EMAIL`-kind rows have been in all along.
  */
 
 /** BullMQ job name on the shared `notifications` queue. */

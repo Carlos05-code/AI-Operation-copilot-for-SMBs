@@ -911,6 +911,43 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     above ever say "dependencies initialized" — no `AuthModule`, `HealthModule`, `OpenApiModule`,
     `ChatModule`, or any other HTTP-only module appears, and `/healthz`/`/metrics` both respond
     correctly. Full backend test suite (555 tests), typecheck, and lint all pass unchanged.
+- WhatsApp outbound notification delivery via Twilio (ROADMAP Phase 3, API_SPEC §11.14) — the gap
+  `notification.constants.ts` named as deferred (no approved WhatsApp Business sender to test
+  against): Twilio's free WhatsApp Sandbox turns out to be a real, unapproved-sender-free way to
+  exercise this for real, so it's no longer a stub:
+  - `User.whatsapp` (new nullable column, migration `20260918090000_add_user_whatsapp`) — the
+    outbound recipient number; only `Customer.whatsapp` (inbound, connectors) existed before. No
+    self-service way to set it yet (no user-profile endpoint exists at all), so it's seed/DB-set
+    only for now (`prisma/seed.ts`'s `DEMO_OWNER_WHATSAPP` env var).
+  - `whatsapp.config.ts`/`whatsapp.provider.ts`: `WhatsAppProviderConfig`/`WhatsAppProvider`,
+    mirroring `email.config.ts`/`email.provider.ts` exactly — fail-soft without
+    `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_WHATSAPP_FROM`, injects an already-constructed
+    `Twilio` client via DI, adds the `whatsapp:` channel prefix Twilio's API requires on both
+    addresses.
+  - `notification.delivery.worker.ts`: now branches on `Notification.kind` — `WHATSAPP` rows send
+    via `WhatsAppProvider` to `User.whatsapp`; `IN_APP`/`EMAIL` rows keep sending via
+    `EmailProvider` to `User.email`, unchanged from before. Purely additive: every current
+    alert-creating worker (invoice-overdue, inventory-reorder, appointment-reminder,
+    purchase-recommendation, task-auto-completion, workflow-engine) still creates `IN_APP` rows, so
+    no existing delivery behavior changed. `WhatsApp`-kind delivery is real and Sandbox-tested but
+    dormant until some caller opts an alert into `NotificationKind.WHATSAPP` — deliberately left to
+    a future change, same as `EMAIL`-kind rows have always been (nothing creates those either).
+  - `notification-worker.module.ts`: `WhatsAppProvider` built the same way `EmailProvider` is — a
+    factory reading `whatsappProviderConfig()`, exported alongside it.
+  - New `WHATSAPP_UNAVAILABLE` error code (`error-contract.ts`), `twilio` SDK dependency,
+    `.env.example`/`env.validation.ts` entries for the three Twilio env vars.
+  - No delivery-status webhook yet — Twilio's own delivery/read receipts aren't consumed, so
+    `deliveredAt` reflects only "the send API call succeeded." Documented as a follow-up in API_SPEC
+    §11.14, not built here.
+  - Verified for real: full backend test suite (566 tests, +11 new — `whatsapp.config.spec.ts`,
+    `whatsapp.provider.spec.ts`, 4 new WHATSAPP-kind cases in
+    `notification.delivery.worker.spec.ts`), typecheck, lint, and the e2e suite (24/24) all pass.
+    Built the real backend and booted the compiled `dist/main.js` twice — once with Twilio env vars
+    unset (fail-soft, `NotificationsWorkerModule` still initializes, app still starts) and once with
+    fake Twilio credentials set (the `Twilio` client constructs without throwing, app still starts)
+    — confirming this environment can reach `api.twilio.com` directly (a live, unauthenticated
+    request returned a real 401, not a network error), so a real send/receive round trip against the
+    Sandbox is possible the moment real credentials are supplied.
 
 ### Changed
 

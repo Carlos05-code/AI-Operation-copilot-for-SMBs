@@ -24,9 +24,14 @@ async function main(): Promise<void> {
     },
   });
 
+  // Optional: set DEMO_OWNER_WHATSAPP to a real number joined to your own Twilio WhatsApp
+  // Sandbox (see .env.example) to exercise real WHATSAPP-kind notification delivery locally —
+  // left unset by default so no phone number is hardcoded into the repo.
+  const demoOwnerWhatsapp = process.env.DEMO_OWNER_WHATSAPP || undefined;
+
   const owner = await prisma.user.upsert({
     where: { email: 'owner@acme-demo.local' },
-    update: {},
+    update: { whatsapp: demoOwnerWhatsapp },
     create: {
       // Pinned to match this same user's `id` in realm.json — TenancyGuard keys membership
       // off the JWT `sub` claim, which is this exact id once Keycloak imports the user with it.
@@ -34,6 +39,7 @@ async function main(): Promise<void> {
       email: 'owner@acme-demo.local',
       firstName: 'Ada',
       lastName: 'Owner',
+      whatsapp: demoOwnerWhatsapp,
     },
   });
 
