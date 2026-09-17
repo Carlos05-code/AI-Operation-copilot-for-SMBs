@@ -77,26 +77,32 @@ data:
   opensearch-backup.sh: |
     #!/bin/sh
     set -eu
-    # `fs`-type repository (no `repository-s3` plugin installed) means this snapshot lands on
-    # `opensearch`'s own second PVC (`path.repo`, ../infrastructure/opensearch.yaml) — real
-    # protection against index corruption or an accidental delete, NOT against losing that
-    # PVC/node. Getting these off-cluster into object storage needs the S3 repository plugin
-    # (+ keystore credentials) registered instead — deferred, not implemented here.
+    # S3-type repository, backed by the `repository-s3` plugin + keystore
+    # ../infrastructure/opensearch.yaml's initContainers build — snapshots land in the same
+    # `smb-copilot-backups` MinIO bucket every other backup job uses, off-cluster, not on
+    # opensearch's own PVC (the old `fs`-type repo this replaced). Registering an
+    # already-registered repository is a harmless no-op, so doing it every run means a repo lost
+    # to a node restart self-heals here. `mc mb --ignore-existing` guards the (normally
+    # already-true, via ../backup/minio-versioning-job.yaml) assumption that the bucket exists —
+    # OpenSearch's S3 plugin won't create it.
+    mc alias set backupstore "$STORAGE_ENDPOINT" "$STORAGE_ACCESS_KEY" "$STORAGE_SECRET_KEY"
+    mc mb --ignore-existing "backupstore/$STORAGE_BACKUP_BUCKET"
+
     STAMP=$(date -u +%Y-%m-%dT%H-%M-%SZ)
 
-    curl -sf -X PUT http://opensearch:9200/_snapshot/fs_backup \
+    curl -sf -X PUT http://opensearch:9200/_snapshot/s3_backup \
       -H 'Content-Type: application/json' \
-      -d '{"type":"fs","settings":{"location":"/usr/share/opensearch/snapshots"}}' >/dev/null
+      -d '{"type":"s3","settings":{"bucket":"'"${STORAGE_BACKUP_BUCKET}"'","base_path":"opensearch-snapshots"}}' >/dev/null
 
-    curl -sf -X PUT "http://opensearch:9200/_snapshot/fs_backup/snapshot-${STAMP}?wait_for_completion=true" \
+    curl -sf -X PUT "http://opensearch:9200/_snapshot/s3_backup/snapshot-${STAMP}?wait_for_completion=true" \
       -H 'Content-Type: application/json' \
       -d '{"indices":"*","include_global_state":true}'
 
-    # fs repos have no built-in TTL — keep only the newest N snapshots.
-    curl -sf http://opensearch:9200/_snapshot/fs_backup/_all \
+    # S3 repos have no built-in TTL either — keep only the newest N snapshots.
+    curl -sf http://opensearch:9200/_snapshot/s3_backup/_all \
       | jq -r '.snapshots | sort_by(.start_time_in_millis) | .[:-'"${BACKUP_KEEP:-14}"'] | .[].snapshot' \
       | while read -r OLD; do
-          [ -n "$OLD" ] && curl -sf -X DELETE "http://opensearch:9200/_snapshot/fs_backup/${OLD}" >/dev/null
+          [ -n "$OLD" ] && curl -sf -X DELETE "http://opensearch:9200/_snapshot/s3_backup/${OLD}" >/dev/null
         done
 
     echo "opensearch backup complete: snapshot-${STAMP}"

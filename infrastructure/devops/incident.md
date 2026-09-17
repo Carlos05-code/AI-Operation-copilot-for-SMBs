@@ -16,15 +16,17 @@ operation on whatever it overwrites.
 | PostgreSQL | Continuous WAL archiving (`wal-g`) + daily base backup + nightly `pg_dump` (02:00 UTC) | <= 5m¹              | <= 30 min |
 | Neo4j      | Nightly APOC streaming export (02:15 UTC)                                              | <= 24h              | <= 2h     |
 | Qdrant     | Nightly per-collection snapshot (02:30 UTC)                                            | <= 24h              | <= 2h     |
-| OpenSearch | Nightly `fs`-repository snapshot (02:45 UTC)                                           | <= 24h²             | <= 2h     |
+| OpenSearch | Nightly `s3`-repository snapshot (02:45 UTC)                                           | <= 24h²             | <= 2h     |
 | MinIO      | Continuous (bucket versioning)                                                         | ~0 (object history) | minutes   |
 | Redis      | Continuous (AOF) + RDB snapshots every 60s-15m depending on load                       | <= 60s              | minutes   |
 
 ¹ Every completed WAL segment ships continuously via `archive_command` — DEVOPS_SPEC §9's RPO<=5m
 target is what that mechanism should deliver, **not yet exercised against a live cluster**; see
-"Known gaps" below before trusting it in a real incident. ² Snapshots land on OpenSearch's own
-second PVC (`fs` repository, no S3 plugin installed) — this protects against index corruption or an
-accidental delete, not against losing that PVC/node. See "Known gaps".
+"Known gaps" below before trusting it in a real incident. ² Snapshots go to the
+`smb-copilot-backups` MinIO bucket via the `repository-s3` plugin
+(`infrastructure/kubernetes/base/infrastructure/opensearch.yaml`), off-cluster like every other
+service's backup — wired up and matching OpenSearch's own documented plugin/keystore setup, but
+**not yet exercised against a live cluster**; see "Known gaps".
 
 ## Known gaps — read before relying on this in a real incident
 
@@ -35,10 +37,13 @@ accidental delete, not against losing that PVC/node. See "Known gaps".
   building this — but no live cluster was available to actually archive a WAL segment, take a base
   backup, and restore from it end-to-end. **Before depending on this for a real incident, do exactly
   that once against a disposable cluster.**
-- **OpenSearch snapshots aren't off-cluster.** They live on a PVC in the same cluster as the live
-  data. Closing this needs the `repository-s3` plugin installed (an `initContainer` in the
-  StatefulSet, mirroring how OpenSearch/Elasticsearch normally add plugins) plus S3 credentials
-  registered in the OpenSearch keystore — real, scoped work, not done here.
+- **OpenSearch's S3 snapshot repository is unverified against a live cluster.** The `repository-s3`
+  plugin (fetched by an `initContainer`, since this repo doesn't build custom OpenSearch images) and
+  an OpenSearch keystore holding the S3 credentials (built by a second `initContainer`) are wired up
+  in `infrastructure/kubernetes/base/infrastructure/opensearch.yaml`, matching OpenSearch's own
+  snapshot-restore docs — but no live cluster was available to actually install the plugin, load the
+  keystore, register the repository, take a snapshot, and restore it end-to-end. **Before depending
+  on this for a real incident, do exactly that once against a disposable cluster.**
 - **The Neo4j backup path is unverified against a live cluster.**
   `apoc.export.cypher.all(..., {stream: true})` returning the dump over Bolt to the backup job
   (rather than writing server-side, which the job's separate pod could never read back out) is the
@@ -155,14 +160,15 @@ kubectl exec -n smb-copilot qdrant-0 -- curl -sf "http://localhost:6333/collecti
 ### OpenSearch
 
 ```sh
-# Snapshots already live on OpenSearch's own PVC (see "Known gaps") -- list what exists:
+# Snapshots live in the smb-copilot-backups MinIO bucket via the s3_backup repository (see
+# "Known gaps") -- list what exists:
 kubectl exec -n smb-copilot opensearch-0 -- \
-  curl -sf http://localhost:9200/_snapshot/fs_backup/_all
+  curl -sf http://localhost:9200/_snapshot/s3_backup/_all
 
 # Restore (OpenSearch refuses to restore an index that already exists -- close or delete it first
 # if this is a point-in-time rollback rather than a fresh cluster).
 kubectl exec -n smb-copilot opensearch-0 -- curl -sf -X POST \
-  "http://localhost:9200/_snapshot/fs_backup/snapshot-<STAMP>/_restore" \
+  "http://localhost:9200/_snapshot/s3_backup/snapshot-<STAMP>/_restore" \
   -H 'Content-Type: application/json' -d '{"indices":"*","include_global_state":true}'
 
 # Validate

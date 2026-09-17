@@ -118,10 +118,12 @@ Pr release: all check workflows must be green; PR must pass `Definition of Done`
 > Status: shipped for 6 of 6 resources — nightly CronJobs (`infrastructure/kubernetes/base/backup/`)
 > for PostgreSQL (`pg_dump`), Neo4j (APOC streaming export — unverified against a live cluster, see
 > `infrastructure/devops/incident.md`'s "Known gaps"), Qdrant (per-collection snapshot), OpenSearch
-> (snapshot, in-cluster only — no S3 repository plugin), and MinIO (bucket versioning, a one-time
-> Job). Redis relies on AOF + scheduled RDB already configured on its StatefulSet — no separate
-> off-box backup job, since it holds no data this app treats as a system of record. PostgreSQL also
-> gets continuous WAL archiving + a daily base backup via `wal-g`
+> (S3-repository snapshot via the `repository-s3` plugin, off-cluster in the same
+> `smb-copilot-backups` MinIO bucket every other backup uses — wired up and matching OpenSearch's
+> own documented plugin/keystore setup, but **not yet exercised against a live cluster**), and MinIO
+> (bucket versioning, a one-time Job). Redis relies on AOF + scheduled RDB already configured on its
+> StatefulSet — no separate off-box backup job, since it holds no data this app treats as a system
+> of record. PostgreSQL also gets continuous WAL archiving + a daily base backup via `wal-g`
 > (`infrastructure/kubernetes/base/infrastructure/postgres.yaml`), giving it real point-in-time
 > recovery instead of "since the last nightly dump" — wired up and matching wal-g's documented env
 > vars/commands, but **not yet exercised against a live cluster** (no cluster was available while

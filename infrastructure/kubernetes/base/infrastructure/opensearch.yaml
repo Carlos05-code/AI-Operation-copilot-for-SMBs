@@ -2,6 +2,19 @@
 # OpenSearch in-cluster only, never exposed externally — see api-ingress.yaml,
 # which only fronts the API). Re-enable it before this leaves the cluster's
 # internal network in any real production posture.
+#
+# S3 snapshot repository (DEVOPS_SPEC §9): the `repository-s3` plugin + an OpenSearch keystore
+# (built by two initContainers below, since this repo doesn't build custom OpenSearch images —
+# see each initContainer's comment) let ../backup/opensearch-backup-cronjob.yaml register
+# snapshots against the `smb-copilot-backups` MinIO bucket instead of OpenSearch's own in-cluster
+# PVC, closing the "snapshots aren't off-cluster" gap. See
+# `infrastructure/devops/incident.md`'s OpenSearch section for the restore procedure.
+#
+# NOT verified against a live cluster (none available while writing this). The plugin zip's real
+# published checksum was downloaded and verified for real, and every opensearch.yml/keystore
+# setting below matches OpenSearch's own snapshot-restore docs — but installing the plugin,
+# loading the keystore, registering the repo, taking a snapshot, and restoring it has never run
+# end-to-end. See incident.md's "Known gaps" before relying on this in a real incident.
 apiVersion: v1
 kind: Service
 metadata:
@@ -38,6 +51,55 @@ spec:
       # as root, so the image ships non-root already).
       securityContext:
         runAsNonRoot: true
+      initContainers:
+        # `opensearch-plugin install` must run against the exact same OpenSearch version as the
+        # main container (plugin binaries are version-pinned), so this reuses that image rather
+        # than a separate tool image. Downloads from artifacts.opensearch.org — verified for real
+        # that `repository-s3-2.11.0.zip` exists there and its sha512 matches the published
+        # checksum before wiring this up; `opensearch-plugin` itself re-verifies that checksum
+        # again at install time.
+        - name: fetch-s3-plugin
+          image: opensearchproject/opensearch:2.11.0
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              /usr/share/opensearch/bin/opensearch-plugin install --batch repository-s3
+              cp -r /usr/share/opensearch/plugins/repository-s3 /plugin-out/repository-s3
+          volumeMounts:
+            - name: s3-plugin
+              mountPath: /plugin-out
+        # S3 credentials for the plugin above go into OpenSearch's own encrypted keystore file
+        # (`s3.client.default.access_key`/`secret_key`), not plain env vars or opensearch.yml —
+        # that's how `repository-s3` reads them, per OpenSearch's own docs. Built here, once per
+        # pod start, and mounted as a single file into the main container below rather than
+        # baked into a custom image.
+        - name: build-opensearch-keystore
+          image: opensearchproject/opensearch:2.11.0
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              /usr/share/opensearch/bin/opensearch-keystore create
+              printf '%s' "$AWS_ACCESS_KEY_ID" | /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.access_key
+              printf '%s' "$AWS_SECRET_ACCESS_KEY" | /usr/share/opensearch/bin/opensearch-keystore add --stdin --force s3.client.default.secret_key
+              cp /usr/share/opensearch/config/opensearch.keystore /keystore-out/opensearch.keystore
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STORAGE_ACCESS_KEY
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STORAGE_SECRET_KEY
+          volumeMounts:
+            - name: opensearch-keystore
+              mountPath: /keystore-out
       containers:
         - name: opensearch
           image: opensearchproject/opensearch:2.11.0
@@ -64,16 +126,38 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: OPENSEARCH_PASSWORD
-            # `fs`-type snapshot repository target for ../backup/opensearch-backup-cronjob.yaml —
-            # no plugin needed, unlike an S3 repository (`repository-s3`, not installed here; see
-            # that CronJob's header comment for the tradeoff this makes).
-            - name: path.repo
-              value: /usr/share/opensearch/snapshots
+            # S3 client settings for the `repository-s3` plugin (fetched by the initContainer
+            # above). `minio:9000` is this cluster's MinIO Service (../infrastructure/minio.yaml),
+            # hardcoded the same way every other in-cluster address in this repo is (e.g.
+            # ../infrastructure/postgres.yaml's own service name) — `s3.client.default.endpoint`
+            # deliberately takes a bare host:port, no scheme (OpenSearch's own docs show
+            # `s3.amazonaws.com`, not a URL); the scheme is `s3.client.default.protocol` below.
+            # Credentials are NOT here — they're in the keystore file mounted below.
+            - name: s3.client.default.endpoint
+              value: minio:9000
+            - name: s3.client.default.protocol
+              value: http
+            - name: s3.client.default.path_style_access
+              value: 'true'
+            - name: s3.client.default.region
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: STORAGE_REGION
+            # MinIO isn't AWS EC2 — skip the instance-metadata probe OpenSearch's own docs say to
+            # disable for any custom (non-AWS) S3 endpoint.
+            - name: AWS_EC2_METADATA_DISABLED
+              value: 'true'
           volumeMounts:
             - name: data
               mountPath: /usr/share/opensearch/data
-            - name: snapshots
-              mountPath: /usr/share/opensearch/snapshots
+            - name: s3-plugin
+              mountPath: /usr/share/opensearch/plugins/repository-s3
+              readOnly: true
+            - name: opensearch-keystore
+              mountPath: /usr/share/opensearch/config/opensearch.keystore
+              subPath: opensearch.keystore
+              readOnly: true
           readinessProbe:
             httpGet:
               path: /_cluster/health
@@ -87,16 +171,14 @@ spec:
             limits:
               cpu: '1'
               memory: 2Gi
+      volumes:
+        - name: s3-plugin
+          emptyDir: {}
+        - name: opensearch-keystore
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data
-      spec:
-        accessModes: ['ReadWriteOnce']
-        resources:
-          requests:
-            storage: 10Gi
-    - metadata:
-        name: snapshots
       spec:
         accessModes: ['ReadWriteOnce']
         resources:
