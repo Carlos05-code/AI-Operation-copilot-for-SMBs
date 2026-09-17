@@ -106,7 +106,14 @@ jobs:
           KEYCLOAK_ADMIN: admin
           KEYCLOAK_ADMIN_PASSWORD: changeme
           KC_DB: postgres
-          KC_DB_URL: jdbc:postgresql://postgres:5432/smb_copilot
+          # Keycloak's own service container starts immediately alongside every other service,
+          # racing `prisma migrate deploy` below — pointing it at the same `smb_copilot` database
+          # (which `docker-compose.yml` does) let Keycloak's own schema land there first and made
+          # `migrate deploy` fail with P3005 ("schema is not empty") on the first real run of this
+          # workflow. Postgres's own always-present `postgres` database keeps Keycloak's tables
+          # out of the app's schema entirely, sidestepping the race rather than trying to order
+          # around it.
+          KC_DB_URL: jdbc:postgresql://postgres:5432/postgres
           KC_DB_USERNAME: admin
           KC_DB_PASSWORD: changeme
           KC_HTTP_PORT: 8080
