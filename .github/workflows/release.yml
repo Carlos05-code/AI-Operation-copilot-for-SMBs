@@ -185,9 +185,14 @@ jobs:
             echo "Failed to get admin token. Response: $TOKEN_RESPONSE"
             exit 1
           fi
+          # `-H "Expect:"` disables curl's automatic `Expect: 100-continue` for a body this size —
+          # Keycloak's Quarkus/Undertow HTTP layer doesn't answer that handshake for this endpoint
+          # and fails the read entirely ("unable to read contents from stream", confirmed by
+          # printing the real response body once before adding this).
           HTTP_CODE=$(curl -s -o /tmp/import-response.json -w '%{http_code}' -X POST http://localhost:8080/admin/realms \
             -H "Authorization: Bearer $TOKEN" \
             -H 'Content-Type: application/json' \
+            -H 'Expect:' \
             --data-binary @infrastructure/kubernetes/base/keycloak/realm.json)
           if [ "$HTTP_CODE" -ge 300 ]; then
             echo "Realm import failed with HTTP $HTTP_CODE. Response:"
