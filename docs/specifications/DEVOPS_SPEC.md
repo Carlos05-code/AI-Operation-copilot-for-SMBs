@@ -22,12 +22,19 @@ backups, and recovery as core elements.
 > `worker` (`apps/backend/src/main-worker.ts`) runs `WorkerAppModule`, not `AppModule`, with no HTTP
 > adapter — every `@Processor` registers there too, as additional capacity alongside `api`'s own
 > in-process processing, not a replacement for it (BullMQ consumers on one queue name are safe to
-> run concurrently). A fully clean split: every feature module that used to bundle a controller and
-> its workers together is now an HTTP half (imported by `app.module.ts`) and a worker half (imported
-> by `worker-app.module.ts`), so no `@Controller` class is reachable from the worker process's
-> module tree at all — verified by running the compiled worker directly and checking its own boot
-> log names only worker modules and shared infra, never `AuthModule`/`HealthModule`/any HTTP-only
-> feature module. One remaining gap vs. the target below: the in-cluster StatefulSets for
+> run concurrently). A clean split, in one direction only: every feature module that used to bundle
+> a controller and its workers together is now an HTTP half and a worker half, but `app.module.ts`
+> (`api`) imports **both** halves of every split module — `worker-app.module.ts` (`worker`) is the
+> one that imports **only** the worker halves, so no `@Controller` class is reachable from the
+> worker process's module tree at all. (A prior version of this split had `app.module.ts` import
+> only the HTTP halves, which silently dropped `api`'s in-process job processing to zero for all ten
+> split queues in any environment that doesn't also run `worker` — true of local dev, which only
+> ever boots `main.ts`; fixed, and guarded by an e2e test that resolves every worker provider
+> straight out of `AppModule`.) Verified by running both compiled entrypoints directly: `api`'s own
+> boot log now shows all ten `*WorkerModule`s initializing alongside its HTTP modules, and `worker`'s
+> own boot log still names only worker modules and shared infra, never
+> `AuthModule`/`HealthModule`/any HTTP-only feature module. One remaining gap vs. the target below:
+> the in-cluster StatefulSets for
 > Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ are a staging convenience, not HA-backed
 > production infrastructure (see `infrastructure/kubernetes/overlays/production/README.md`). RBAC
 > here is minimal (a `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no
