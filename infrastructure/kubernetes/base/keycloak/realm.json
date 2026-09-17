@@ -44,7 +44,19 @@
       "redirectUris": ["http://localhost/*"],
       "webOrigins": ["http://localhost:*"],
       "defaultClientScopes": ["openid", "profile", "email"],
-      "optionalClientScopes": ["offline_access"]
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "audience-smb-copilot-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "smb-copilot-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "clientId": "smb-copilot-api",
