@@ -730,6 +730,37 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     HTTP-only/worker-only module restructuring would be. That's materially larger,
     BACKEND_SPEC-level work, named explicitly in `main-worker.ts`'s own header comment rather than
     silently presented as done.
+- PostgreSQL WAL archiving + PITR (ROADMAP Phase 5, DEVOPS_SPEC §9) — closes the biggest remaining
+  backup/DR gap: real RPO was "since the last nightly `pg_dump`," not the 5-minute target
+  DEVOPS_SPEC §9 already documented:
+  - `infrastructure/kubernetes/base/infrastructure/postgres.yaml`: a new `fetch-walg` initContainer
+    downloads a pinned, checksum-verified `wal-g` v3.0.9 binary (Ubuntu 22.04 build — `wal-g` ships
+    no Alpine/musl build, verified by downloading the real binary and inspecting it with
+    `objdump -T`: its highest required symbol is `GLIBC_2.34`) into a shared `emptyDir`. Switched
+    both the `postgres` container and `docker-compose.yml`'s `postgres` service from
+    `postgres:16-alpine` to `postgres:16.15-bookworm` (glibc-based; verified via the Docker Hub
+    registry API that this tag also has no `USER` directive, matching the existing `run-as-non-root`
+    nosemgrep suppression) so the fetched binary can actually run. The `postgres` container now sets
+    `wal_level=replica`, `archive_mode=on`, and `archive_command=/walg-bin/wal-g wal-push %p`,
+    continuously shipping every completed WAL segment to the `smb-copilot-backups` MinIO bucket. A
+    new `wal-backup` sidecar container in the same pod runs `wal-g backup-push` once a day — a
+    separate CronJob couldn't do this, since the StatefulSet's PVC is `ReadWriteOnce` and can't be
+    mounted by a second pod. The nightly `pg_dump` CronJob is unchanged and still ships, as a
+    logical, portable, independent-of-wal-g backup.
+  - `infrastructure/devops/incident.md`: PostgreSQL's RTO/RPO row now reads RPO <= 5m (was <= 24h);
+    added a "Point-in-time recovery" procedure (`wal-g backup-list`/`wal-show`, wipe `$PGDATA`,
+    `backup-fetch`, then a `recovery.signal` + `restore_command` + `recovery_target_time` config
+    driving PostgreSQL's own recovery mode) alongside the existing logical `pg_restore` path. The
+    tricky nested shell-quoting in that procedure (a single-quoted heredoc value inside an outer
+    single-quoted `sh -c '...'`) was executed for real, twice, to confirm it produces the intended
+    `postgresql.auto.conf` before it shipped in the doc.
+  - Documented, not faked: no Docker or live Kubernetes cluster was available while building this,
+    so the mechanism is verified against `wal-g`'s own documented env vars and commands
+    (`docs/PostgreSQL.md`, `docs/STORAGES.md`) and real `kustomize build` output, but never
+    exercised end-to-end — no WAL segment has actually been archived, no base backup taken, and no
+    restore performed. `incident.md`'s "Known gaps" section says so explicitly, and names the
+    concrete next step: do exactly that once, against a disposable cluster, before relying on it in
+    a real incident.
 
 ### Changed
 

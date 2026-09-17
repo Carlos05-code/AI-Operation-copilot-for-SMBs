@@ -1,6 +1,19 @@
 # Single-replica, in-cluster Postgres — matches docker-compose's `postgres`
 # service and image tag. Fine for staging; the production overlay documents
 # swapping this for a managed database (see overlays/production/README.md).
+#
+# WAL archiving + PITR (DEVOPS_SPEC §9): `wal-g` pushes every completed WAL segment to the
+# `smb-copilot-backups` MinIO bucket via `archive_command`, and a sidecar takes a fresh base
+# backup daily — together giving point-in-time recovery, not just "since the last nightly
+# `pg_dump`" (still shipped, `../backup/postgres-backup-cronjob.yaml` — a logical dump is still
+# useful for portability/schema-level recovery independent of wal-g). See
+# `infrastructure/devops/incident.md`'s PostgreSQL section for the restore procedure.
+#
+# NOT verified against a live cluster (none available while writing this) — verified against
+# wal-g's own documented env vars/commands (docs/STORAGES.md, docs/PostgreSQL.md), not exercised
+# end-to-end. Before relying on this, actually restore from a base backup + WAL segments once
+# against a disposable cluster and confirm the recovered data matches (same caveat this repo's
+# other unverified backup paths carry — see incident.md's "Known gaps").
 apiVersion: v1
 kind: Service
 metadata:
@@ -29,20 +42,59 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: postgres
-    # `postgres:16-alpine` has no `USER` directive (verified against its published image
+    # `postgres:16.15-bookworm` has no `USER` directive (verified against its published image
     # config, not assumed) — it starts as root so `docker-entrypoint.sh` can `chown` a
     # freshly provisioned data volume, then execs as `postgres` itself. Forcing
     # `runAsNonRoot: true` here would make the kubelet refuse to start the container
     # before that entrypoint ever runs.
     # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
     spec:
+      # `wal-g` ships no Alpine/musl build (verified: only Ubuntu 20.04/22.04/24.04 glibc builds
+      # are published) — switched the base image from `postgres:16-alpine` to the Debian
+      # ("bookworm") variant for this reason, in both containers below.
+      initContainers:
+        - name: fetch-walg
+          image: alpine:3.24.1
+          # Pinned to v3.0.9's Ubuntu-22.04 build — downloaded and inspected for real before
+          # pinning this: `objdump -T` on the actual binary shows GLIBC_2.34 as its highest
+          # required symbol version, and Debian bookworm (this StatefulSet's postgres image)
+          # ships glibc 2.36 — newer, which is the direction glibc's compatibility promise
+          # actually runs (a binary needing a newer glibc than the host has will not run; this
+          # is the opposite, verified safe). Real sha256 pinned below too, not just the tag.
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              apk add --no-cache curl >/dev/null
+              cd /tmp
+              curl -sSL -o walg.tar.gz \
+                https://github.com/wal-g/wal-g/releases/download/v3.0.9/wal-g-pg-22.04-amd64.tar.gz
+              echo "4f03ee4679db7f660bfd1b2b8291ac5df247cd2ec48074b60c112f4897299f24  walg.tar.gz" | sha256sum -c -
+              tar -xzf walg.tar.gz
+              mv wal-g-pg-22.04-amd64 /walg-bin/wal-g
+              chmod +x /walg-bin/wal-g
+          volumeMounts:
+            - name: walg-bin
+              mountPath: /walg-bin
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: postgres:16.15-bookworm
+          # `%p` is postgres's own placeholder (substituted with the WAL file's path) — not a
+          # secret, not shell-expanded here since this is exec-form (no shell involved), safe as
+          # a literal in this YAML string.
+          command:
+            - postgres
+            - -c
+            - wal_level=replica
+            - -c
+            - archive_mode=on
+            - -c
+            - archive_command=/walg-bin/wal-g wal-push %p
           ports:
             - name: postgres
               containerPort: 5432
-          env:
+          env: &walg-env
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
@@ -58,6 +110,32 @@ spec:
                 secretKeyRef:
                   name: api-secret
                   key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data
+            - name: WALG_S3_PREFIX
+              value: s3://smb-copilot-backups/postgres-wal
+            - name: AWS_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: STORAGE_ENDPOINT
+            - name: AWS_S3_FORCE_PATH_STYLE
+              value: 'true'
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: api-config
+                  key: STORAGE_REGION
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STORAGE_ACCESS_KEY
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-secret
+                  key: STORAGE_SECRET_KEY
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -65,6 +143,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: walg-bin
+              mountPath: /walg-bin
+              readOnly: true
           readinessProbe:
             exec:
               command: ['pg_isready', '-U', '$(POSTGRES_USER)']
@@ -77,6 +158,49 @@ spec:
             limits:
               cpu: '1'
               memory: 1Gi
+        # Daily base backup (`wal-g backup-push`) — runs in this pod, not a separate CronJob,
+        # because it needs the live $PGDATA files and this StatefulSet's PVC is ReadWriteOnce
+        # (a second pod could never also mount it). Sleeps 24h between runs rather than aligning
+        # to a wall-clock schedule like the other backup CronJobs — simpler, at the cost of
+        # drifting on pod restart; acceptable for a supplement to continuous WAL archiving, which
+        # doesn't have that gap.
+        - name: wal-backup
+          image: postgres:16.15-bookworm
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              export PGHOST=localhost
+              export PGUSER="$POSTGRES_USER"
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              export PGDATABASE="$POSTGRES_DB"
+              while true; do
+                sleep 86400
+                /walg-bin/wal-g backup-push "$PGDATA" || echo "wal-g backup-push failed: $?"
+              done
+          env: *walg-env
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ['ALL']
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              readOnly: true
+            - name: walg-bin
+              mountPath: /walg-bin
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: walg-bin
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data

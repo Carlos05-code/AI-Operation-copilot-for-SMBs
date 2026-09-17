@@ -109,10 +109,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
   Keycloak auth, SLO-matching thresholds; not yet wired into CI (no existing workflow boots the full
   stack to run against, see `tests/load/README.md`)
 - [~] Backup and disaster-recovery runbooks — nightly CronJobs for 5 of 6 stateful services
-  (`infrastructure/kubernetes/base/backup/`) + restore runbook
-  (`infrastructure/devops/incident.md`). Gaps: no PostgreSQL WAL archiving/PITR, OpenSearch
-  snapshots aren't off-cluster, Neo4j's export path is unverified against a live cluster, and no
-  restore has been drilled end-to-end
+  (`infrastructure/kubernetes/base/backup/`) + PostgreSQL WAL archiving/PITR via `wal-g`
+  (`infrastructure/kubernetes/base/infrastructure/postgres.yaml`) + restore runbook, including a
+  PITR procedure (`infrastructure/devops/incident.md`). Gaps: OpenSearch snapshots aren't
+  off-cluster, Neo4j's export path is unverified against a live cluster, and no restore (including
+  the new PITR path) has been drilled end-to-end against a live cluster
 - [~] Large-document-volume benchmarks (200 k+ documents) — corpus generator + bulk-ingest harness +
   report tooling shipped (`tests/benchmarks/large-corpus/`), verified end-to-end against a mock
   server; no live cluster available to actually run the 200k benchmark and record real numbers, so

@@ -3,8 +3,13 @@
 
 name: smb-copilot
 
+# Debian ("bookworm"), not Alpine — matches
+# infrastructure/kubernetes/base/infrastructure/postgres.yaml, which needs a glibc base for
+# wal-g (no musl/Alpine build exists). Local dev doesn't run wal-g at all (no WAL archiving
+# here, just the plain database), but keeping the same base image avoids two different
+# behaviors for what's meant to be "the same Postgres" across environments.
 x-postgres: &postgres
-  image: postgres:16-alpine
+  image: postgres:16.15-bookworm
 
 services:
   postgres:
