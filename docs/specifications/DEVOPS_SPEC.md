@@ -31,15 +31,15 @@ backups, and recovery as core elements.
 > split queues in any environment that doesn't also run `worker` — true of local dev, which only
 > ever boots `main.ts`; fixed, and guarded by an e2e test that resolves every worker provider
 > straight out of `AppModule`.) Verified by running both compiled entrypoints directly: `api`'s own
-> boot log now shows all ten `*WorkerModule`s initializing alongside its HTTP modules, and `worker`'s
-> own boot log still names only worker modules and shared infra, never
+> boot log now shows all ten `*WorkerModule`s initializing alongside its HTTP modules, and
+> `worker`'s own boot log still names only worker modules and shared infra, never
 > `AuthModule`/`HealthModule`/any HTTP-only feature module. One remaining gap vs. the target below:
-> the in-cluster StatefulSets for
-> Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ are a staging convenience, not HA-backed
-> production infrastructure (see `infrastructure/kubernetes/overlays/production/README.md`). RBAC
-> here is minimal (a `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no
-> in-cluster API access needed) rather than a fuller namespace-scoped Role/RoleBinding, since the
-> app doesn't talk to the Kubernetes API.
+> the in-cluster StatefulSets for Postgres/Neo4j/Qdrant/OpenSearch/ MinIO/RabbitMQ are a staging
+> convenience, not HA-backed production infrastructure (see
+> `infrastructure/kubernetes/overlays/production/README.md`). RBAC here is minimal (a
+> `ServiceAccount` per Deployment with `automountServiceAccountToken: false`, no in-cluster API
+> access needed) rather than a fuller namespace-scoped Role/RoleBinding, since the app doesn't talk
+> to the Kubernetes API.
 
 - Manifest dir `infrastructure/kubernetes/`.
 - App deployable as modular monolith + workers (HPA).

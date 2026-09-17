@@ -960,18 +960,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   indexing, task planning/auto-completion, workflow engine, conversation embedding/summary),
   contradicting `infrastructure/kubernetes/README.md`'s own claim, in the same PR, that `worker` is
   "additional capacity... doesn't replace api's own processing." Local dev was hit hardest: `start`/
-  `start:dev` only ever boot `main.ts`, and no compose service or script also runs
-  `main-worker.ts`, so every one of these ten job families silently processed zero jobs. Found by a
-  `/code-review` pass tracing the actual module-import graph rather than trusting the diff.
-  Restored by importing every `*-worker.module.ts` into `app.module.ts` alongside its HTTP-half
-  sibling, so `api` keeps doing in-process processing exactly as documented, while
-  `worker-app.module.ts` remains the one importing worker halves only. No test caught this — the
-  e2e suite only ever asserted on HTTP routes — so added one that resolves all thirteen worker
-  provider classes straight out of `AppModule` (`test/app.e2e-spec.ts`); confirmed it fails against
-  the pre-fix module graph before confirming it passes against the fix. Re-verified live: built and
-  ran the compiled `dist/main.js` directly and confirmed via its own boot log that all ten
-  `*WorkerModule`s now initialize; re-ran `dist/main-worker.js` too and confirmed its boot log is
-  unchanged (still only worker modules and shared infra, no `@Controller`).
+  `start:dev` only ever boot `main.ts`, and no compose service or script also runs `main-worker.ts`,
+  so every one of these ten job families silently processed zero jobs. Found by a `/code-review`
+  pass tracing the actual module-import graph rather than trusting the diff. Restored by importing
+  every `*-worker.module.ts` into `app.module.ts` alongside its HTTP-half sibling, so `api` keeps
+  doing in-process processing exactly as documented, while `worker-app.module.ts` remains the one
+  importing worker halves only. No test caught this — the e2e suite only ever asserted on HTTP
+  routes — so added one that resolves all thirteen worker provider classes straight out of
+  `AppModule` (`test/app.e2e-spec.ts`); confirmed it fails against the pre-fix module graph before
+  confirming it passes against the fix. Re-verified live: built and ran the compiled `dist/main.js`
+  directly and confirmed via its own boot log that all ten `*WorkerModule`s now initialize; re-ran
+  `dist/main-worker.js` too and confirmed its boot log is unchanged (still only worker modules and
+  shared infra, no `@Controller`).
 
 ## [0.1.0] - 2026-08-02
 
